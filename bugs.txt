@@ -1,0 +1,25 @@
+Remain Task:
+
+1 : Client Add, Task, Reports, Configuration (CRUD) Client type
+2 : Move to client action in the list of lead
+
+3: Calendar
+- Pages Lead tasks and Client Tasks are not working.(SHOWING THE CALENDAR WHAT IS THE FUCNTINALITY HERE)
+
+ISSUES / DISCUSSION:
+1 : Lead Reports is a list of data, Didn't found any DB in this workbantch.❌
+
+DONE:✅
+2 : Lead Configuration, this tab have 4 tabs (CRUD) LEAD STATUS, LEAD SOURCE, LEAD SOURCE DETAILS, RATING .✅
+
+4 : Knowledge Center
+- View Button under Training Courses pageis not working.✅
+- Lessons and Comments pages are not working (THIS OPTIONS ARE NOT SHOWING IN THE ORIGINAL WEBSITE).✅
+5: Calendar
+- Misspelled Calendar Module ✅
+6: Support
+- Pages 'Add/View Ticket' and 'Configuration' are not working.✅
+User Management
+- 'View' and 'Edit' Buttons are not working under Add/View Users, Add/View Roles, Add/View Permissions, and Add/View Modules.✅
+
+

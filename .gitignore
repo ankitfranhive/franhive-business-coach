@@ -1,0 +1,5 @@
+/vendor
+application/config/database.php
+application/config/secrets.php
+application/logs/*
+.DS_Store
