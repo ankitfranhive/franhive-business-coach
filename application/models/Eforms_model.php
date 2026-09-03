@@ -371,7 +371,82 @@ class Eforms_model extends CI_Model {
             ->result_array();
     }
 
-    
+    // ---------- Thank You page templates ----------
+    private function thank_you_templates_table_ready() {
+        static $ready = null;
+        if ($ready === null) {
+            $ready = $this->db->table_exists('ef_thank_you_page_templates');
+        }
+        return (bool)$ready;
+    }
+
+    // Lightweight list for admin + send-form dropdowns (no body_html).
+    public function get_thank_you_page_templates($active_only = false) {
+        if (!$this->thank_you_templates_table_ready()) {
+            return [];
+        }
+        $this->db->select('id, title, is_active, created_at, updated_at');
+        $this->db->from('ef_thank_you_page_templates');
+        if ($active_only) {
+            $this->db->where('is_active', 1);
+        }
+        $this->db->order_by('title', 'ASC');
+        return $this->db->get()->result_array();
+    }
+
+    public function get_thank_you_page_template($id, $active_only = false) {
+        $id = (int)$id;
+        if ($id <= 0 || !$this->thank_you_templates_table_ready()) {
+            return null;
+        }
+        $this->db->from('ef_thank_you_page_templates');
+        $this->db->where('id', $id);
+        if ($active_only) {
+            $this->db->where('is_active', 1);
+        }
+        return $this->db->get()->row_array();
+    }
+
+    public function insert_thank_you_page_template(array $data) {
+        if (!$this->thank_you_templates_table_ready()) {
+            return 0;
+        }
+        $now = date('Y-m-d H:i:s');
+        $row = [
+            'title'      => (string)($data['title'] ?? ''),
+            'body_html'  => (string)($data['body_html'] ?? ''),
+            'is_active'  => isset($data['is_active']) ? (int)(bool)$data['is_active'] : 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        $this->db->insert('ef_thank_you_page_templates', $row);
+        return (int)$this->db->insert_id();
+    }
+
+    public function update_thank_you_page_template($id, array $data) {
+        $id = (int)$id;
+        if ($id <= 0 || !$this->thank_you_templates_table_ready()) {
+            return false;
+        }
+        $row = [
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+        if (array_key_exists('title', $data)) {
+            $row['title'] = (string)$data['title'];
+        }
+        if (array_key_exists('body_html', $data)) {
+            $row['body_html'] = (string)$data['body_html'];
+        }
+        if (array_key_exists('is_active', $data)) {
+            $row['is_active'] = (int)(bool)$data['is_active'];
+        }
+        $this->db->where('id', $id)->update('ef_thank_you_page_templates', $row);
+        return $this->db->affected_rows() >= 0;
+    }
+
+    public function soft_delete_thank_you_page_template($id) {
+        return $this->update_thank_you_page_template($id, ['is_active' => 0]);
+    }
 }
 
 

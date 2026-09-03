@@ -50,11 +50,10 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |		my-controller/my-method	-> my_controller/my_method
 */
 
-$host = explode(':', $_SERVER['HTTP_HOST'] ?? 'localhost')[0];
-$subdomain = explode('.', $host)[0];
-if (in_array($host, ['localhost', '127.0.0.1'], true) || in_array($subdomain, ['localhost', '127'], true)) {
-    $subdomain = 'eyd';
-}
+$subdomain = explode('.', $_SERVER['HTTP_HOST'])[0];
+
+// Default route
+$subdomain = explode('.', $_SERVER['HTTP_HOST'])[0];
 
 switch ($subdomain) {
     case 'demo':
@@ -408,6 +407,13 @@ $route['admin_eforms/template_delete/(:num)'] = 'AdminEforms/template_delete/$1'
 $route['admin_eforms/submissions'] = 'AdminEforms/submissions';
 $route['admin_eforms/submission_view/(:num)'] = 'AdminEforms/submission_view/$1';
 $route['admin_eforms/download_pdf/(:num)'] = 'AdminEforms/download_pdf/$1';
+
+$route['admin_eforms/thank_you_templates']              = 'AdminEforms/thank_you_templates';
+$route['admin_eforms/thank_you_template_create']        = 'AdminEforms/thank_you_template_create';
+$route['admin_eforms/thank_you_template_store']         = 'AdminEforms/thank_you_template_store';
+$route['admin_eforms/thank_you_template_edit/(:num)']   = 'AdminEforms/thank_you_template_edit/$1';
+$route['admin_eforms/thank_you_template_update/(:num)'] = 'AdminEforms/thank_you_template_update/$1';
+$route['admin_eforms/thank_you_template_delete/(:num)'] = 'AdminEforms/thank_you_template_delete/$1';
 
 
 $route['admin_media/images']        = 'AdminMedia/images';

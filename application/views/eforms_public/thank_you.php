@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Thank you for registering | Empower Your Destiny</title>
+  <title><?php
+    if (!empty($thank_you_template['title'])) {
+      echo html_escape($thank_you_template['title']) . ' | Empower Your Destiny';
+    } else {
+      echo 'Thank you for registering | Empower Your Destiny';
+    }
+  ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -321,6 +327,31 @@
       font-size: 12px;
     }
 
+    .custom-thank-you {
+      text-align: left;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #3a3f44;
+      opacity: 0;
+      animation: fade-up 0.65s ease 0.25s forwards;
+    }
+
+    .custom-thank-you h1,
+    .custom-thank-you h2,
+    .custom-thank-you h3 {
+      font-family: "Fraunces", Georgia, serif;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      margin: 0 0 0.6em;
+    }
+
+    .custom-thank-you p { margin: 0 0 0.9em; }
+    .custom-thank-you img { max-width: 100%; height: auto; }
+    .custom-thank-you a { color: var(--zoom-dark); }
+    .custom-thank-you ul,
+    .custom-thank-you ol { margin: 0 0 1em; padding-left: 1.25em; }
+
     @keyframes rise-in {
       to { opacity: 1; transform: translateY(0); }
     }
@@ -358,7 +389,7 @@
         transition: none !important;
       }
       .panel { opacity: 1; transform: none; }
-      h1, .lead, .copy, .cta-block { opacity: 1; }
+      h1, .lead, .copy, .cta-block, .custom-thank-you { opacity: 1; }
     }
   </style>
 </head>
@@ -375,6 +406,18 @@
     <article class="panel" role="status" aria-live="polite">
       <div class="accent" aria-hidden="true"></div>
       <div class="panel-body">
+        <?php
+          $custom_thank_you_html = '';
+          if (!empty($thank_you_template) && is_array($thank_you_template)) {
+            $custom_thank_you_html = trim((string)($thank_you_template['body_html'] ?? ''));
+          }
+        ?>
+
+        <?php if ($custom_thank_you_html !== ''): ?>
+          <div class="custom-thank-you">
+            <?= $custom_thank_you_html ?>
+          </div>
+        <?php else: ?>
         <div class="icon-wrap" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 6L9 17l-5-5"/>
@@ -432,6 +475,7 @@
             </div>
           </div>
         </div>
+        <?php endif; ?>
       </div>
     </article>
   </main>

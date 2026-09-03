@@ -177,6 +177,11 @@ if (!empty($signature_path)) {
     </tbody>
   </table>
 
+  <?php
+    // Client email PDF should omit Audit (Proof). Admin downloads can pass include_audit=true.
+    $include_audit = !empty($include_audit);
+  ?>
+  <?php if ($include_audit): ?>
   <h2>Audit (Proof)</h2>
   <table>
     <tbody>
@@ -194,6 +199,7 @@ if (!empty($signature_path)) {
       </tr>
     </tbody>
   </table>
+  <?php endif; ?>
 
   <h2>Filled Values</h2>
   <table>

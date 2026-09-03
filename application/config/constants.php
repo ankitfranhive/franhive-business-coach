@@ -91,18 +91,17 @@ defined('UNSUBSCRIBE_LINK')  OR define('UNSUBSCRIBE_LINK', 'https://www.franhive
 
 defined('EMAIL_FROM')  OR define('EMAIL_FROM', 'EYD TEAM');
 
-// Stripe / CloudTalk secrets live in application/config/secrets.php (not committed).
+// Real key values come from variables in secrets.php (gitignored) or environment.
 if (defined('APPPATH') && is_file(APPPATH . 'config/secrets.php')) {
     require_once APPPATH . 'config/secrets.php';
 }
 
-defined('STRIPE_MODE') || define('STRIPE_MODE', getenv('STRIPE_MODE') ?: 'live'); // 'test' or 'live'
+defined('STRIPE_MODE') || define('STRIPE_MODE', $stripe_mode ?? (getenv('STRIPE_MODE') ?: 'live'));
+defined('STRIPE_PUBLISHABLE_KEY') || define('STRIPE_PUBLISHABLE_KEY', $stripe_publishable_key ?? (getenv('STRIPE_PUBLISHABLE_KEY') ?: ''));
+defined('STRIPE_SECRET_KEY') || define('STRIPE_SECRET_KEY', $stripe_secret_key ?? (getenv('STRIPE_SECRET_KEY') ?: ''));
+defined('STRIPE_WEBHOOK_SECRET') || define('STRIPE_WEBHOOK_SECRET', $stripe_webhook_secret ?? (getenv('STRIPE_WEBHOOK_SECRET') ?: ''));
 
-defined('STRIPE_PUBLISHABLE_KEY') || define('STRIPE_PUBLISHABLE_KEY', getenv('STRIPE_PUBLISHABLE_KEY') ?: '');
-defined('STRIPE_SECRET_KEY')      || define('STRIPE_SECRET_KEY',      getenv('STRIPE_SECRET_KEY') ?: '');
-defined('STRIPE_WEBHOOK_SECRET')  || define('STRIPE_WEBHOOK_SECRET',  getenv('STRIPE_WEBHOOK_SECRET') ?: '');
-
-defined('CT_SECRET') || define('CT_SECRET', getenv('CT_SECRET') ?: '');
+defined('CT_SECRET') || define('CT_SECRET', $ct_secret ?? (getenv('CT_SECRET') ?: ''));
 
 defined('CLOUDTALK_PARTNER') OR define('CLOUDTALK_PARTNER', 'demo.franhive.com'); 
 

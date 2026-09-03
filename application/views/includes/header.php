@@ -696,6 +696,9 @@ function show_if($paths) { return uri_is($paths) ? 'show' : ''; }
 							'admin_eforms/send_iict_form',
 							'admin_eforms/iict_form_edit',
 							'admin_eforms/submissions',
+							'admin_eforms/thank_you_templates',
+							'admin_eforms/thank_you_template_create',
+							'admin_eforms/thank_you_template_edit',
 							'eforms/iict_agreement'
 						];
 					?>
@@ -717,6 +720,13 @@ function show_if($paths) { return uri_is($paths) ? 'show' : ''; }
 									<a class="<?= active_if('admin_eforms/template_create') ?>"
 									href="<?= base_url('admin_eforms/template_create'); ?>">
 										Add Template
+									</a>
+								</li>
+
+								<li>
+									<a class="<?= active_if('admin_eforms/thank_you_templates') ?>"
+									href="<?= base_url('admin_eforms/thank_you_templates'); ?>">
+										Thank You Page Templates
 									</a>
 								</li>
 
