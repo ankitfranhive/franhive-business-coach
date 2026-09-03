@@ -8,6 +8,22 @@ class Payment_agreement_model extends CI_Model
         $ok = $this->db->insert('payment_agreement_requests', $data);
         if (!$ok) {
             $err = $this->db->error();
+            // If thank-you columns were never added, retry without them so send still works.
+            $msg = isset($err['message']) ? (string)$err['message'] : '';
+            if ($msg !== '' && (
+                stripos($msg, 'thank_you_email_template_id') !== false
+                || stripos($msg, 'thank_you_message') !== false
+                || stripos($msg, 'Unknown column') !== false
+            )) {
+                unset($data['thank_you_email_template_id'], $data['thank_you_message']);
+                log_message('error', 'create_payment_request retry without thank-you columns: ' . $msg);
+                $ok = $this->db->insert('payment_agreement_requests', $data);
+                if ($ok) {
+                    $id = (int)$this->db->insert_id();
+                    return $id > 0 ? $id : false;
+                }
+                $err = $this->db->error();
+            }
             if (!empty($err['message'])) {
                 log_message('error', 'create_payment_request insert failed: ' . $err['message']);
             }
@@ -56,10 +72,26 @@ class Payment_agreement_model extends CI_Model
 
     public function get_all_payment_requests()
     {
-        return $this->db
+        // Explicit column list — never pull thank_you_message (large HTML) into the list page.
+        $cols = 'id, client_id, client_name, client_email, business_name, total_inc_gst, deposit_amount, deposit_paid_on, selected_course_id, selected_course_start_date, selected_course_end_date, payment_arrangement_intro_override, thank_you_email_template_id, token, token_expires_at, status, sent_at, opened_at, submitted_at, agreement_id, sent_by';
+        $query = $this->db->query('SELECT ' . $cols . ' FROM payment_agreement_requests ORDER BY id DESC');
+        if ($query !== false) {
+            return $query->result_array();
+        }
+
+        // Fallback if some optional columns do not exist yet.
+        $fallback = $this->db
             ->order_by('id', 'DESC')
-            ->get('payment_agreement_requests')
-            ->result_array();
+            ->get('payment_agreement_requests');
+        if ($fallback === false) {
+            return array();
+        }
+        $rows = $fallback->result_array();
+        foreach ($rows as &$row) {
+            unset($row['thank_you_message']);
+        }
+        unset($row);
+        return $rows;
     }
 
     public function get_payment_request_by_id($id)
@@ -71,20 +103,49 @@ class Payment_agreement_model extends CI_Model
 
     /**
      * Issue a fresh link so the client can open and submit the form again.
+     *
+     * @param array $extra Optional fields to update (e.g. thank_you_email_template_id, thank_you_message)
      */
-    public function reset_request_for_resend($id, $token, $expires_at)
+    public function reset_request_for_resend($id, $token, $expires_at, array $extra = array())
     {
-        return $this->db
+        $data = array(
+            'token'            => $token,
+            'token_expires_at' => $expires_at,
+            'status'           => 'sent',
+            'sent_at'          => date('Y-m-d H:i:s'),
+            'opened_at'        => null,
+            'submitted_at'     => null,
+            'agreement_id'     => null,
+        );
+
+        if (array_key_exists('thank_you_email_template_id', $extra)) {
+            $data['thank_you_email_template_id'] = $extra['thank_you_email_template_id'];
+        }
+        if (array_key_exists('thank_you_message', $extra)) {
+            $data['thank_you_message'] = $extra['thank_you_message'];
+        }
+
+        $ok = $this->db
             ->where('id', (int)$id)
-            ->update('payment_agreement_requests', [
-                'token'            => $token,
-                'token_expires_at' => $expires_at,
-                'status'           => 'sent',
-                'sent_at'          => date('Y-m-d H:i:s'),
-                'opened_at'        => null,
-                'submitted_at'     => null,
-                'agreement_id'     => null,
-            ]);
+            ->update('payment_agreement_requests', $data);
+
+        if (!$ok) {
+            $err = $this->db->error();
+            $msg = isset($err['message']) ? (string)$err['message'] : '';
+            if ($msg !== '' && (
+                stripos($msg, 'thank_you_email_template_id') !== false
+                || stripos($msg, 'thank_you_message') !== false
+                || stripos($msg, 'Unknown column') !== false
+            )) {
+                unset($data['thank_you_email_template_id'], $data['thank_you_message']);
+                log_message('error', 'reset_request_for_resend retry without thank-you columns: ' . $msg);
+                $ok = $this->db
+                    ->where('id', (int)$id)
+                    ->update('payment_agreement_requests', $data);
+            }
+        }
+
+        return (bool)$ok;
     }
 
     public function update_agreement_approval($id, $approved_by, $approval_date)

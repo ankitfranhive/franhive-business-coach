@@ -61,7 +61,7 @@
                         <input type="text" name="business_name" class="form-control" placeholder="Payment Agreement form">
                     </div>
                     <div class="col-md-4 mb-3">
-                        <label>Email Template <span class="text-danger">*</span></label>
+                        <label>Invite Email Template <span class="text-danger">*</span></label>
                         <select name="email_template_id" class="form-control" required>
                             <option value="">-- Select template --</option>
                             <?php if (!empty($email_templates)): ?>
@@ -73,7 +73,7 @@
                             <?php endif; ?>
                         </select>
                         <small class="text-muted">
-                            Only templates with module <strong>Payment Agreement</strong> appear here.
+                            Sent now with the form link. Module: <strong>Payment Agreement</strong>.
                             <a href="<?= base_url('add-template'); ?>" target="_blank">Add template</a>
                             · <code>$Name$</code>, <code>$Link$</code>, <code>$BusinessName$</code>
                         </small>
@@ -81,9 +81,33 @@
                             <small class="text-danger d-block">No Payment Agreement templates yet. At <a href="<?= base_url('add-template'); ?>">Add Template</a>, set <strong>Template Module</strong> to <strong>Payment Agreement</strong>.</small>
                         <?php endif; ?>
                     </div>
+                    <div class="col-md-4 mb-3">
+                        <label>Thank You Email Template <span class="text-danger">*</span></label>
+                        <select name="thank_you_email_template_id" class="form-control" required>
+                            <option value="">-- Select thank you template --</option>
+                            <?php if (!empty($email_templates)): ?>
+                                <?php foreach ($email_templates as $tpl): ?>
+                                    <option value="<?= (int)$tpl['TEMPLATE_ID']; ?>">
+                                        <?= html_escape($tpl['TEMPLATE_NAME']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                        <small class="text-muted">Sent to the client after they successfully submit the form. Put Zoom/WhatsApp content in this template.</small>
+                    </div>
                     <div class="col-md-2 mb-3">
                         <label>Total (inc GST) <span class="text-danger">*</span></label>
                         <input type="number" name="total_inc_gst" class="form-control" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label>Deposit Amount</label>
+                        <input type="number" name="deposit_amount" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        <small class="text-muted">Optional. Pre-fills on the client form.</small>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label>Deposit Date</label>
+                        <input type="date" name="deposit_paid_on" class="form-control">
+                        <small class="text-muted">Optional. Pre-fills Deposit Paid On.</small>
                     </div>
                 </div>
                 <div class="row">
@@ -122,6 +146,19 @@
                         <small class="text-muted">For per-client wording; the pay-in-full / payment plan fields stay the same.</small>
                     </div>
                     <div class="col-md-2 mb-3">
+                        <label>Link expires in <span class="text-danger">*</span></label>
+                        <input type="number" name="token_expiry_value" class="form-control" min="1" max="720" value="24" required>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label>Expiry unit <span class="text-danger">*</span></label>
+                        <select name="token_expiry_unit" class="form-control" required>
+                            <option value="hours" selected>Hours</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                        </select>
+                        <small class="text-muted">Default is 24 hours. Max: 720 hours, 90 days, or 12 weeks.</small>
+                    </div>
+                    <div class="col-md-2 mb-3">
                         <label>&nbsp;</label>
                         <button type="submit" class="btn btn-primary btn-block">Send</button>
                     </div>
@@ -141,6 +178,8 @@
                             <th>Email</th>
                             <th>Form Subject</th>
                             <th>Total (inc GST)</th>
+                            <th>Deposit</th>
+                            <th>Deposit Date</th>
                             <th>Status</th>
                             <th>Sent At</th>
                             <th>Opened At</th>
@@ -160,6 +199,8 @@
                                 <td><?= html_escape($r['client_email']); ?></td>
                                 <td><?= html_escape($r['business_name']); ?></td>
                                 <td><?= array_key_exists('total_inc_gst', $r) && $r['total_inc_gst'] !== null && $r['total_inc_gst'] !== '' ? html_escape(number_format((float)$r['total_inc_gst'], 2, '.', '')) : '—'; ?></td>
+                                <td><?= array_key_exists('deposit_amount', $r) && $r['deposit_amount'] !== null && $r['deposit_amount'] !== '' ? html_escape(number_format((float)$r['deposit_amount'], 2, '.', '')) : '—'; ?></td>
+                                <td><?= !empty($r['deposit_paid_on']) ? html_escape($r['deposit_paid_on']) : '—'; ?></td>
                                 <td>
                                     <?php
                                         $status = strtolower($r['status']);
@@ -202,18 +243,37 @@
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <form method="post" action="<?= base_url('payment-agreement/resend'); ?>" class="resend-form" onsubmit="return confirm('Resend the payment agreement form to <?= html_escape($r['client_email']); ?>? The client will receive a new link (valid 24 hours) to complete or update their submission.');">
+                                    <form method="post" action="<?= base_url('payment-agreement/resend'); ?>" class="resend-form" onsubmit="return confirm('Resend the payment agreement form to <?= html_escape($r['client_email']); ?>? A new link will be generated with the expiry duration you select below.');">
                                         <input type="hidden" name="request_id" value="<?= (int)$r['id']; ?>">
                                         <?php if (!empty($email_templates)): ?>
                                             <select name="email_template_id" class="form-control form-control-sm mb-2" required>
-                                                <option value="">-- Email template --</option>
+                                                <option value="">-- Invite email template --</option>
                                                 <?php foreach ($email_templates as $tpl): ?>
                                                     <option value="<?= (int)$tpl['TEMPLATE_ID']; ?>">
                                                         <?= html_escape($tpl['TEMPLATE_NAME']); ?>
                                                     </option>
                                                 <?php endforeach; ?>
                                             </select>
+                                            <?php
+                                                $current_ty_tpl = isset($r['thank_you_email_template_id']) ? (int)$r['thank_you_email_template_id'] : 0;
+                                            ?>
+                                            <select name="thank_you_email_template_id" class="form-control form-control-sm mb-2" required>
+                                                <option value="">-- Thank you email template --</option>
+                                                <?php foreach ($email_templates as $tpl): ?>
+                                                    <option value="<?= (int)$tpl['TEMPLATE_ID']; ?>" <?= $current_ty_tpl === (int)$tpl['TEMPLATE_ID'] ? 'selected' : ''; ?>>
+                                                        <?= html_escape($tpl['TEMPLATE_NAME']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
                                         <?php endif; ?>
+                                        <div class="d-flex mb-2" style="gap:6px;">
+                                            <input type="number" name="token_expiry_value" class="form-control form-control-sm" min="1" max="720" value="24" required title="Expiry duration" style="width:72px;">
+                                            <select name="token_expiry_unit" class="form-control form-control-sm" required title="Expiry unit">
+                                                <option value="hours" selected>Hours</option>
+                                                <option value="days">Days</option>
+                                                <option value="weeks">Weeks</option>
+                                            </select>
+                                        </div>
                                         <button type="submit" class="btn btn-sm btn-warning btn-block" <?= empty($email_templates) ? 'disabled title="Add a Payment Agreement email template first"' : ''; ?>>
                                             Resend Form
                                         </button>
@@ -223,7 +283,7 @@
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="13" class="text-center">No requests found.</td>
+                            <td colspan="15" class="text-center">No requests found.</td>
                         </tr>
                     <?php endif; ?>
                     </tbody>

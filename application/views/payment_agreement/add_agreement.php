@@ -363,6 +363,30 @@ function fs($arr, $key, $default = '')
             <div class="mb-20">
                 <p><strong>Client Name:</strong> <?= html_escape($request['client_name']); ?></p>
                 <p><strong>Email:</strong> <?= html_escape($request['client_email']); ?></p>
+                <?php
+                    $req_total_display = isset($request['total_inc_gst']) && $request['total_inc_gst'] !== null && $request['total_inc_gst'] !== ''
+                        ? number_format((float)$request['total_inc_gst'], 2, '.', '') : '';
+                    $req_deposit_display = isset($request['deposit_amount']) && $request['deposit_amount'] !== null && $request['deposit_amount'] !== ''
+                        ? number_format((float)$request['deposit_amount'], 2, '.', '') : '';
+                    $req_deposit_date_display = !empty($request['deposit_paid_on']) ? (string)$request['deposit_paid_on'] : '';
+                    $has_payment_summary = ($req_total_display !== '' || $req_deposit_display !== '' || $req_deposit_date_display !== '');
+                ?>
+                <?php if ($has_payment_summary): ?>
+                <div class="alert alert-info mt-3 mb-3">
+                    <strong>Payment summary for this agreement</strong>
+                    <div class="mt-2">
+                        <?php if ($req_total_display !== ''): ?>
+                            <div><strong>Total (inc GST):</strong> $<?= html_escape($req_total_display); ?></div>
+                        <?php endif; ?>
+                        <?php if ($req_deposit_display !== ''): ?>
+                            <div><strong>Deposit Amount:</strong> $<?= html_escape($req_deposit_display); ?></div>
+                        <?php endif; ?>
+                        <?php if ($req_deposit_date_display !== ''): ?>
+                            <div><strong>Deposit Date:</strong> <?= html_escape($req_deposit_date_display); ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <?php if (!empty($request['business_name'])): ?>
                 <?php endif; ?>
                 <p class="note-text mb-0"><?= html_escape(fs($fs, 'intro_text', 'This form has 16 required fields')); ?></p>
@@ -650,6 +674,13 @@ function fs($arr, $key, $default = '')
                     $req_total   = isset($request['total_inc_gst']) && $request['total_inc_gst'] !== null && $request['total_inc_gst'] !== ''
                                    ? (string)$request['total_inc_gst'] : '';
                     $total_locked = $req_total !== '';
+
+                    $req_deposit = isset($request['deposit_amount']) && $request['deposit_amount'] !== null && $request['deposit_amount'] !== ''
+                                   ? (string)$request['deposit_amount'] : '';
+                    $deposit_locked = $req_deposit !== '';
+
+                    $req_deposit_date = !empty($request['deposit_paid_on']) ? (string)$request['deposit_paid_on'] : '';
+                    $deposit_date_locked = $req_deposit_date !== '';
                 ?>
 
                 <!-- Amount fields: 3 compact cols + date fields -->
@@ -672,9 +703,15 @@ function fs($arr, $key, $default = '')
                             <label>Deposit Paid $ <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" min="0"
                                    name="deposit_amount" id="deposit_amount_input"
-                                   class="form-control" style="max-width:180px;"
-                                   value="<?= set_value('deposit_amount'); ?>" required
+                                   class="form-control <?= $deposit_locked ? 'bg-light' : ''; ?>"
+                                   style="max-width:180px;"
+                                   value="<?= set_value('deposit_amount', $req_deposit); ?>"
+                                   required
+                                   <?= $deposit_locked ? 'readonly tabindex="-1"' : ''; ?>
                                    title="Enter a valid deposit amount (numbers only)">
+                            <?php if ($deposit_locked): ?>
+                                <small class="form-text text-muted">Set when this link was sent to you and cannot be changed here.</small>
+                            <?php endif; ?>
                         </div>
                         <div class="col-md-4 form-group mb-3">
                             <label>Deposit Paid Via <span class="text-danger">*</span></label>
@@ -687,7 +724,14 @@ function fs($arr, $key, $default = '')
                         </div>
                         <div class="col-md-4 form-group mb-3">
                             <label>Deposit Paid On <span class="text-danger">*</span></label>
-                            <input type="date" name="deposit_paid_on" class="form-control" style="max-width:200px;" value="<?= set_value('deposit_paid_on'); ?>" required>
+                            <input type="date" name="deposit_paid_on" class="form-control <?= $deposit_date_locked ? 'bg-light' : ''; ?>"
+                                   style="max-width:200px;"
+                                   value="<?= set_value('deposit_paid_on', $req_deposit_date); ?>"
+                                   required
+                                   <?= $deposit_date_locked ? 'readonly tabindex="-1"' : ''; ?>>
+                            <?php if ($deposit_date_locked): ?>
+                                <small class="form-text text-muted">Set when this link was sent to you and cannot be changed here.</small>
+                            <?php endif; ?>
                         </div>
                         <div class="col-md-4 form-group mb-3">
                             <label>Balance Payable $ <span class="text-danger">*</span></label>
@@ -709,23 +753,24 @@ function fs($arr, $key, $default = '')
                 <?php $this->load->view('payment_agreement/partials/payment_arrangement_section', ['form_settings' => $fs, 'request' => $request]); ?>
 
                 <!-- ── Certification ── -->
-                <h4 class="section-title">Certification</h4>
+                <h4 class="section-title">Certification <span class="text-muted font-weight-normal" style="font-size:14px;">(optional)</span></h4>
                 <div class="form-group mb-3">
                     <div class="custom-control custom-checkbox mb-2">
                         <input type="checkbox" class="custom-control-input" id="holds_certification" name="holds_certification" value="1"  <?= set_checkbox('holds_certification', '1'); ?>>
                         <label class="custom-control-label" for="holds_certification">
-                            I currently hold certification from your organization or another training provider <span class="text-danger">*</span>
+                            I currently hold certification from your organization or another training provider
                         </label>
                     </div>
                 </div>
                 <div class="form-group mb-3">
                     <label>Certification Details</label>
                     <textarea name="certification_details" class="form-control" rows="4" ><?= set_value('certification_details'); ?></textarea>
-                    <small class="form-text text-muted">Please include qualification name, certification date, and training provider name.</small>
+                    <small class="form-text text-muted">Optional. Include qualification name, certification date, and training provider name if applicable.</small>
                 </div>
                 <div class="form-group mb-3">
                     <label>Attach Certification Copy</label>
-                    <input type="file" name="certification_attachment" class="form-control-file" >
+                    <input type="file" name="certification_attachment" class="form-control-file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx">
+                    <small class="form-text text-muted">Optional. Accepted formats: JPG, PNG, PDF, DOC, DOCX (max 5MB).</small>
                 </div>
 
                 <!-- ── Payment Details ── -->

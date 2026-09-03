@@ -9,6 +9,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *   $Link$          Document / form URL
  *   $BusinessName$  Form subject title (business_name field)
  *   $SenderName$    Sending organisation (default: Empower Your Destiny)
+ *   $PDF$           Absolute URL to the submission PDF (client copy)
  */
 function apply_email_template_placeholders($text, array $vars)
 {
@@ -20,9 +21,10 @@ function apply_email_template_placeholders($text, array $vars)
     $link         = isset($vars['link']) ? (string)$vars['link'] : '';
     $businessName = isset($vars['business_name']) ? (string)$vars['business_name'] : '';
     $senderName   = isset($vars['sender_name']) ? (string)$vars['sender_name'] : 'Empower Your Destiny';
+    $pdf          = isset($vars['pdf']) ? (string)$vars['pdf'] : '';
 
-    $search = array('$Name$', '$Link$', '$BusinessName$', '$SenderName$');
-    $replace = array($name, $link, $businessName, $senderName);
+    $search = array('$Name$', '$NAME$', '$Link$', '$BusinessName$', '$SenderName$', '$PDF$', '$Pdf$', '$pdf$');
+    $replace = array($name, $name, $link, $businessName, $senderName, $pdf, $pdf, $pdf);
 
     return str_replace($search, $replace, $text);
 }

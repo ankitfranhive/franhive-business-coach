@@ -3,6 +3,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class AdminEforms extends CI_Controller {
 
+    /** Soft cap so thank-you HTML stays light for shared hosting. */
+    const THANK_YOU_BODY_MAX_CHARS = 120000;
+
     public function __construct() {
         parent::__construct();
         $this->load->model('Eforms_model', 'eforms');
@@ -257,29 +260,45 @@ class AdminEforms extends CI_Controller {
         $data['template'] = $tpl;
         $data['fields']   = $fields;
         $data['email_templates'] = $this->Template_Model->get_all_templates();
+        $data['thank_you_page_templates'] = $this->eforms->get_thank_you_page_templates(true);
+        $existing_overrides = json_decode($tpl['overrides_json'] ?? '{}', true) ?: [];
+        $data['selected_thank_you_page_template_id'] = (int)($existing_overrides['thank_you_page_template_id'] ?? 0);
     
         if ($this->input->method() === 'post') {
             $client_name  = $this->input->post('client_name', true);
             $client_email = $this->input->post('client_email', true);
             $email_template_id = (int)$this->input->post('email_template_id');
+            $thank_you_page_template_id = (int)$this->input->post('thank_you_page_template_id');
             $expiry_hours = (int)$this->input->post('expiry_hours');
             if ($expiry_hours <= 0) $expiry_hours = 24;
     
             $expires_at = date('Y-m-d H:i:s', time() + ($expiry_hours * 3600));
     
-            // Optional prefill values (basic)
+            // Optional prefill values (basic) — store IDs only, never full HTML
             $prefill = [
                 'client_name'  => $client_name,
                 'client_email' => $client_email,
                 'confirmation_email_template_id' => $email_template_id > 0 ? $email_template_id : null,
+                'thank_you_page_template_id' => $thank_you_page_template_id > 0 ? $thank_you_page_template_id : null,
             ];
             $prefill_json = json_encode($prefill);
 
-            // Persist confirmation template onto the eForm template overrides
-            // so the general/public Copy Link can also send the same confirmation email.
+            // Persist confirmation + thank-you template onto the eForm template overrides
+            // so the general/public Copy Link can also use the same selections.
+            $overrides = json_decode($tpl['overrides_json'] ?? '{}', true) ?: [];
+            $overrides_changed = false;
             if ($email_template_id > 0) {
-                $overrides = json_decode($tpl['overrides_json'] ?? '{}', true) ?: [];
                 $overrides['confirmation_email_template_id'] = $email_template_id;
+                $overrides_changed = true;
+            }
+            if ($thank_you_page_template_id > 0) {
+                $overrides['thank_you_page_template_id'] = $thank_you_page_template_id;
+                $overrides_changed = true;
+            } elseif (isset($overrides['thank_you_page_template_id'])) {
+                unset($overrides['thank_you_page_template_id']);
+                $overrides_changed = true;
+            }
+            if ($overrides_changed) {
                 $this->eforms->update_template((int)$tpl['id'], [
                     'overrides_json' => json_encode($overrides, JSON_UNESCAPED_UNICODE),
                 ]);
@@ -355,6 +374,9 @@ class AdminEforms extends CI_Controller {
         $data['template']  = $template; // array
         $data['fields']    = $fields;   // array
         $data['overrides'] = json_decode($template['overrides_json'] ?? '{}', true);
+        if (!is_array($data['overrides'])) {
+            $data['overrides'] = [];
+        }
     
         $this->load->view('eforms/template_edit', $data);
     }
@@ -402,15 +424,56 @@ class AdminEforms extends CI_Controller {
             }
         }
 
-        $overrides = [
+        $field_html_before_raw = (array)$this->input->post('field_html_before', false);
+        $field_html_after_raw  = (array)$this->input->post('field_html_after', false);
+
+        $existing_overrides = json_decode($tpl['overrides_json'] ?? '{}', true);
+        if (!is_array($existing_overrides)) {
+            $existing_overrides = [];
+        }
+
+        $field_html_before_map = is_array($existing_overrides['field_html_before'] ?? null)
+            ? $existing_overrides['field_html_before']
+            : [];
+        $field_html_after_map = is_array($existing_overrides['field_html_after'] ?? null)
+            ? $existing_overrides['field_html_after']
+            : [];
+
+        foreach ($field_names as $fname_raw) {
+            $n = trim((string)$fname_raw);
+            if ($n === '') {
+                continue;
+            }
+            if (array_key_exists($n, $field_html_before_raw)) {
+                $html_before = trim((string)$field_html_before_raw[$n]);
+                if ($html_before !== '') {
+                    $field_html_before_map[$n] = $html_before;
+                } else {
+                    unset($field_html_before_map[$n]);
+                }
+            }
+            if (array_key_exists($n, $field_html_after_raw)) {
+                $html_after = trim((string)$field_html_after_raw[$n]);
+                if ($html_after !== '') {
+                    $field_html_after_map[$n] = $html_after;
+                } else {
+                    unset($field_html_after_map[$n]);
+                }
+            }
+        }
+
+        $overrides = array_merge($existing_overrides, [
             'labels'           => $label_map,
             'texts'            => [
                 'agree_checkbox_text' => $this->input->post('agree_checkbox_text', true),
             ],
             'banner_image_url' => $this->input->post('banner_image_url', true) ?? '',
+            'enable_signature' => $this->input->post('enable_signature') ? 1 : 0,
             'sections'         => $sections,
             'field_sections'   => $field_sections_map,
-        ];
+            'field_html_before'=> $field_html_before_map,
+            'field_html_after' => $field_html_after_map,
+        ]);
     
         $this->eforms->update_template($id, [
             'slug'         => $this->input->post('slug', true),
@@ -422,7 +485,7 @@ class AdminEforms extends CI_Controller {
         ]);
     
         $this->session->set_flashdata('success', 'Template updated successfully.');
-        redirect('admin_eforms/templates');
+        redirect('admin_eforms/template_edit/' . $id);
     }
     public function template_delete($id) {
         $tpl = $this->eforms->get_template($id);
@@ -545,6 +608,7 @@ class AdminEforms extends CI_Controller {
             'request' => $request,
             'data' => $data_for_pdf,
             'signature_path' => $submission['signature_path'] ?? null,
+            'include_audit' => true,
             'meta' => [
                 'template_title' => $submission['template_title'] ?? ($template['title'] ?? 'Form'),
                 'client_name' => $client_name,
@@ -690,6 +754,105 @@ class AdminEforms extends CI_Controller {
             $this->session->set_flashdata('error', 'Could not save (table ef_static_forms may not exist). Run the SQL to create it.');
         }
         redirect('admin_eforms/iict_form_edit');
+    }
+
+    // ---------- Thank You page templates ----------
+    public function thank_you_templates() {
+        $data['templates'] = $this->eforms->get_thank_you_page_templates(false);
+        if ($data['templates'] === [] && !$this->db->table_exists('ef_thank_you_page_templates')) {
+            $this->session->set_flashdata(
+                'error',
+                'Database table missing. Run sql/ef_thank_you_page_templates.sql once, then refresh this page.'
+            );
+        }
+        $this->load->view('eforms/thank_you_templates_list', $data);
+    }
+
+    public function thank_you_template_create() {
+        $data['template'] = null;
+        $data['form_action'] = base_url('admin_eforms/thank_you_template_store');
+        $data['page_title'] = 'Add Thank You Page Template';
+        $this->load->view('eforms/thank_you_template_form', $data);
+    }
+
+    public function thank_you_template_store() {
+        $this->form_validation->set_rules('title', 'Title', 'required|trim|max_length[191]');
+        $this->form_validation->set_rules('body_html', 'Content', 'required');
+
+        if (!$this->form_validation->run()) {
+            return $this->thank_you_template_create();
+        }
+
+        $body = (string)$this->input->post('body_html', false);
+        if (mb_strlen($body) > self::THANK_YOU_BODY_MAX_CHARS) {
+            $this->session->set_flashdata('error', 'Content is too large. Please keep the thank you page under ~120KB.');
+            return $this->thank_you_template_create();
+        }
+
+        $this->eforms->insert_thank_you_page_template([
+            'title'     => $this->input->post('title', true),
+            'body_html' => $body,
+            'is_active' => $this->input->post('is_active') ? 1 : 0,
+        ]);
+
+        $this->session->set_flashdata('success', 'Thank you page template created.');
+        redirect('admin_eforms/thank_you_templates');
+    }
+
+    public function thank_you_template_edit($id) {
+        $template = $this->eforms->get_thank_you_page_template((int)$id, false);
+        if (!$template) {
+            show_404();
+            return;
+        }
+
+        $data['template'] = $template;
+        $data['form_action'] = base_url('admin_eforms/thank_you_template_update/' . (int)$id);
+        $data['page_title'] = 'Edit Thank You Page Template';
+        $this->load->view('eforms/thank_you_template_form', $data);
+    }
+
+    public function thank_you_template_update($id) {
+        $template = $this->eforms->get_thank_you_page_template((int)$id, false);
+        if (!$template) {
+            show_404();
+            return;
+        }
+
+        $this->form_validation->set_rules('title', 'Title', 'required|trim|max_length[191]');
+        $this->form_validation->set_rules('body_html', 'Content', 'required');
+
+        if (!$this->form_validation->run()) {
+            return $this->thank_you_template_edit($id);
+        }
+
+        $body = (string)$this->input->post('body_html', false);
+        if (mb_strlen($body) > self::THANK_YOU_BODY_MAX_CHARS) {
+            $this->session->set_flashdata('error', 'Content is too large. Please keep the thank you page under ~120KB.');
+            return $this->thank_you_template_edit($id);
+        }
+
+        $this->eforms->update_thank_you_page_template((int)$id, [
+            'title'     => $this->input->post('title', true),
+            'body_html' => $body,
+            'is_active' => $this->input->post('is_active') ? 1 : 0,
+        ]);
+
+        $this->session->set_flashdata('success', 'Thank you page template updated.');
+        redirect('admin_eforms/thank_you_templates');
+    }
+
+    public function thank_you_template_delete($id) {
+        $template = $this->eforms->get_thank_you_page_template((int)$id, false);
+        if (!$template) {
+            show_404();
+            return;
+        }
+
+        // Soft-delete so old requests keep a clean fallback to the default page.
+        $this->eforms->soft_delete_thank_you_page_template((int)$id);
+        $this->session->set_flashdata('success', 'Thank you page template deactivated.');
+        redirect('admin_eforms/thank_you_templates');
     }
 
     /**

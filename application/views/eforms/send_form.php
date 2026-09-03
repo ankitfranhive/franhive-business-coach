@@ -58,6 +58,25 @@
         </div>
 
         <div class="form-group row">
+          <label class="col-form-label col-md-2">Thank You Page Template</label>
+          <div class="col-md-10">
+            <?php $selected_ty = (int)($selected_thank_you_page_template_id ?? 0); ?>
+            <select class="form-control" name="thank_you_page_template_id">
+              <option value="">-- Default thank you page --</option>
+              <?php foreach (($thank_you_page_templates ?? []) as $ty_tpl): ?>
+                <option value="<?= (int)$ty_tpl['id']; ?>" <?= $selected_ty === (int)$ty_tpl['id'] ? 'selected' : ''; ?>>
+                  <?= html_escape($ty_tpl['title']); ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <small class="text-muted">
+              Optional. If left as default, the built-in thank you page is shown after submit.
+              Manage templates under eForms → Thank You Page Templates.
+            </small>
+          </div>
+        </div>
+
+        <div class="form-group row">
           <div class="col-md-6 offset-md-2">
             <button type="submit" class="btn btn-warning">Send</button>
           </div>

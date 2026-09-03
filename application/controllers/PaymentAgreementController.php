@@ -7,7 +7,8 @@ class PaymentAgreementController extends CI_Controller
     {
         parent::__construct();
         $this->load->model(array('Payment_agreement_model', 'Campaign_Model'));
-        $this->load->library(array('email', 'session', 'form_validation', 'pdf'));
+        // Keep constructor light — do not load email/pdf on every hit (shared hosting).
+        $this->load->library(array('session', 'form_validation'));
         $this->load->helper(array('url', 'form', 'email_template'));
     }
 
@@ -66,6 +67,29 @@ class PaymentAgreementController extends CI_Controller
 
         $total_inc_gst = round((float)$total_raw, 2);
 
+        $deposit_raw = $this->input->post('deposit_amount');
+        $deposit_amount = null;
+        if ($deposit_raw !== null && trim((string)$deposit_raw) !== '') {
+            if (!is_numeric($deposit_raw) || (float)$deposit_raw < 0) {
+                $this->session->set_flashdata('error', 'Deposit Amount must be a valid non-negative number.');
+                redirect('payment-agreement/requests');
+            }
+            $deposit_amount = round((float)$deposit_raw, 2);
+            if ($deposit_amount > $total_inc_gst) {
+                $this->session->set_flashdata('error', 'Deposit Amount cannot be greater than Total (inc GST).');
+                redirect('payment-agreement/requests');
+            }
+        }
+
+        $deposit_paid_on = trim((string)$this->input->post('deposit_paid_on'));
+        if ($deposit_paid_on !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $deposit_paid_on)) {
+            $this->session->set_flashdata('error', 'Deposit Date must be a valid date (YYYY-MM-DD).');
+            redirect('payment-agreement/requests');
+        }
+        if ($deposit_paid_on === '') {
+            $deposit_paid_on = null;
+        }
+
         if ($selected_course_id === '') {
             $this->session->set_flashdata('error', 'Please select a course for this user.');
             redirect('payment-agreement/requests');
@@ -96,8 +120,34 @@ class PaymentAgreementController extends CI_Controller
             redirect('payment-agreement/requests');
         }
 
+        $thank_you_template_id = (int)$this->input->post('thank_you_email_template_id');
+        if ($thank_you_template_id <= 0) {
+            $this->session->set_flashdata('error', 'Please select a thank you email template.');
+            redirect('payment-agreement/requests');
+        }
+
+        $thank_you_email_template = $this->Campaign_Model->get_template_by_id($thank_you_template_id);
+        if (empty($thank_you_email_template) || (isset($thank_you_email_template['RECORD_STATUS']) && (int)$thank_you_email_template['RECORD_STATUS'] !== 0)) {
+            $this->session->set_flashdata('error', 'Selected thank you email template is invalid or no longer available.');
+            redirect('payment-agreement/requests');
+        }
+        $ty_module = trim((string)($thank_you_email_template['MODULE_NAME'] ?? ''));
+        if ($ty_module !== 'Payment Agreement') {
+            $this->session->set_flashdata('error', 'Please select a thank you template with module "Payment Agreement".');
+            redirect('payment-agreement/requests');
+        }
+
         $token      = bin2hex(random_bytes(32));
-        $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        $expiry_err = null;
+        $expires_at = $this->compute_token_expires_at(
+            $this->input->post('token_expiry_value'),
+            $this->input->post('token_expiry_unit'),
+            $expiry_err
+        );
+        if ($expiry_err !== null) {
+            $this->session->set_flashdata('error', $expiry_err);
+            redirect('payment-agreement/requests');
+        }
 
         $pa_intro_ov = $this->input->post('payment_arrangement_intro_override', false);
         $requestData = array(
@@ -106,10 +156,14 @@ class PaymentAgreementController extends CI_Controller
             'client_email'     => $client_email,
             'business_name'    => $business_name,
             'total_inc_gst'    => $total_inc_gst,
+            'deposit_amount'   => $deposit_amount,
+            'deposit_paid_on'  => $deposit_paid_on,
             'selected_course_id' => $selected_course_id,
             'selected_course_start_date' => $selected_course_start_date,
             'selected_course_end_date' => $selected_course_end_date,
             'payment_arrangement_intro_override' => is_string($pa_intro_ov) ? $pa_intro_ov : '',
+            'thank_you_email_template_id' => $thank_you_template_id,
+            'thank_you_message' => null,
             'token'            => $token,
             'token_expires_at' => $expires_at,
             'status'           => 'sent',
@@ -132,6 +186,7 @@ class PaymentAgreementController extends CI_Controller
             'smtp_pass'   => 'Franh1ve@2024',
             'smtp_port'   => 465,
             'smtp_crypto' => 'ssl',
+            'smtp_timeout'=> 8,
             'mailtype'    => 'html',
             'charset'     => 'utf-8',
             'newline'     => "\r\n",
@@ -166,7 +221,7 @@ class PaymentAgreementController extends CI_Controller
         $this->email->message($body);
 
         if ($this->email->send()) {
-            $this->session->set_flashdata('success', 'Payment agreement email sent successfully.');
+            $this->session->set_flashdata('success', 'Payment agreement email sent successfully. Link expires on ' . date('d M Y, g:i A', strtotime($expires_at)) . '.');
         } else {
             log_message('error', 'Payment agreement email send failed: ' . $this->email->print_debugger());
             $this->session->set_flashdata('error', 'Email could not be sent. Please try again or contact administrator.');
@@ -224,10 +279,46 @@ class PaymentAgreementController extends CI_Controller
             redirect('payment-agreement/requests');
         }
 
-        $token      = bin2hex(random_bytes(32));
-        $expires_at = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        $thank_you_template_id = (int)$this->input->post('thank_you_email_template_id');
+        if ($thank_you_template_id <= 0) {
+            $existing_ty = isset($request['thank_you_email_template_id']) ? (int)$request['thank_you_email_template_id'] : 0;
+            $thank_you_template_id = $existing_ty > 0 ? $existing_ty : 0;
+        }
+        if ($thank_you_template_id <= 0) {
+            $this->session->set_flashdata('error', 'Please select a thank you email template to resend this form.');
+            redirect('payment-agreement/requests');
+        }
 
-        if (!$this->Payment_agreement_model->reset_request_for_resend($request_id, $token, $expires_at)) {
+        $thank_you_email_template = $this->Campaign_Model->get_template_by_id($thank_you_template_id);
+        if (empty($thank_you_email_template) || (isset($thank_you_email_template['RECORD_STATUS']) && (int)$thank_you_email_template['RECORD_STATUS'] !== 0)) {
+            $this->session->set_flashdata('error', 'Selected thank you email template is invalid or no longer available.');
+            redirect('payment-agreement/requests');
+        }
+        $ty_module = trim((string)($thank_you_email_template['MODULE_NAME'] ?? ''));
+        if ($ty_module !== 'Payment Agreement') {
+            $this->session->set_flashdata('error', 'Please select a thank you template with module "Payment Agreement".');
+            redirect('payment-agreement/requests');
+        }
+
+        $token      = bin2hex(random_bytes(32));
+        $expiry_err = null;
+        $expires_at = $this->compute_token_expires_at(
+            $this->input->post('token_expiry_value'),
+            $this->input->post('token_expiry_unit'),
+            $expiry_err
+        );
+        if ($expiry_err !== null) {
+            $this->session->set_flashdata('error', $expiry_err);
+            redirect('payment-agreement/requests');
+        }
+
+        // Clear any old heavy thank_you_message blobs; content now lives in email templates only.
+        $extra_resend = array(
+            'thank_you_email_template_id' => $thank_you_template_id,
+            'thank_you_message' => null,
+        );
+
+        if (!$this->Payment_agreement_model->reset_request_for_resend($request_id, $token, $expires_at, $extra_resend)) {
             $this->session->set_flashdata('error', 'Unable to prepare form for resend.');
             redirect('payment-agreement/requests');
         }
@@ -242,6 +333,7 @@ class PaymentAgreementController extends CI_Controller
             'smtp_pass'   => 'Franh1ve@2024',
             'smtp_port'   => 465,
             'smtp_crypto' => 'ssl',
+            'smtp_timeout'=> 8,
             'mailtype'    => 'html',
             'charset'     => 'utf-8',
             'newline'     => "\r\n",
@@ -276,7 +368,7 @@ class PaymentAgreementController extends CI_Controller
         $this->email->message($body);
 
         if ($this->email->send()) {
-            $this->session->set_flashdata('success', 'Payment agreement form resent successfully. The client can use the new link to complete or update their submission.');
+            $this->session->set_flashdata('success', 'Payment agreement form resent successfully. The new link expires on ' . date('d M Y, g:i A', strtotime($expires_at)) . '.');
         } else {
             log_message('error', 'Payment agreement resend email failed: ' . $this->email->print_debugger());
             $this->session->set_flashdata('error', 'Form link was reset but email could not be sent. Please try again or contact administrator.');
@@ -412,6 +504,11 @@ class PaymentAgreementController extends CI_Controller
         if (!$request) {
             show_error('Invalid submission request.');
         }
+
+        // Capture thank-you email template id only (page content is static / lightweight).
+        $saved_thank_you_template_id = isset($request['thank_you_email_template_id'])
+            ? (int)$request['thank_you_email_template_id']
+            : 0;
     
         if (strtotime($request['token_expires_at']) < time()) {
             if ($request['status'] !== 'submitted') {
@@ -421,7 +518,9 @@ class PaymentAgreementController extends CI_Controller
         }
     
         if ($request['status'] === 'submitted') {
-            show_error('This form has already been submitted.');
+            // Already submitted: show the shared thank-you page (Zoom + WhatsApp).
+            $this->load->view('eforms_public/thank_you');
+            return;
         }
     
         // Validation
@@ -496,17 +595,6 @@ class PaymentAgreementController extends CI_Controller
         $posted_courses = is_array($posted_courses) ? $posted_courses : array();
         if (empty($request['selected_course_id']) && empty($posted_courses)) {
             $this->session->set_flashdata('error', 'Please select at least one course.');
-            $data['request'] = $request;
-            $data['all_courses'] = $this->Payment_agreement_model->get_courses_for_payment_agreement_form();
-            $data['form_settings'] = $form_settings;
-            $data['consent_term_labels'] = $consent_term_labels;
-            $data['show_consent_terms_heading'] = $this->Payment_agreement_model->has_any_consent_checkbox_terms($form_settings);
-            $this->load->view('payment_agreement/add_agreement', $data);
-            return;
-        }
-
-        if (empty($_FILES['certification_attachment']['name'])) {
-            $this->session->set_flashdata('error', 'Please attach a certification copy.');
             $data['request'] = $request;
             $data['all_courses'] = $this->Payment_agreement_model->get_courses_for_payment_agreement_form();
             $data['form_settings'] = $form_settings;
@@ -642,6 +730,14 @@ class PaymentAgreementController extends CI_Controller
             $post['total_inc_gst'] = $request['total_inc_gst'];
         }
 
+        if (isset($request['deposit_amount']) && $request['deposit_amount'] !== null && $request['deposit_amount'] !== '') {
+            $post['deposit_amount'] = $request['deposit_amount'];
+        }
+
+        if (isset($request['deposit_paid_on']) && $request['deposit_paid_on'] !== null && $request['deposit_paid_on'] !== '') {
+            $post['deposit_paid_on'] = $request['deposit_paid_on'];
+        }
+
         $balance_payable = $this->compute_balance_payable($post, $request);
         $post['balance_amount'] = $balance_payable;
 
@@ -660,7 +756,38 @@ class PaymentAgreementController extends CI_Controller
     
         if ($agreement_id) {
             $this->Payment_agreement_model->mark_request_submitted($request['id'], $agreement_id);
-            $this->load->view('payment_agreement/submission_success');
+
+            if ($saved_thank_you_template_id <= 0 && !empty($request['thank_you_email_template_id'])) {
+                $saved_thank_you_template_id = (int)$request['thank_you_email_template_id'];
+            }
+            $request['thank_you_email_template_id'] = $saved_thank_you_template_id > 0 ? $saved_thank_you_template_id : null;
+
+            // IMPORTANT: echo the thank-you HTML immediately.
+            // CI buffers views; calling fastcgi_finish_request() before CI _display()
+            // caused a blank page in the browser.
+            $thank_you_html = $this->load->view('eforms_public/thank_you', array(), true);
+            echo $thank_you_html;
+
+            @session_write_close();
+            while (ob_get_level() > 0) {
+                @ob_end_flush();
+            }
+            @flush();
+
+            if (function_exists('fastcgi_finish_request')) {
+                @fastcgi_finish_request();
+            } elseif (function_exists('litespeed_finish_request')) {
+                @litespeed_finish_request();
+            }
+
+            try {
+                $this->send_payment_agreement_thank_you_email($request, $post);
+            } catch (Exception $e) {
+                log_message('error', 'Payment agreement thank-you email exception: ' . $e->getMessage());
+            }
+
+            // Stop CI from sending output again.
+            exit;
         } else {
             $dbErr = $this->db->error();
             log_message('error', 'Agreement insert failed: ' . json_encode($dbErr));
@@ -741,6 +868,8 @@ class PaymentAgreementController extends CI_Controller
     }
     public function downloadAgreementPDF($id)
 {
+    $this->load->library('pdf');
+
     $agreement = $this->Payment_agreement_model->get_agreement_by_id($id);
 
     if (!$agreement) {
@@ -935,7 +1064,9 @@ public function saveFormFieldSettings()
         }
 
         $dep = 0.0;
-        if (isset($post['deposit_amount']) && $post['deposit_amount'] !== '' && is_numeric($post['deposit_amount'])) {
+        if (isset($request['deposit_amount']) && $request['deposit_amount'] !== null && $request['deposit_amount'] !== '') {
+            $dep = (float)$request['deposit_amount'];
+        } elseif (isset($post['deposit_amount']) && $post['deposit_amount'] !== '' && is_numeric($post['deposit_amount'])) {
             $dep = (float)$post['deposit_amount'];
         }
         if ($dep < 0) {
@@ -971,5 +1102,122 @@ public function saveFormFieldSettings()
         );
 
         return json_encode($payload);
+    }
+
+    /**
+     * Send confirmation/thank-you email after successful form submission, if a template was chosen.
+     */
+    protected function send_payment_agreement_thank_you_email($request, array $post = array())
+    {
+        if (empty($request) || !is_array($request)) {
+            return false;
+        }
+
+        $template_id = isset($request['thank_you_email_template_id']) ? (int)$request['thank_you_email_template_id'] : 0;
+        if ($template_id <= 0) {
+            return false;
+        }
+
+        $to_email = '';
+        if (!empty($post['email_address'])) {
+            $to_email = trim((string)$post['email_address']);
+        }
+        if ($to_email === '' && !empty($request['client_email'])) {
+            $to_email = trim((string)$request['client_email']);
+        }
+        if ($to_email === '' || !filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
+            log_message('error', 'Payment agreement thank-you email skipped: missing/invalid recipient for request_id=' . (isset($request['id']) ? $request['id'] : 'n/a'));
+            return false;
+        }
+
+        $client_name = '';
+        if (!empty($post['full_name'])) {
+            $client_name = trim((string)$post['full_name']);
+        }
+        if ($client_name === '' && !empty($request['client_name'])) {
+            $client_name = trim((string)$request['client_name']);
+        }
+
+        $business_name = isset($request['business_name']) ? trim((string)$request['business_name']) : '';
+
+        $email_template = $this->Campaign_Model->get_template_by_id($template_id);
+        if (empty($email_template) || (isset($email_template['RECORD_STATUS']) && (int)$email_template['RECORD_STATUS'] !== 0)) {
+            log_message('error', 'Payment agreement thank-you email skipped: invalid template_id=' . $template_id);
+            return false;
+        }
+
+        $emailConfig = array(
+            'protocol'    => 'smtp',
+            'smtp_host'   => 'smtp.hostinger.com',
+            'smtp_user'   => 'nlp@empoweryourdestiny.com.au',
+            'smtp_pass'   => 'Franh1ve@2024',
+            'smtp_port'   => 465,
+            'smtp_crypto' => 'ssl',
+            'smtp_timeout'=> 8,
+            'mailtype'    => 'html',
+            'charset'     => 'utf-8',
+            'newline'     => "\r\n",
+            'wordwrap'    => TRUE
+        );
+
+        $this->load->library('email');
+        $this->email->clear(true);
+        $this->email->initialize($emailConfig);
+        $this->email->set_newline("\r\n");
+
+        $template_vars = array(
+            'name'          => $client_name,
+            'link'          => '',
+            'business_name' => $business_name,
+            'sender_name'   => 'Empower Your Destiny',
+        );
+
+        $subject_tpl = trim((string)($email_template['TEMPLATE_SUBJECT'] ?? ''));
+        if ($subject_tpl !== '') {
+            $subject = apply_email_template_placeholders($subject_tpl, $template_vars);
+        } else {
+            $subject = 'Thank you for submitting your payment agreement';
+        }
+
+        $body = build_template_email_body($email_template, $template_vars);
+
+        $this->email->from('nlp@empoweryourdestiny.com.au', 'Empower Your Destiny');
+        $this->email->to($to_email);
+        $this->email->subject($subject);
+        $this->email->message($body);
+
+        if ($this->email->send()) {
+            return true;
+        }
+
+        log_message('error', 'Payment agreement thank-you email failed for request_id=' . (isset($request['id']) ? $request['id'] : 'n/a') . ': ' . $this->email->print_debugger());
+        return false;
+    }
+
+    /**
+     * Build token_expires_at from admin-selected duration (hours, days, or weeks).
+     */
+    protected function compute_token_expires_at($value, $unit, &$error = null)
+    {
+        $value = (int)$value;
+        $unit  = strtolower(trim((string)$unit));
+
+        if ($value <= 0) {
+            $error = 'Link expiry duration must be at least 1.';
+            return null;
+        }
+
+        if (!in_array($unit, array('hours', 'days', 'weeks'), true)) {
+            $error = 'Please select a valid link expiry unit (hours, days, or weeks).';
+            return null;
+        }
+
+        $max = array('hours' => 720, 'days' => 90, 'weeks' => 12);
+        if ($value > $max[$unit]) {
+            $error = 'Link expiry is too long. Maximum allowed: ' . $max[$unit] . ' ' . $unit . '.';
+            return null;
+        }
+
+        return date('Y-m-d H:i:s', strtotime('+' . $value . ' ' . $unit));
     }
 }

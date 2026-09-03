@@ -4,6 +4,12 @@ $overrides = $overrides ?? [];
 $prefill         = $prefill ?? [];
 $checkbox_errors = $checkbox_errors ?? [];   // passed from controller on failed validation
 
+// Signature pad: default ON for templates that never set the flag
+$enable_signature = !isset($overrides['enable_signature'])
+    || (string)$overrides['enable_signature'] === '1'
+    || $overrides['enable_signature'] === 1
+    || $overrides['enable_signature'] === true;
+
 // Split fields into top/bottom by sort_order
 $top_fields = [];
 $bottom_fields = [];
@@ -149,6 +155,14 @@ function render_input($f, $fname, $val, $checkbox_errors = []) {
     echo '<input class="form-control" type="'.$t.'" name="'.html_escape($fname).'" value="'.html_escape($val).'" placeholder="'.$placeholder.'"'.$req_attr.'>';
 }
 
+function render_field_html_block($html) {
+    $html = trim((string)$html);
+    if ($html === '') {
+        return;
+    }
+    echo '<div class="card field-html-block"><div class="content">'.$html.'</div></div>';
+}
+
 // Dynamic heading for title/footer
 $dynHeading = !empty($template['heading'])
     ? $template['heading']
@@ -233,6 +247,17 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       font-size:14.5px;
       line-height:1.6;
       color:#3c4043;
+    }
+
+    .field-html-block{
+      padding:0;
+      overflow:hidden;
+    }
+    .field-html-block .content{
+      margin:0;
+      border:none;
+      border-radius:0;
+      background:#fafafa;
     }
 
     /* FORM */
@@ -710,6 +735,8 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
           $sec_map[$sec['id']] = $sec['name'];
       }
       $field_sections_map = $overrides['field_sections'] ?? [];
+      $field_html_before_map = $overrides['field_html_before'] ?? [];
+      $field_html_after_map  = $overrides['field_html_after'] ?? [];
 
       // ── Group all fields into ordered steps ───────────────
       // Each step = one section (or the "ungrouped" bucket).
@@ -758,8 +785,10 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
           $step_seconds[$si] = $secs;
           $total_seconds    += $secs;
       }
-      // Always add signature time to total (it's outside the steps array)
-      $total_seconds += 25;
+      // Always add signature time to total when signature is enabled
+      if ($enable_signature) {
+          $total_seconds += 25;
+      }
 
       function fmt_seconds($s) {
           if ($s < 60)  return 'under 1 min';
@@ -845,7 +874,12 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
 
           // Mark card with has-error if server returned an error for this field
           $card_error_class = (!empty($checkbox_errors[$fname])) ? ' has-error' : '';
+
+          $html_before = $field_html_before_map[$fname] ?? '';
+          $html_after  = $field_html_after_map[$fname] ?? '';
         ?>
+          <?php render_field_html_block($html_before); ?>
+
           <?php if ($ftype === 'section'): ?>
             <div class="card section-card">
               <h3 class="section-title"><?= html_escape($label) ?></h3>
@@ -856,6 +890,8 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
               <?php render_input($f, $fname, $val, $checkbox_errors); ?>
             </div>
           <?php endif; ?>
+
+          <?php render_field_html_block($html_after); ?>
         <?php endforeach; ?>
 
         <?php if ($use_steps): ?>
@@ -894,8 +930,10 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
 
       <!-- SIGNATURE + SUBMIT (always last; hidden until last step when paginated) -->
       <div class="card sigWrap" id="sig-block" <?= $use_steps ? 'style="display:none;"' : '' ?>>
-        <label class="q-label">Signature <span class="req">*</span></label>
-        <canvas id="sig"></canvas>
+        <?php if ($enable_signature): ?>
+          <label class="q-label">Signature <span class="req">*</span></label>
+          <canvas id="sig"></canvas>
+        <?php endif; ?>
 
         <input type="hidden" name="signature_data" id="signature_data">
         <input type="hidden" name="client_timezone" id="client_timezone">
@@ -907,9 +945,13 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
             <button type="button" class="btn-light" onclick="gotoStep(<?= $total_steps - 2 ?>)">&#8592; Previous</button>
           <?php endif; ?>
           <button type="submit" class="btn-primary">Submit Form</button>
-          <button type="button" class="btn-light" onclick="clearSig()">Clear Signature</button>
+          <?php if ($enable_signature): ?>
+            <button type="button" class="btn-light" onclick="clearSig()">Clear Signature</button>
+          <?php endif; ?>
         </div>
-        <div class="small">Draw your signature in the box above.</div>
+        <?php if ($enable_signature): ?>
+          <div class="small">Draw your signature in the box above.</div>
+        <?php endif; ?>
       </div>
 
     </form>
@@ -924,8 +966,9 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
   </div>
 
 <script>
-  const canvas = document.getElementById('sig');
-  const ctx = canvas.getContext('2d');
+  const enableSignature = <?= $enable_signature ? 'true' : 'false' ?>;
+  const canvas = enableSignature ? document.getElementById('sig') : null;
+  const ctx = canvas ? canvas.getContext('2d') : null;
 
   document.getElementById('client_timezone').value =
     Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -937,6 +980,7 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
     (window.screen.width || '') + 'x' + (window.screen.height || '');
 
   function resizeCanvas(){
+    if (!canvas || !ctx) return;
     const rect = canvas.getBoundingClientRect();
     const ratio = window.devicePixelRatio || 1;
     canvas.width = rect.width * ratio;
@@ -973,13 +1017,15 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
 
   function end(){ drawing=false; last=null; }
 
-  canvas.addEventListener('mousedown', start);
-  canvas.addEventListener('mousemove', move);
-  window.addEventListener('mouseup', end);
+  if (canvas) {
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
 
-  canvas.addEventListener('touchstart', start, {passive:false});
-  canvas.addEventListener('touchmove', move, {passive:false});
-  window.addEventListener('touchend', end);
+    canvas.addEventListener('touchstart', start, {passive:false});
+    canvas.addEventListener('touchmove', move, {passive:false});
+    window.addEventListener('touchend', end);
+  }
 
   // Clear error highlight when user starts filling in a field
   document.addEventListener('input', function(e) {
@@ -1000,11 +1046,17 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
   });
 
   function clearSig(){
+    if (!canvas || !ctx) return;
     ctx.clearRect(0,0,canvas.width,canvas.height);
   }
 
   function beforeSubmit(){
-    document.getElementById('signature_data').value = canvas.toDataURL('image/png');
+    const sigInput = document.getElementById('signature_data');
+    if (enableSignature && canvas && sigInput) {
+      sigInput.value = canvas.toDataURL('image/png');
+    } else if (sigInput) {
+      sigInput.value = '';
+    }
     return true;
   }
 
@@ -1017,8 +1069,10 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
   document.querySelectorAll('.form-step').forEach(s => {
     stepSeconds.push(parseInt(s.dataset.estSeconds || 0, 10));
   });
-  // Signature always on last step — add its 25s
-  stepSeconds[stepSeconds.length - 1] = (stepSeconds[stepSeconds.length - 1] || 0) + 25;
+  // Signature always on last step — add its 25s when enabled
+  if (enableSignature) {
+    stepSeconds[stepSeconds.length - 1] = (stepSeconds[stepSeconds.length - 1] || 0) + 25;
+  }
 
   function fmtSecs(s) {
     if (s <= 0)  return 'under 1 min';

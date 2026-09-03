@@ -33,13 +33,17 @@ class Eforms extends CI_Controller {
       return;
     }
 
-    // Carry confirmation email template from template overrides, if configured.
+    // Carry confirmation email + thank-you page template from template overrides, if configured.
     $overrides = json_decode($tpl['overrides_json'] ?? '{}', true) ?: [];
     $confirmation_template_id = (int)($overrides['confirmation_email_template_id'] ?? 0);
+    $thank_you_page_template_id = (int)($overrides['thank_you_page_template_id'] ?? 0);
 
     $prefill = [];
     if ($confirmation_template_id > 0) {
       $prefill['confirmation_email_template_id'] = $confirmation_template_id;
+    }
+    if ($thank_you_page_template_id > 0) {
+      $prefill['thank_you_page_template_id'] = $thank_you_page_template_id;
     }
 
     // Long-lived expiry so the public/general link stays reusable.
@@ -168,10 +172,15 @@ class Eforms extends CI_Controller {
 
       if ($ci_passed && empty($checkbox_errors)) {
 
-        // signature
+        // signature (only when template enables signature box)
+        $enable_signature = !isset($overrides['enable_signature'])
+          || (string)$overrides['enable_signature'] === '1'
+          || $overrides['enable_signature'] === 1
+          || $overrides['enable_signature'] === true;
+
         $signature_data = $this->input->post('signature_data');
         $signature_path = null;
-        if (!empty($signature_data)) {
+        if ($enable_signature && !empty($signature_data)) {
           $signature_path = $this->save_signature_png($signature_data, $req['id']);
         }
 
@@ -215,12 +224,13 @@ class Eforms extends CI_Controller {
           }
         }
 
-        // PDF HTML
+        // PDF HTML — client copy (no Audit/Proof section) for email $PDF$ link
         $pdf_html = $this->load->view('eforms/pdf/submission_pdf', [
           'template' => $tpl,
           'request'  => $req,
           'data'     => $data_for_pdf,
           'signature_path' => $signature_path,
+          'include_audit' => false,
           'meta' => [
             'template_title' => $tpl['title'] ?? ($tpl['heading'] ?? 'Form'),
             'client_name'    => $pdf_client_name,
@@ -262,9 +272,11 @@ class Eforms extends CI_Controller {
         $this->eform->create_submission($req['id'], (int)$tpl['id'], $values, $signature_path, $pdf_path, $static_slug);
 
         $this->eform->mark_submitted($req['id']);
-        $this->send_submission_confirmation_email($req, $values);
+        $this->send_submission_confirmation_email($req, $values, $pdf_path);
 
-        $this->load->view('eforms_public/thank_you');
+        $this->load->view('eforms_public/thank_you', [
+          'thank_you_template' => $this->resolve_thank_you_page_template($req, $tpl),
+        ]);
         return;
       }
     }
@@ -293,7 +305,7 @@ class Eforms extends CI_Controller {
     return trim((string)$value) !== '';
   }
 
-  private function send_submission_confirmation_email($req, $values)
+  private function send_submission_confirmation_email($req, $values, $pdf_path = null)
   {
     $prefill = json_decode($req['prefill_json'] ?? '{}', true);
     $email_template_id = (int)($prefill['confirmation_email_template_id'] ?? 0);
@@ -349,22 +361,28 @@ class Eforms extends CI_Controller {
     $subject = (string)($email_template['TEMPLATE_SUBJECT'] ?? 'Your registration is confirmed');
     $message_body = (string)($email_template['TEMPLATE_BODY'] ?? '');
     $portal_link = 'https://eyd.franhive.com/login';
+    $pdf_url = '';
+    if (!empty($pdf_path)) {
+      $pdf_url = base_url(ltrim((string)$pdf_path, '/'));
+    }
 
-    $message_body = str_replace(
-      [
-        '[User Email]', '[UserEmail]', '{{user_email}}', '{{email}}', '$Email$', '$EMAIL$',
-        '[User Password]', '[Password]', '{{user_password}}', '{{password}}',
-        '{{name}}', '$Name$', '$NAME$',
-        '{{training_link}}', '{{portal_link}}'
-      ],
-      [
-        $email, $email, $email, $email, $email, $email,
-        $password, $password, $password, $password,
-        $name, $name, $name,
-        $portal_link, $portal_link
-      ],
-      $message_body
-    );
+    $placeholder_search = [
+      '[User Email]', '[UserEmail]', '{{user_email}}', '{{email}}', '$Email$', '$EMAIL$',
+      '[User Password]', '[Password]', '{{user_password}}', '{{password}}',
+      '{{name}}', '$Name$', '$NAME$',
+      '{{training_link}}', '{{portal_link}}',
+      '$PDF$', '$Pdf$', '$pdf$',
+    ];
+    $placeholder_replace = [
+      $email, $email, $email, $email, $email, $email,
+      $password, $password, $password, $password,
+      $name, $name, $name,
+      $portal_link, $portal_link,
+      $pdf_url, $pdf_url, $pdf_url,
+    ];
+
+    $subject = str_replace($placeholder_search, $placeholder_replace, $subject);
+    $message_body = str_replace($placeholder_search, $placeholder_replace, $message_body);
 
     if (!empty($email_template['TEMPLATE_SIGN'])) {
       $signature_html = '<br><br><div style="display:inline-block;">';
@@ -413,6 +431,29 @@ class Eforms extends CI_Controller {
     if (!$this->email->send()) {
       log_message('error', 'Eform confirmation email failed for ' . $email . ': ' . $this->email->print_debugger());
     }
+  }
+
+  private function resolve_thank_you_page_template($req, $tpl = null)
+  {
+    $prefill = json_decode($req['prefill_json'] ?? '{}', true) ?: [];
+    $id = (int)($prefill['thank_you_page_template_id'] ?? 0);
+
+    if ($id <= 0 && !empty($tpl)) {
+      $overrides = json_decode($tpl['overrides_json'] ?? '{}', true) ?: [];
+      $id = (int)($overrides['thank_you_page_template_id'] ?? 0);
+    }
+
+    if ($id <= 0) {
+      return null;
+    }
+
+    // Active-only: deactivated templates fall back to the built-in default page.
+    $row = $this->eform->get_thank_you_page_template($id, true);
+    if (empty($row) || trim((string)($row['body_html'] ?? '')) === '') {
+      return null;
+    }
+
+    return $row;
   }
 
   private function extract_submission_value($values, $field_names)

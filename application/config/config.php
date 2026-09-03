@@ -3,12 +3,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 // Ensure SUBDOMAIN is defined
 if (!defined('SUBDOMAIN')) {
-    $host = explode(':', $_SERVER['HTTP_HOST'] ?? 'localhost')[0];
+    $host = $_SERVER['HTTP_HOST'];
     $subdomain = explode('.', $host)[0];
-    // Local PHP server has no eyd. subdomain — run as the eyd tenant
-    if (in_array($host, ['localhost', '127.0.0.1'], true) || in_array($subdomain, ['localhost', '127'], true)) {
-        $subdomain = 'eyd';
-    }
     define('SUBDOMAIN', $subdomain);
 }
 
@@ -168,10 +164,7 @@ $config['subclass_prefix'] = 'MY_';
 | Note: This will NOT disable or override the CodeIgniter-specific
 |	autoloading (application/config/autoload.php)
 */
-$local_vendor = FCPATH . 'vendor/autoload.php';
-$config['composer_autoload'] = file_exists($local_vendor)
-    ? $local_vendor
-    : '/home/u649484662/domains/franhive.com/public_html/franhive_portal/vendor/autoload.php';
+$config['composer_autoload'] = '/home/u649484662/domains/franhive.com/public_html/franhive_portal/vendor/autoload.php';
  // or TRUE if vendor/ next to index.php
 
 
@@ -260,7 +253,7 @@ $config['allow_get_array'] = TRUE;
 | your log files will fill up very fast.
 |
 */
-$config['log_threshold'] = 1;
+$config['log_threshold'] = 4;
 
 /*
 |--------------------------------------------------------------------------
@@ -417,11 +410,7 @@ $config['encryption_key'] = '';
 $config['sess_driver'] = 'files';
 $config['sess_cookie_name'] = 'ci_session';
 $config['sess_expiration'] = 7200;
-$sess_save_path = APPPATH . 'cache/sessions';
-if (!is_dir($sess_save_path)) {
-    @mkdir($sess_save_path, 0755, true);
-}
-$config['sess_save_path'] = $sess_save_path;
+$config['sess_save_path'] = NULL;
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
 $config['sess_regenerate_destroy'] = FALSE;
