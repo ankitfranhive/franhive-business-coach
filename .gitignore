@@ -1,3 +1,7 @@
+application/cache/sessions/*
+application/logs/*
+!application/cache/sessions/index.html
+!application/logs/index.html
 /vendor
 application/config/database.php
 application/config/secrets.php
