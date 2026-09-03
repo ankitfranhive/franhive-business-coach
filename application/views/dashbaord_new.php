@@ -118,7 +118,7 @@
               <div class="font-600">Barinderjeet Kaur</div>
               <div class="text-muted">Human Behaviour Specialist & Business Coach</div>
             <?php } else { ?>
-              <h5 class="mb-2">Think Big. Build Purpose.</h5>
+              <h5 class="mb-2">Think Big. Build Purpose...</h5>
               <p class="mb-2">Every brand can grow with clarity, strategy and purpose. Start here.</p>
               <div class="font-600">Franhive</div>
               <div class="text-muted">Your Partner in Growth & Business Transformation</div>
