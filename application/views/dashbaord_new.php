@@ -113,7 +113,7 @@
         <div class="col-md-5 d-flex align-items-center">
           <div>
             <?php if (defined('SUBDOMAIN') && SUBDOMAIN === "eyd"){ ?>
-              <h5 class="mb-2">Play Big. Build Purpose.</h5>
+              <h5 class="mb-2">Play Big. Build Purpose...</h5>
               <p class="mb-2">Excited to be on this journey with you—your decision already sets your direction.</p>
               <div class="font-600">Barinderjeet Kaur</div>
               <div class="text-muted">Human Behaviour Specialist & Business Coach</div>
