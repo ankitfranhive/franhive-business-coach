@@ -2,11 +2,12 @@
     RewriteEngine On
 
     # Force HTTPS
-    RewriteCond %{HTTPS} !=on
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    #RewriteCond %{HTTPS} !=on
+    #RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Handle requests for subdomains
-    RewriteCond %{HTTP_HOST} ^(demo|eyd)\.franhive\.com$ [NC]
+    RewriteCond %{HTTP_HOST} ^(demo|eyd)\.franhive\.com$ [NC,OR]
+RewriteCond %{HTTP_HOST} ^159\.223\.124\.241$ [NC]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php/$1 [L]
