@@ -769,7 +769,7 @@ class LandingPageController extends CI_Controller
         $this->email->initialize($config);
         $this->email->set_newline("\r\n");
 
-        $this->email->from(EMAIL_CONFIG_EMAIL, 'EYD Training');
+        $this->email->from(EMAIL_CONFIG_EMAIL, 'Barinderjeet Kaur');
         $this->email->to($email);
         $this->email->subject($subject);
         $this->email->message($message_body);
@@ -804,7 +804,7 @@ class LandingPageController extends CI_Controller
         $this->email->initialize($config);
         $this->email->set_newline("\r\n");
 
-        $this->email->from(EMAIL_CONFIG_EMAIL, 'EYD Training');
+        $this->email->from(EMAIL_CONFIG_EMAIL, 'Barinderjeet Kaur');
         $this->email->to('nlp@empoweryourdestiny.com.au'); // receipt to admin
         $this->email->subject($subject);
         $this->email->message($message_body);

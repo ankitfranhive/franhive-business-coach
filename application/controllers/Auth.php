@@ -228,7 +228,7 @@ ini_set('display_errors', 1);
         $this->email->set_crlf("\r\n");
 
         $fromEmail = 'nlp@empoweryourdestiny.com.au';
-        $this->email->from($fromEmail, 'EYD Training');
+        $this->email->from($fromEmail, 'Barinderjeet Kaur');
         $this->email->to($to);
         $this->email->subject($subject);
         $this->email->message($html);

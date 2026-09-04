@@ -858,7 +858,7 @@ public function send_bank_details_email()
 
         // From: use your branded sender (can also be the same as smtp_user)
         $fromEmail = defined('EMAIL_CONFIG_EMAIL') ? EMAIL_CONFIG_EMAIL : 'nlp@empoweryourdestiny.com.au';
-        $this->email->from($fromEmail, 'EYD Training');
+        $this->email->from($fromEmail, 'Barinderjeet Kaur');
         $this->email->to($email);
         $this->email->subject($subject);
         $this->email->message($body);
@@ -965,7 +965,7 @@ private function notify_admin_payment_success(array $info): bool
       </div>
     ';
 
-    $this->email->from($fromEmail, 'EYD Training');
+    $this->email->from($fromEmail, 'Barinderjeet Kaur');
     $this->email->to($to);
     $this->email->subject($subject);
     $this->email->message($body);
