@@ -62,9 +62,16 @@ class User_Model extends CI_Model
         }
         return $query->num_rows() ? $query->result_array() : false;
     }
-    
 
-    
+    public function get_campaign_crm_users()
+    {
+        $this->db->select('USER_ID, NAME, EMAIL, MOBILE, CITY, JOB_TITLE');
+        $this->db->from('USERS');
+        $this->db->order_by('NAME', 'ASC');
+        $query = $this->db->get();
+        return ($query && $query->num_rows()) ? $query->result_array() : [];
+    }
+
 
 
 

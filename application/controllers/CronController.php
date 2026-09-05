@@ -7,10 +7,10 @@ class CronController extends CI_Controller {
         parent::__construct();
         $this->load->library('email');
         $this->load->model('Campaign_Model');
+        $this->load->helper('campaign');
     }
 
     public function my_cron_job() {
-        // Email configuration
         $config = [
             'protocol' => 'smtp',
             'smtp_host' => 'smtp.hostinger.com',
@@ -21,81 +21,77 @@ class CronController extends CI_Controller {
             'charset'   => 'utf-8',
             'newline'   => "\r\n"
         ];
-    
+
         $this->email->initialize($config);
-    
-        // Fetch all campaigns
-        $all_campaign = $this->Campaign_Model->get_all_new_campaigns();
 
-        // print_r( $all_campaign);die;
-    
-        if (!empty($all_campaign)) {
-            foreach ($all_campaign as $val) {
-                $all_templates = $this->Campaign_Model->get_template_campaign_mapping_id($val['CAMPAIGN_ID']);
+        $all_campaign = $this->Campaign_Model->get_schedulable_campaigns();
+        if (empty($all_campaign)) {
+            $all_campaign = $this->Campaign_Model->get_all_new_campaigns();
+        }
 
-                if (empty($all_templates)) {
-                    echo "There is no template set for this time.";
+        if (empty($all_campaign)) {
+            echo "There is no Campaign.";
+            return;
+        }
+
+        foreach ($all_campaign as $val) {
+            $campaign_id = $val['CAMPAIGN_ID'];
+            $all_templates = $this->Campaign_Model->get_due_template_mappings($campaign_id);
+            if (empty($all_templates)) {
+                echo "No due emails for campaign {$campaign_id}.<br>";
+                continue;
+            }
+
+            $this->Campaign_Model->set_workflow($campaign_id, 'in_progress');
+            $user_details = $this->Campaign_Model->get_users_by_campiagn_id($campaign_id);
+
+            foreach ($all_templates as $mapping) {
+                $template_data = $this->Campaign_Model->get_template_by_id($mapping['TEMPLATE_ID']);
+                if (empty($template_data) || empty($user_details)) {
                     continue;
-
                 }
-                // print_r($all_templates);die;
-    
-                foreach ($all_templates as $value) {
-                    $template_data = $this->Campaign_Model->get_template_by_id($value['TEMPLATE_ID']);
-                    $user_details = $this->Campaign_Model->get_users_by_campiagn_id($value['CAMPAIGN_ID']);
-    
-                    // print_r($user_details);die;
 
-                    if (is_array($user_details)) {
-                        foreach ($user_details as $user_detail) {
-                            // Fetch user details (assuming you have a method for this)
-                            // $user_details = $this->Campaign_Model->get_user_details_by_id($user_id);
-    
-                            if (empty($user_detail['user_name'])) {
-                                echo "User name not found for User ID:". $user_detail['ENTITY_ID']."<br>";
-                                continue;
-                            }
+                foreach ($user_details as $user_detail) {
+                    if (empty($user_detail['email_id'])) {
+                        echo "Email not found for User ID: " . ($user_detail['ENTITY_ID'] ?? '') . "<br>";
+                        continue;
+                    }
 
-                            // echo $template_data['TEMPLATE_BODY'];die;
-    
-                            // Replace placeholders in the template
-                            $personalized_body = str_replace(
-                                ['$Name$'], // Placeholder
-                                [$user_detail['user_name']], // Replacement
-                                $template_data['TEMPLATE_BODY']
-                            );
+                    $personalized_subject = campaign_fill_merge_tags($template_data['TEMPLATE_SUBJECT'], $user_detail);
+                    $personalized_body = campaign_fill_merge_tags($template_data['TEMPLATE_BODY'], $user_detail);
+                    $personalized_sign = campaign_fill_merge_tags($template_data['TEMPLATE_SIGN'], $user_detail);
+                    $personalized_body .= "<br><br>" . $personalized_sign;
 
+                    $from_name = $val['MANAGER_NAME'] ?: 'EYD NLP Team';
+                    $this->email->clear(true);
+                    $this->email->from("nlp@empoweryourdestiny.com.au", $from_name);
+                    $this->email->to($user_detail['email_id']);
+                    $this->email->subject($personalized_subject);
+                    $this->email->message($personalized_body);
 
-                            $personalized_body .= "<br><br>" . $template_data['TEMPLATE_SIGN'];
-
-                            // $template_data['TEMPLATE_SIGN']
-                            // echo $user_detail['email_id'];die;
-    
-                            $this->email->from("nlp@empoweryourdestiny.com.au", "EYD NLP Team");
-                            $this->email->to($user_detail['email_id']);
-                            $this->email->subject($template_data['TEMPLATE_SUBJECT']);
-                            $this->email->message($personalized_body);
-
-                            // echo $personalized_body;die;
-    
-                            if ($this->email->send()) {
-                                $data['STATUS'] = 0;
-                                $this->Campaign_Model->update_campaign($value['CAMPAIGN_ID'], $data);
-                                echo "Email sent successfully to " . $user_details['email'] . " for Campaign ID: " . $value['CAMPAIGN_ID'] . "<br>";
-                            } else {
-                                echo "Failed to send email to " . $user_details['email'] . " for Campaign ID: " . $value['CAMPAIGN_ID'] . "<br>";
-                                echo $this->email->print_debugger();
-                            }
-                        }
+                    if ($this->email->send()) {
+                        $this->Campaign_Model->log_campaign_email([
+                            'CAMPAIGN_ID' => $campaign_id,
+                            'TEMPLATE_ID' => $mapping['TEMPLATE_ID'],
+                            'FOREIGN_ID' => $user_detail['ENTITY_ID'],
+                            'TO_EMAIL' => $user_detail['email_id'],
+                            'SUBJECT' => $personalized_subject,
+                            'BODY' => $personalized_body,
+                            'SEND_DATE' => date('Y-m-d H:i:s'),
+                        ]);
+                        echo "Email sent to " . $user_detail['email_id'] . " for Campaign ID: {$campaign_id}<br>";
                     } else {
-                        echo "Invalid user data for Campaign ID: " . $value['CAMPAIGN_ID'] . "<br>";
+                        echo "Failed to send email to " . $user_detail['email_id'] . " for Campaign ID: {$campaign_id}<br>";
                     }
                 }
+
+                $this->Campaign_Model->mark_template_mapping_sent($mapping['ID']);
             }
-        } else {
-            echo "There is no Campaign.";
+
+            $this->Campaign_Model->refresh_campaign_counts($campaign_id);
+            if (!$this->Campaign_Model->campaign_has_pending_emails($campaign_id)) {
+                $this->Campaign_Model->set_workflow($campaign_id, 'sent');
+            }
         }
     }
-    
 }
-?>

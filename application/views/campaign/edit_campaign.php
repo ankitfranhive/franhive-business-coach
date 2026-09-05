@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('campaign/partials/campaign_styles'); ?>
 <div class="mobile-menu-overlay"></div>
 <div class="main-container">
    <div class="pd-ltr-20 xs-pd-20-10">
@@ -26,6 +27,7 @@
          </div>
          <form id="campaignForm" action="<?= base_url('CampaignController/updateCampaign') ?>" method="post">
             <input type="hidden" name="CAMPAIGN_ID" value="<?= $campaign_data['CAMPAIGN_ID'] ?>">
+            <input type="hidden" name="SAVE_ACTION" id="SAVE_ACTION" value="setup">
 
             <!-- Screen 1 -->
             <div id="screen1" class="screen">
@@ -57,21 +59,21 @@
                <div class="form-group row">
                   <label class="col-sm-12 col-md-2 col-form-label">Create campaign for</label>
                   <div class="col-sm-12 col-md-10">
-                     <select class="custom-select col-12" name="MODULE_NAME">
+                     <select class="custom-select col-12" name="MODULE_NAME" id="audienceSelect">
                         <option value="">Choose...</option>
-                        <option value="Lead" <?= $campaign_data['MODULE_NAME'] == 'Lead' ? 'selected' : '' ?>>Lead</option>
-                        <option value="Client" <?= $campaign_data['MODULE_NAME'] == 'Client' ? 'selected' : '' ?>>Client</option>
+                        <option value="Lead" <?= $campaign_data['MODULE_NAME'] == 'Lead' ? 'selected' : '' ?>>Leads</option>
+                        <option value="Client" <?= $campaign_data['MODULE_NAME'] == 'Client' ? 'selected' : '' ?>>Clients</option>
+                        <option value="User" <?= $campaign_data['MODULE_NAME'] == 'User' ? 'selected' : '' ?>>Select from users</option>
                      </select>
                   </div>
                </div>
                <div class="form-group row">
-                  <label class="col-sm-12 col-md-2 col-form-label">Status</label>
+                  <label class="col-sm-12 col-md-2 col-form-label">Workflow status</label>
                   <div class="col-sm-12 col-md-10">
-                     <select class="custom-select col-12" name="STATUS">
-                        <option value="">Choose...</option>
-                        <option value="Lead" <?= $campaign_data['STATUS'] == '0' ? 'selected' : '' ?>>Deactive</option>
-                        <option value="Client" <?= $campaign_data['STATUS'] == '1' ? 'selected' : '' ?>>Active</option>
-                     </select>
+                     <?php $wf = $campaign_data['WORKFLOW_STATUS'] ?? 'draft'; $meta = campaign_status_meta($wf); ?>
+                     <input type="hidden" name="WORKFLOW_STATUS" value="<?= htmlspecialchars($wf) ?>">
+                     <span class="badge <?= $meta['class'] ?>"><?= $meta['label'] ?></span>
+                     <small class="text-muted d-block"><?= $meta['help'] ?>. Use the buttons on the last step to change this.</small>
                   </div>
                </div>
                <div class="form-group row">
@@ -84,44 +86,50 @@
             <!-- Screen 2 -->
             <div id="screen2" class="screen" style="display: none;">
                <h4>Select Templates</h4>
-               <div class="pb-20 mt-2">
-                  <table class="data-table table stripe hover nowrap">
+               <?php $campaign_timezone = campaign_normalize_timezone($campaign_data['TIMEZONE'] ?? campaign_default_timezone()); ?>
+               <?php $this->load->view('campaign/partials/campaign_timezone_bar', ['campaign_timezone' => $campaign_timezone]); ?>
+               <?php $this->load->view('campaign/partials/campaign_templates_toolbar'); ?>
+               <div id="templatesTableWrap" class="pb-20 mt-2">
+                  <table class="table table-striped">
                      <thead>
                         <tr>
-                           <th>Select</th>
-                           <th>Template ID</th>
+                           <th><input type="checkbox" class="template-select-page" title="Select this page"></th>
                            <th>Template Name</th>
-                           <th>Module Name</th>
-                           <th>Template Subject</th>
-                           <th>Sending Order</th>
+                           <th>Subject</th>
+                           <th>Order</th>
                            <th>Send Date</th>
-                           <th>Start Time</th>
+                           <th>Time</th>
+                           <th>Timezone</th>
                         </tr>
                      </thead>
                      <tbody>
                         <?php foreach ($all_templates as $template): ?>
+                           <?php $selected = $selected_templates[$template['TEMPLATE_ID']] ?? null; ?>
                            <tr>
                               <td>
                                  <input type="checkbox" name="TEMPLATE_IDS[]" value="<?= $template['TEMPLATE_ID'] ?>"
-                                    <?= in_array($template['TEMPLATE_ID'], array_column($selected_templates, 'TEMPLATE_ID')) ? 'checked' : '' ?>>
+                                    <?= $selected ? 'checked' : '' ?>>
                               </td>
-                              <td><?= $template['TEMPLATE_ID'] ?></td>
-                              <td><?= $template['TEMPLATE_NAME'] ?></td>
-                              <td><?= $template['MODULE_NAME'] ?></td>
-                              <td><?= $template['TEMPLATE_SUBJECT'] ?></td>
+                              <td data-search="<?= htmlspecialchars($template['TEMPLATE_NAME']) ?>"><?= htmlspecialchars($template['TEMPLATE_NAME']) ?></td>
+                              <td data-search="<?= htmlspecialchars($template['TEMPLATE_SUBJECT']) ?>"><?= htmlspecialchars($template['TEMPLATE_SUBJECT']) ?></td>
                               <td>
-                                 <input type="number" placeholder="Ender Order Number" name="SENDING_ORDER[<?= $template['TEMPLATE_ID'] ?>]" min="1" value="<?= isset($selected_templates[$template['TEMPLATE_ID']]) ? $selected_templates[$template['TEMPLATE_ID']]['SENDING_ORDER'] : '' ?>" class="form-control">
+                                 <input type="number" placeholder="Order" name="SENDING_ORDER[<?= $template['TEMPLATE_ID'] ?>]" min="1" value="<?= $selected['SENDING_ORDER'] ?? '' ?>" class="form-control">
                               </td>
                               <td>
-                                 <input type="date" name="SEND_DATE[<?= $template['TEMPLATE_ID'] ?>]" value="<?= isset($selected_templates[$template['TEMPLATE_ID']]) ? $selected_templates[$template['TEMPLATE_ID']]['SEND_DATE'] : '' ?>" class="form-control">
+                                 <input type="date" name="SEND_DATE[<?= $template['TEMPLATE_ID'] ?>]" value="<?= $selected['SEND_DATE'] ?? '' ?>" class="form-control">
                               </td>
                               <td>
-                                 <input type="time" name="TEMPLATE_START_TIME[<?= $template['TEMPLATE_ID'] ?>]" value="<?= isset($selected_templates[$template['TEMPLATE_ID']]) && !empty($selected_templates[$template['TEMPLATE_ID']]['TEMPLATE_START_TIME']) ? sprintf('%02d:00', $selected_templates[$template['TEMPLATE_ID']]['TEMPLATE_START_TIME']) : '' ?>" class="form-control">
+                                 <input type="time" name="TEMPLATE_START_TIME[<?= $template['TEMPLATE_ID'] ?>]" value="<?= $selected ? campaign_local_time_value($selected) : '' ?>" class="form-control">
+                              </td>
+                              <td>
+                                 <?= campaign_timezone_select(
+                                     'TEMPLATE_TIMEZONE[' . $template['TEMPLATE_ID'] . ']',
+                                     $selected['TIMEZONE'] ?? $campaign_timezone
+                                 ) ?>
                               </td>
                            </tr>
                         <?php endforeach; ?>
                      </tbody>
-
                   </table>
                </div>
                <button type="button" class="btn btn-warning" onclick="prevScreen()">Back</button>
@@ -134,29 +142,92 @@
             <!-- Screen 3 -->
             <div id="screen3" class="screen" style="display: none;">
                <h4>Select Contacts</h4>
-               <div class="pb-20">
-                  <table class="data-table table stripe hover nowrap" id="contactsTable">
+               <p class="text-muted" id="recipientsHint">Each selected person gets the emails, with merge tags filled from their record.</p>
+               <?php
+               $all_users = isset($all_users) && is_array($all_users) ? $all_users : [];
+               $crm_users = isset($crm_users) && is_array($crm_users) ? $crm_users : [];
+               $selected_contact_ids = isset($selected_contact_ids) && is_array($selected_contact_ids) ? $selected_contact_ids : [];
+               $is_user_audience = ($campaign_data['MODULE_NAME'] ?? '') === 'User';
+               ?>
+               <?php $this->load->view('campaign/partials/campaign_contacts_toolbar'); ?>
+               <div id="leadsContactsWrap" class="audience-wrap pb-20">
+                  <table class="table table-striped">
                      <thead>
                         <tr>
-                           <th>Select</th>
-                           <th>User ID</th>
-                           <th>User Name</th>
-                           <th>User Email</th>
-                           <th>User Permission</th>
+                           <th><input type="checkbox" class="contact-select-page" title="Select this page"></th>
+                           <th>Name</th>
+                           <th>Email</th>
+                           <th>Phone</th>
+                           <th>Type</th>
                         </tr>
                      </thead>
                      <tbody>
                         <?php foreach ($all_users as $user): ?>
+                           <?php if (($user['IS_LEAD'] ?? '') !== 'Y') continue; ?>
                            <tr>
                               <td>
-                                 <input type="checkbox" name="CONTACT_IDS[]" value="<?= $user['ENTITY_ID'] ?>"
-                                    <?= in_array($user['ENTITY_ID'], $selected_contact_ids) ? 'checked' : '' ?>>
+                                 <input type="checkbox" name="CONTACT_IDS[]" value="<?= (int)$user['ENTITY_ID'] ?>"
+                                    <?= !$is_user_audience && in_array($user['ENTITY_ID'], $selected_contact_ids) ? 'checked' : '' ?> disabled>
                               </td>
-                              <td><?= $user['ENTITY_ID'] ?></td>
-                              <td><?= $user['NAME'] ?></td>
-                              <td><?= $user['EMAIL'] ?></td>
-                              <td><?= ($user['IS_LEAD']=='Y')?'LEAD':'CLIENT' ?></td>
-
+                              <td><?= htmlspecialchars($user['NAME']) ?></td>
+                              <td><?= htmlspecialchars($user['EMAIL']) ?></td>
+                              <td><?= htmlspecialchars($user['MOBILE']) ?></td>
+                              <td>Lead</td>
+                           </tr>
+                        <?php endforeach; ?>
+                     </tbody>
+                  </table>
+               </div>
+               <div id="clientsContactsWrap" class="audience-wrap pb-20" style="display:none;">
+                  <table class="table table-striped">
+                     <thead>
+                        <tr>
+                           <th><input type="checkbox" class="contact-select-page" title="Select this page"></th>
+                           <th>Name</th>
+                           <th>Email</th>
+                           <th>Phone</th>
+                           <th>Type</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <?php foreach ($all_users as $user): ?>
+                           <?php if (($user['IS_LEAD'] ?? '') === 'Y') continue; ?>
+                           <tr>
+                              <td>
+                                 <input type="checkbox" name="CONTACT_IDS[]" value="<?= (int)$user['ENTITY_ID'] ?>"
+                                    <?= !$is_user_audience && in_array($user['ENTITY_ID'], $selected_contact_ids) ? 'checked' : '' ?> disabled>
+                              </td>
+                              <td><?= htmlspecialchars($user['NAME']) ?></td>
+                              <td><?= htmlspecialchars($user['EMAIL']) ?></td>
+                              <td><?= htmlspecialchars($user['MOBILE']) ?></td>
+                              <td>Client</td>
+                           </tr>
+                        <?php endforeach; ?>
+                     </tbody>
+                  </table>
+               </div>
+               <div id="crmUsersWrap" class="audience-wrap pb-20" style="display:none;">
+                  <table class="table table-striped">
+                     <thead>
+                        <tr>
+                           <th><input type="checkbox" class="contact-select-page" title="Select this page"></th>
+                           <th>Name</th>
+                           <th>Email</th>
+                           <th>Phone</th>
+                           <th>Type</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <?php foreach ($crm_users as $crm_user): ?>
+                           <tr>
+                              <td>
+                                 <input type="checkbox" name="CONTACT_IDS[]" value="<?= (int)$crm_user['USER_ID'] ?>"
+                                    <?= $is_user_audience && in_array($crm_user['USER_ID'], $selected_contact_ids) ? 'checked' : '' ?> disabled>
+                              </td>
+                              <td><?= htmlspecialchars($crm_user['NAME']) ?></td>
+                              <td><?= htmlspecialchars($crm_user['EMAIL']) ?></td>
+                              <td><?= htmlspecialchars($crm_user['MOBILE'] ?? '') ?></td>
+                              <td>CRM user</td>
                            </tr>
                         <?php endforeach; ?>
                      </tbody>
@@ -182,7 +253,9 @@
                   </div>
                </div>
                <button type="button" class="btn btn-warning" onclick="prevScreen()">Back</button>
-               <button type="button" class="btn btn-warning" onclick="submitForm()">Update Campaign</button>
+               <button type="button" class="btn btn-secondary" onclick="submitCampaign('draft')">Save draft</button>
+               <button type="button" class="btn btn-info" onclick="submitCampaign('setup')">Mark setup done</button>
+               <button type="button" class="btn btn-success" onclick="submitCampaign('scheduled')">Trigger campaign</button>
             </div>
          </form>
       </div>
@@ -190,29 +263,51 @@
 </div>
 <?php $this->load->view('includes/footer'); ?>
 <script>
-   $(document).ready(function() {
-      $('#contactsTable').DataTable({
-         "pageLength": 10, // Set number of rows per page
-         "responsive": true,
-         "autoWidth": false,
-         "columnDefs": [{
-               "orderable": false,
-               "targets": 0
-            }, // Disable sorting on the checkbox column
-            {
-               "orderable": false,
-               "targets": 5
-            } // Disable sorting on the action column
-         ]
-      });
-   });
    var currentScreen = 1;
 
+   function currentAudience() {
+      var sel = document.getElementById('audienceSelect');
+      return sel ? sel.value : '';
+   }
+
+   function setAudienceTables() {
+      var audience = currentAudience();
+      var wraps = {
+         Lead: document.getElementById('leadsContactsWrap'),
+         Client: document.getElementById('clientsContactsWrap'),
+         User: document.getElementById('crmUsersWrap')
+      };
+      var hints = {
+         Lead: 'Showing all leads. Select one or more.',
+         Client: 'Showing all clients. Select one or more.',
+         User: 'Showing all CRM users. Select one or more.'
+      };
+      var hint = document.getElementById('recipientsHint');
+      if (hint) {
+         hint.textContent = hints[audience] || 'Each selected person gets the emails, with merge tags filled from their record.';
+      }
+      Object.keys(wraps).forEach(function (key) {
+         var wrap = wraps[key];
+         if (!wrap) return;
+         var active = key === audience;
+         wrap.style.display = active ? 'block' : 'none';
+         wrap.querySelectorAll('input[name="CONTACT_IDS[]"]').forEach(function (cb) {
+            cb.disabled = !active;
+            if (!active) cb.checked = false;
+         });
+      });
+   }
+
    function nextScreen() {
+      if (currentScreen === 1 && !currentAudience()) {
+         alert('Please choose an audience first.');
+         return;
+      }
       if (currentScreen < 4) {
          document.getElementById('screen' + currentScreen).style.display = 'none';
          currentScreen++;
          document.getElementById('screen' + currentScreen).style.display = 'block';
+         if (currentScreen === 3) setAudienceTables();
          updateProgressBar();
       }
    }
@@ -226,13 +321,19 @@
       }
    }
 
-   function submitForm() {
+   function submitCampaign(action) {
+      document.getElementById('SAVE_ACTION').value = action;
       document.getElementById('campaignForm').submit();
+   }
+   function submitForm() {
+      submitCampaign('setup');
    }
 
    function updateProgressBar() {
-      var progress = (currentScreen - 1) * 33.33;
-      document.getElementById('progressBar').style.width = progress + '%';
+      var progressBar = document.getElementById('progressBar');
+      if (progressBar) {
+         progressBar.style.width = ((currentScreen - 1) * 33.33) + '%';
+      }
 
       var dots = document.querySelectorAll('.dot');
       dots.forEach((dot, index) => {
@@ -243,6 +344,12 @@
          }
       });
    }
+
+   document.addEventListener('DOMContentLoaded', function () {
+      var sel = document.getElementById('audienceSelect');
+      if (sel) sel.addEventListener('change', setAudienceTables);
+      setAudienceTables();
+   });
 </script>
 
 </body>

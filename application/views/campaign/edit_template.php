@@ -1,4 +1,5 @@
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('campaign/partials/campaign_styles'); ?>
 
 <div class="mobile-menu-overlay"></div>
 
@@ -31,10 +32,9 @@
           <label class="col-sm-12 col-md-2 col-form-label">Create Template for</label>
           <div class="col-sm-12 col-md-10">
             <select class="custom-select col-12" name="MODULE_NAME">
-              <option value="">Choose...</option>
-              <option value="Lead" <?= $template_data['MODULE_NAME'] == 'Lead' ? 'selected' : '' ?>>Lead</option>
-              <option value="Client" <?= $template_data['MODULE_NAME'] == 'Client' ? 'selected' : '' ?>>Client</option>
-              <option value="Payment Agreement" <?= $template_data['MODULE_NAME'] == 'Payment Agreement' ? 'selected' : '' ?>>Payment Agreement</option>
+              <option value="Lead" <?= $template_data['MODULE_NAME'] == 'Lead' ? 'selected' : '' ?>>Leads</option>
+              <option value="Client" <?= $template_data['MODULE_NAME'] == 'Client' ? 'selected' : '' ?>>Clients</option>
+              <option value="Campaign" <?= $template_data['MODULE_NAME'] == 'Campaign' ? 'selected' : '' ?>>Any campaign audience</option>
             </select>
           </div>
         </div>
@@ -76,9 +76,12 @@
             Template Content <span style="color: red;">*</span>
           </label>
           <div class="col-sm-12 col-md-10">
-            <p class="text-muted small mb-2">
-              Placeholders: <code>$Name$</code>, <code>$Link$</code>, <code>$BusinessName$</code>, <code>$SenderName$</code>
-            </p>
+            <p class="text-muted small mb-2">Click a merge tag to insert it into the email. Values are filled when the campaign sends.</p>
+            <div class="mb-2">
+              <?php foreach (campaign_merge_tags() as $tag => $label): ?>
+                <span class="cm-chip" data-tag="<?= htmlspecialchars($tag) ?>"><?= htmlspecialchars($tag) ?></span>
+              <?php endforeach; ?>
+            </div>
             <textarea name="TEMPLATE_BODY" id="ckeditor" class="form-control js-richtext" required>
 <?= $template_data['TEMPLATE_BODY'] ?>
             </textarea>
@@ -192,6 +195,14 @@
       }
     }
   }, true);
+
+  document.querySelectorAll('.cm-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var tag = chip.getAttribute('data-tag');
+      var editor = window.CKEDITOR && (CKEDITOR.instances.ckeditor || CKEDITOR.instances.templateBody);
+      if (editor) editor.insertText(tag);
+    });
+  });
 })();
 </script>
 

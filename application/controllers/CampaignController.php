@@ -18,13 +18,17 @@ class CampaignController extends CI_Controller
 
     public function campaignDashboard()
     {
-
-        $data['active_campaign_count'] = $this->Campaign_Model->get_active_campaign_count();
-        $data['completed_campaign_count'] = $this->Campaign_Model->get_completed_campaign_count();
-
-        $data['recent_campaigns'] = $this->Campaign_Model->get_campaigns_list(10, 1);
-        $data['completed_campaign'] = $this->Campaign_Model->get_campaigns_list(10, 0);
-
+        $data['counts'] = [
+            'draft' => $this->Campaign_Model->count_by_workflow('draft'),
+            'setup' => $this->Campaign_Model->count_by_workflow('setup'),
+            'scheduled' => $this->Campaign_Model->count_by_workflow('scheduled'),
+            'in_progress' => $this->Campaign_Model->count_by_workflow('in_progress'),
+            'sent' => $this->Campaign_Model->count_by_workflow('sent'),
+            'paused' => $this->Campaign_Model->count_by_workflow('paused'),
+        ];
+        $data['recent_campaigns'] = $this->Campaign_Model->get_recent_campaigns(12);
+        $data['in_progress_campaigns'] = $this->Campaign_Model->get_campaigns_by_workflow('in_progress', 8);
+        $data['scheduled_campaigns'] = $this->Campaign_Model->get_campaigns_by_workflow('scheduled', 8);
         $this->load->view('campaign/campaign_dashboard', $data);
     }
 
@@ -45,32 +49,32 @@ class CampaignController extends CI_Controller
     {
         $data['all_templates'] = $this->Campaign_Model->get_all_templates();
         $data['all_users'] = $this->Client_Model->getAllLeadsAndClients();
-        // echo "<pre>";
-        // print_r($data['all_users'] );
+        $data['crm_users'] = $this->User_Model->get_campaign_crm_users();
         $this->load->view('campaign/add_campaign', $data);
     }
 
 
     public function create_campaign()
     {
-        // Retrieving form data
         $TITLE = $this->input->post('TITLE');
         $MANAGER_NAME = $this->input->post('MANAGER_NAME');
         $MODULE_NAME = $this->input->post('MODULE_NAME');
-        $REPLY_ADDRESS = $this->input->post('REPLY_ADDRESS');
+        $REPLY_ADDRESS = $this->input->post('REPLY_ADDRESS') ?: 'nlp@empoweryourdestiny.com.au';
         $START_DATE = $this->input->post('START_DATE');
         $END_DATE = $this->input->post('END_DATE');
+        $selected_template_ids = $this->input->post('TEMPLATE_IDS');
+        $sending_order = $this->input->post('SENDING_ORDER');
+        $send_date = $this->input->post('SEND_DATE');
+        $template_start_time = $this->input->post('TEMPLATE_START_TIME');
+        $selected_user_ids = $this->input->post('CONTACT_IDS');
+        $save_action = $this->input->post('SAVE_ACTION') ?: 'draft';
+        $TIMEZONE = campaign_normalize_timezone($this->input->post('TIMEZONE'));
+        $template_timezones = $this->input->post('TEMPLATE_TIMEZONE');
 
-        // Retrieving selected template details
-        $selected_template_ids = $this->input->post('TEMPLATE_IDS'); // Array of selected template IDs
-        $sending_order = $this->input->post('SENDING_ORDER'); // Array of sending orders
-        $send_date = $this->input->post('SEND_DATE'); // Array of send dates
-        $template_start_time = $this->input->post('TEMPLATE_START_TIME'); // Array of start times
+        $has_templates = !empty($selected_template_ids);
+        $has_contacts = !empty($selected_user_ids);
+        $workflow = $this->resolve_save_action($save_action, $has_templates, $has_contacts);
 
-        // Retrieving selected user IDs
-        $selected_user_ids = $this->input->post('CONTACT_IDS'); // Array of selected user IDs
-
-        // Save campaign data
         $data = array(
             'TITLE' => $TITLE,
             'MANAGER_NAME' => $MANAGER_NAME,
@@ -78,49 +82,27 @@ class CampaignController extends CI_Controller
             'REPLY_ADDRESS' => $REPLY_ADDRESS,
             'START_DATE' => $START_DATE,
             'END_DATE' => $END_DATE,
-            'STATUS' => 1,
+            'TIMEZONE' => $TIMEZONE,
+            'WORKFLOW_STATUS' => $workflow,
+            'STATUS' => campaign_legacy_status($workflow),
             'CREATED_ON' => date('Y-m-d H:i:s'),
+            'LAST_ACTIVITY_AT' => date('Y-m-d H:i:s'),
         );
 
-        // Create new campaign
         $campaign_id = $this->Campaign_Model->create_new_campaign($data);
-        // echo '<pre>';
-        // print_r($campaign_id);
-        // die;
         if ($campaign_id) {
-            // Save template mappings
-            if (!empty($selected_template_ids)) {
-                // echo '<pre>';
-                // print_r($selected_template_ids);
-                // die;
-                $template_data = array();
-                foreach ($selected_template_ids as $index => $template_id) {
-                    $template_data = array(
-                        'CAMPAIGN_ID' => $campaign_id,
-                        'TEMPLATE_ID' => $template_id,
-                        'SENDING_ORDER' => isset($sending_order[$template_id]) ? $sending_order[$template_id] : null,
-                        'SEND_DATE' => isset($send_date[$template_id]) ? $send_date[$template_id] : null,
-                        'TEMPLATE_START_TIME' => isset($template_start_time[$template_id]) ? $template_start_time[$template_id] : null,
-                        'STATUS' => 1
-                    );
-                    $this->Campaign_Model->insert_campaign_template($template_data);
-                }
-            }
-
-            // Save user assignments
-            if (!empty($selected_user_ids)) {
-                $user_data = array();
-                foreach ($selected_user_ids as $user_id) {
-
-                    $user_data = array(
-                        'CAMPAIGN_ID' => $campaign_id,
-                        'USER_ID' => $user_id,
-                        'ASSIGN_DATE' => date('Y-m-d H:i:s'),
-                        'STATUS' => 'Active'
-                    );
-                    $this->Campaign_Model->add_campaign_user($user_data);
-                }
-            }
+            $this->save_campaign_children(
+                $campaign_id,
+                $selected_template_ids,
+                $sending_order,
+                $send_date,
+                $template_start_time,
+                $selected_user_ids,
+                $this->contact_source_from_module($MODULE_NAME),
+                $TIMEZONE,
+                $template_timezones
+            );
+            $this->Campaign_Model->refresh_campaign_counts($campaign_id);
         }
 
         redirect('/campaigns');
@@ -135,19 +117,9 @@ class CampaignController extends CI_Controller
 
         // Get all available templates and users
         $data['all_templates'] = $this->Campaign_Model->get_all_templates();
-        $data['all_users'] = $this->User_Model->get_all_users();
-
-        // Get the selected templates and users for this campaign
         $selected_templates = $this->Campaign_Model->get_selected_templates($campaign_id);
-        $selected_users = $this->Campaign_Model->get_selected_users($campaign_id);
-        // print_r($selected_templates);
-        // die;
-        // Prepare the data for the view
         $data['selected_templates'] = array_column($selected_templates, null, 'TEMPLATE_ID');
-
-        $data['selected_contact_ids'] = array_column($selected_users, 'USER_ID');
-
-        // Pass the campaign data to your view for editing
+        $data['recipients'] = $this->Campaign_Model->get_users_by_campiagn_id($campaign_id);
         $data['campaign_data'] = $campaign;
         $this->load->view('campaign/view_campaign', $data);
     }
@@ -168,11 +140,8 @@ class CampaignController extends CI_Controller
 
         // Get all available templates and users
         $data['all_templates'] = $this->Campaign_Model->get_all_templates();
-        // $data['all_users'] = $this->User_Model->get_all_users();
-
         $data['all_users'] = $this->Client_Model->getAllLeadsAndClients();
-        // echo "<pre>";
-        // print_r($data['all_users']);die;
+        $data['crm_users'] = $this->User_Model->get_campaign_crm_users();
 
         // Get the selected templates and users for this campaign
         $selected_templates = $this->Campaign_Model->get_selected_templates($campaign_id);
@@ -204,19 +173,28 @@ class CampaignController extends CI_Controller
         $START_DATE = $this->input->post('START_DATE');
         $END_DATE = $this->input->post('END_DATE');
         $STATUS =  $this->input->post('STATUS');
+        $save_action = $this->input->post('SAVE_ACTION');
+        $TEMPLATE_IDS = $this->input->post('TEMPLATE_IDS');
+        $selected_contact_ids = $this->input->post('CONTACT_IDS');
+        $TIMEZONE = campaign_normalize_timezone($this->input->post('TIMEZONE'));
+        $template_timezones = $this->input->post('TEMPLATE_TIMEZONE');
+        $workflow = $this->resolve_save_action(
+            $save_action ?: ($this->input->post('WORKFLOW_STATUS') ?: 'draft'),
+            !empty($TEMPLATE_IDS),
+            !empty($selected_contact_ids)
+        );
 
-        // echo "<pre>";
-        // print_r($this->input->post());die;
-
-        // Update campaign details in the campaign table
         $data = array(
             'TITLE' => $TITLE,
             'MANAGER_NAME' => $MANAGER_NAME,
             'MODULE_NAME' => $MODULE_NAME,
             'START_DATE' => $START_DATE,
             'END_DATE' => $END_DATE,
-            'STATUS' => $STATUS,
+            'TIMEZONE' => $TIMEZONE,
+            'WORKFLOW_STATUS' => $workflow,
+            'STATUS' => campaign_legacy_status($workflow),
             'MODIFIED_ON' => date('Y-m-d H:i:s'),
+            'LAST_ACTIVITY_AT' => date('Y-m-d H:i:s'),
         );
 
         $this->Campaign_Model->update_campaign($CAMPAIGN_ID, $data);
@@ -236,13 +214,19 @@ class CampaignController extends CI_Controller
 
         if (!empty($TEMPLATE_IDS)) {
             foreach ($TEMPLATE_IDS as $TEMPLATE_ID) {
+                $row_timezone = campaign_normalize_timezone(
+                    ($template_timezones[$TEMPLATE_ID] ?? '') ?: $TIMEZONE
+                );
                 $mapping_data = array(
                     'CAMPAIGN_ID' => $CAMPAIGN_ID,
                     'TEMPLATE_ID' => $TEMPLATE_ID,
                     'SENDING_ORDER' => $SENDING_ORDER[$TEMPLATE_ID],
                     'SEND_DATE' => $SEND_DATE[$TEMPLATE_ID],
-                    'TEMPLATE_START_TIME' => $TEMPLATE_START_TIME[$TEMPLATE_ID],
-                    'STATUS' => 1, // or another default status
+                    'TEMPLATE_START_TIME' => $this->start_hour($TEMPLATE_START_TIME[$TEMPLATE_ID] ?? ''),
+                    'TIMEZONE' => $row_timezone,
+                    'SEND_AT' => $this->build_send_at($SEND_DATE[$TEMPLATE_ID] ?? '', $TEMPLATE_START_TIME[$TEMPLATE_ID] ?? '', $row_timezone),
+                    'SEND_STATUS' => 'pending',
+                    'STATUS' => 1,
                 );
                 $this->Campaign_Model->insert_campaign_template($mapping_data);
             }
@@ -254,17 +238,20 @@ class CampaignController extends CI_Controller
 
         // Save the selected users for this campaign
         if (!empty($selected_contact_ids)) {
+            $contact_source = $this->contact_source_from_module($MODULE_NAME);
             foreach ($selected_contact_ids as $user_id) {
                 $user_data = array(
                     'CAMPAIGN_ID' => $CAMPAIGN_ID,
                     'USER_ID' => $user_id,
                     'ASSIGN_DATE' => date('Y-m-d H:i:s'),
-                    'STATUS' => 'Active'
+                    'STATUS' => 'Active',
+                    'CONTACT_SOURCE' => $contact_source,
                 );
                 $this->Campaign_Model->add_campaign_user($user_data);
             }
         }
 
+        $this->Campaign_Model->refresh_campaign_counts($CAMPAIGN_ID);
         redirect('campaigns');
     }
 
@@ -346,12 +333,13 @@ class CampaignController extends CI_Controller
 
         // Save the data to the database using your model
         $data = array(
-            'MODULE_NAME' => $MODULE_NAME,
+            'MODULE_NAME' => in_array($MODULE_NAME, ['Lead', 'Client', 'Campaign'], true) ? $MODULE_NAME : 'Lead',
             'TEMPLATE_NAME' => $TEMPLATE_NAME,
             'TEMPLATE_SUBJECT' => $TEMPLATE_SUBJECT,
             'TEMPLATE_BODY' => $TEMPLATE_BODY,
             'TEMPLATE_SIGN' => $TEMPLATE_SIGN,
             'ATTACHMENTS' => $attachment_string,
+            'MERGE_TAGS' => json_encode(array_keys(campaign_merge_tags())),
             'RECORD_STATUS' => 0,
         );
 
@@ -374,13 +362,11 @@ class CampaignController extends CI_Controller
 
     public function editTemplate($template_id)
     {
-
-        // Load the template data based on the $course_id
         $template = $this->Campaign_Model->get_template_by_id($template_id);
-
-        // echo "<pre>";
-        // print_r($template);
-        // die;
+        if (!empty($template) && trim((string)$template['MODULE_NAME']) === 'Payment Agreement') {
+            redirect('templates');
+            return;
+        }
         $data['template_data'] = $template;
         $this->load->view('campaign/edit_template', $data);
     }
@@ -465,11 +451,12 @@ class CampaignController extends CI_Controller
         // Save the updated data to the database using your model
         $data = array(
             'TEMPLATE_NAME' => $TEMPLATE_NAME,
-            'MODULE_NAME' => $MODULE_NAME,
+            'MODULE_NAME' => in_array($MODULE_NAME, ['Lead', 'Client', 'Campaign'], true) ? $MODULE_NAME : $existing_template['MODULE_NAME'],
             'TEMPLATE_SUBJECT' => $TEMPLATE_SUBJECT,
             'TEMPLATE_BODY' => $TEMPLATE_BODY,
             'TEMPLATE_SIGN' => $TEMPLATE_SIGN,
             'ATTACHMENTS' => $attachment_string,
+            'MERGE_TAGS' => json_encode(array_keys(campaign_merge_tags())),
         );
 
         $this->Campaign_Model->update_template($TEMPLATE_ID, $data);
@@ -480,8 +467,92 @@ class CampaignController extends CI_Controller
 
     public function deleteTemplate($campaign_id)
     {
-        // Load the campaign data based on the $course_id
-        $campaign = $this->Campaign_Model->delete_template($campaign_id);
+        $template = $this->Campaign_Model->get_template_by_id($campaign_id);
+        if (!empty($template) && trim((string)$template['MODULE_NAME']) === 'Payment Agreement') {
+            redirect('templates');
+            return;
+        }
+        $this->Campaign_Model->delete_template($campaign_id);
         redirect('templates');
+    }
+
+    public function activateCampaign($campaign_id)
+    {
+        $this->Campaign_Model->set_workflow($campaign_id, 'scheduled');
+        redirect('campaigns');
+    }
+
+    public function pauseCampaign($campaign_id)
+    {
+        $this->Campaign_Model->set_workflow($campaign_id, 'paused');
+        redirect('campaigns');
+    }
+
+    private function resolve_save_action($action, $has_templates, $has_contacts)
+    {
+        if ($action === 'scheduled') {
+            return ($has_templates && $has_contacts) ? 'scheduled' : 'setup';
+        }
+        if ($action === 'setup' || ($has_templates && $has_contacts && $action !== 'draft')) {
+            return 'setup';
+        }
+        return 'draft';
+    }
+
+    private function contact_source_from_module($module_name)
+    {
+        return trim((string)$module_name) === 'User' ? 'user' : 'entity';
+    }
+
+    private function save_campaign_children($campaign_id, $template_ids, $sending_order, $send_date, $template_start_time, $user_ids, $contact_source = 'entity', $timezone = null, $template_timezones = [])
+    {
+        $timezone = campaign_normalize_timezone($timezone);
+        if (!is_array($template_timezones)) {
+            $template_timezones = [];
+        }
+        if (!empty($template_ids)) {
+            foreach ($template_ids as $template_id) {
+                $row_timezone = campaign_normalize_timezone(
+                    ($template_timezones[$template_id] ?? '') ?: $timezone
+                );
+                $this->Campaign_Model->insert_campaign_template([
+                    'CAMPAIGN_ID' => $campaign_id,
+                    'TEMPLATE_ID' => $template_id,
+                    'SENDING_ORDER' => isset($sending_order[$template_id]) ? $sending_order[$template_id] : null,
+                    'SEND_DATE' => isset($send_date[$template_id]) ? $send_date[$template_id] : null,
+                    'TEMPLATE_START_TIME' => $this->start_hour($template_start_time[$template_id] ?? ''),
+                    'TIMEZONE' => $row_timezone,
+                    'SEND_AT' => $this->build_send_at($send_date[$template_id] ?? '', $template_start_time[$template_id] ?? '', $row_timezone),
+                    'SEND_STATUS' => 'pending',
+                    'STATUS' => 1,
+                ]);
+            }
+        }
+
+        if (!empty($user_ids)) {
+            foreach ($user_ids as $user_id) {
+                $this->Campaign_Model->add_campaign_user([
+                    'CAMPAIGN_ID' => $campaign_id,
+                    'USER_ID' => $user_id,
+                    'ASSIGN_DATE' => time(),
+                    'STATUS' => 1,
+                    'CONTACT_SOURCE' => $contact_source,
+                ]);
+            }
+        }
+    }
+
+    private function build_send_at($date, $time, $timezone = null)
+    {
+        return campaign_build_send_at($date, $time, $timezone);
+    }
+
+    private function start_hour($time)
+    {
+        $time = trim((string)$time);
+        if ($time === '') {
+            return 9;
+        }
+        return (int)explode(':', $time)[0];
     }
 }

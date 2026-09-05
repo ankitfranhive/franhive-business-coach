@@ -3,8 +3,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 // Ensure SUBDOMAIN is defined
 if (!defined('SUBDOMAIN')) {
-    $host = $_SERVER['HTTP_HOST'];
+    $host = explode(':', $_SERVER['HTTP_HOST'] ?? 'localhost')[0];
     $subdomain = explode('.', $host)[0];
+    // Local PHP server has no eyd. subdomain — use the eyd tenant/database
+    if (in_array($host, ['localhost', '127.0.0.1'], true) || in_array($subdomain, ['localhost', '127'], true)) {
+        $subdomain = 'eyd';
+    }
     define('SUBDOMAIN', $subdomain);
 }
 
@@ -410,7 +414,17 @@ $config['encryption_key'] = '';
 $config['sess_driver'] = 'files';
 $config['sess_cookie_name'] = 'ci_session';
 $config['sess_expiration'] = 7200;
-$config['sess_save_path'] = NULL;
+// Keep production on php.ini session.save_path. Only set a local folder on this machine.
+$host_no_port = explode(':', $_SERVER['HTTP_HOST'] ?? '')[0];
+if (in_array($host_no_port, ['localhost', '127.0.0.1'], true)) {
+    $sess_save_path = APPPATH . 'cache/sessions';
+    if (!is_dir($sess_save_path)) {
+        @mkdir($sess_save_path, 0755, true);
+    }
+    $config['sess_save_path'] = $sess_save_path;
+} else {
+    $config['sess_save_path'] = NULL;
+}
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
 $config['sess_regenerate_destroy'] = FALSE;

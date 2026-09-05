@@ -1,264 +1,272 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <?php $this->load->view('includes/header'); ?>
-    <style>
-        /* Progress bar container */
-        .progress-container {
-            position: relative;
-            width: 100%;
-            height: 4px;
-            background-color: #f1f1f1;
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* Progress bar */
-        .progress-bar {
-            height: 100%;
-            background-color: #4CAF50;
-            width: 0;
-        }
-
-        /* Dots */
-        .dot {
-            height: 8px;
-            width: 8px;
-            background-color: #bbb;
-            border-radius: 50%;
-            margin: 0 -2px;
-        }
-
-        .dot.active {
-            background-color: #4CAF50;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="mobile-menu-overlay"></div>
-
-    <div class="main-container">
-        <div class="pd-ltr-20 xs-pd-20-10">
-            <div class="page-header">
-                <div class="row">
-                    <div class="col-md-6 col-sm-12">
-                        <div class="title">
-                            <h4>Add A New Campaign</h4>
-                        </div>
-                    </div>
-                    <div class="col-md-6 col-sm-12 text-right">
-                        <a class="btn btn-warning" href="<?= base_url('/campaigns'); ?>" role="button">Back To Campaign List</a>
-                    </div>
+<?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('campaign/partials/campaign_styles'); ?>
+<div class="mobile-menu-overlay"></div>
+<div class="main-container">
+    <div class="pd-ltr-20 xs-pd-20-10">
+        <div class="page-header">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>New campaign</h4>
+                    <p class="text-muted mb-0">Name it, choose emails, pick one or more contacts, then save or trigger.</p>
+                </div>
+                <div class="col-md-6 text-right">
+                    <a class="btn btn-warning" href="<?= base_url('/campaigns'); ?>">Back to campaigns</a>
                 </div>
             </div>
-
-            <div class="pd-20 card-box mb-30">
-                <form id="campaignForm" action="<?= base_url('CampaignController/create_campaign') ?>" method="post">
-                    <!-- Screen 1 -->
-                    <div id="screen1" class="screen">
-                        <div class="form-group row">
-                            <label class="col-sm-12 col-md-2 col-form-label">Name this campaign</label>
-                            <div class="col-sm-12 col-md-10">
-                                <input class="form-control" type="text" name="TITLE" placeholder="Campaign title" />
-                                <i>
-                                    <p>The campaign name is shown in your reports and your email archive.</p>
-                                </i>
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label class="col-sm-12 col-md-2 col-form-label">Who is it from?</label>
-                            <div class="col-sm-12 col-md-10">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <input class="form-control" name="MANAGER_NAME" type="text" placeholder="Name" />
-                                        <i>
-                                            <p>This will display in the From field.</p>
-                                        </i>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <input class="form-control" value="NLP@empoweryourdestiny.com.au" name="REPLY_ADDRESS" type="text" disabled />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label class="col-sm-12 col-md-2 col-form-label">Create campaign for</label>
-                            <div class="col-sm-12 col-md-10">
-                                <select class="custom-select col-12" name="MODULE_NAME">
-                                    <option selected>Choose...</option>
-                                    <option value="Lead">Lead</option>
-                                    <option value="Client">Client</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <div class="col-sm-6 col-md-4">
-                                <button type="button" class="btn btn-warning" onclick="nextScreen()">Next</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Screen 2 -->
-                    <div id="screen2" class="screen" style="display: none;">
-                        <h4>Select Templates</h4>
-                        <div class="pb-20">
-                            <table class="data-table table stripe hover nowrap">
-                                <thead>
-                                    <tr>
-                                        <th>Select</th>
-                                        <th> ID</th>
-                                        <th>Template Name</th>
-                                        <th>Module Name</th>
-                                        <th>Template Subject</th>
-                                        <th>Sending Order</th>
-                                        <th>Send Date</th>
-                                        <th>Start Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($all_templates as $template): ?>
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" name="TEMPLATE_IDS[]" value="<?= $template['TEMPLATE_ID'] ?>">
-                                            </td>
-                                            <td><?= $template['TEMPLATE_ID'] ?></td>
-                                            <td><?= $template['TEMPLATE_NAME'] ?></td>
-                                            <td><?= $template['MODULE_NAME'] ?></td>
-                                            <td><?= $template['TEMPLATE_SUBJECT'] ?></td>
-                                            <td>
-                                                <input type="number" placeholder="Ender Order Number" name="SENDING_ORDER[<?= $template['TEMPLATE_ID'] ?>]" min="1" class="form-control">
-                                            </td>
-                                            <td>
-                                                <input type="date" name="SEND_DATE[<?= $template['TEMPLATE_ID'] ?>]" class="form-control">
-                                            </td>
-                                            <td>
-                                                <input type="time" name="TEMPLATE_START_TIME[<?= $template['TEMPLATE_ID'] ?>]" class="form-control">
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-
-                            </table>
-                        </div>
-                        <button type="button" class="btn btn-warning" onclick="prevScreen()">Back</button>
-                        <button type="button" class="btn btn-warning" onclick="nextScreen()">Next</button>
-                    </div>
-
-                    <!-- Screen 3 -->
-                    <div id="screen3" class="screen" style="display: none;">
-                        <h4>Select Contacts</h4>
-                        <div class="pb-20">
-                            <table class="data-table table stripe hover nowrap" id="contactsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Select</th>
-                                        <th> ID</th>
-                                        <th>CLIENT Name</th>
-                                        <th>PHONE</th>
-                                        <th>User Email</th>
-                                        <th>IS LEAD</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($all_users as $user): ?>
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" name="CONTACT_IDS[]" value="<?= $user['ENTITY_ID'] ?>">
-                                            </td>
-                                            <td><?= $user['ENTITY_ID'] ?></td>
-                                            <td><?= $user['NAME'] ?></td>
-                                            <td><?= $user['MOBILE'] ?></td>
-                                            <td><?= $user['EMAIL'] ?></td>
-                                            <td><?= ($user['IS_LEAD']=='Y')?'LEAD':'CLIENT' ?></td>
-
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                        <button type="button" class="btn btn-warning" onclick="prevScreen()">Back</button>
-                        <button type="button" class="btn btn-warning" onclick="nextScreen()">Next</button>
-                    </div>
-
-                    <!-- Screen 4 -->
-                    <div id="screen4" class="screen" style="display: none;">
-                        <div class="form-group row">
-                            <label class="col-sm-12 col-md-2 col-form-label">Start Date</label>
-                            <div class="col-sm-12 col-md-10">
-                                <input class="form-control " name="START_DATE" placeholder="Choose Date and time" type="date">
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label class="col-sm-12 col-md-2 col-form-label">End Date</label>
-                            <div class="col-sm-12 col-md-10">
-                                <input class="form-control " name="END_DATE" placeholder="Choose Date and time" type="date">
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-warning" onclick="prevScreen()">Back</button>
-                        <button type="button" class="btn btn-warning" onclick="submitForm()">Submit</button>
-                    </div>
-                </form>
+        </div>
+        <div class="pd-20 card-box mb-30">
+            <div class="cm-step">
+                <span class="step-label active" data-step="1">1. Setup</span>
+                <span class="step-label" data-step="2">2. Emails</span>
+                <span class="step-label" data-step="3">3. Recipients</span>
+                <span class="step-label" data-step="4">4. Schedule</span>
             </div>
+            <form id="campaignForm" action="<?= base_url('CampaignController/create_campaign') ?>" method="post">
+                <input type="hidden" name="SAVE_ACTION" id="SAVE_ACTION" value="draft">
+
+                <div id="screen1" class="screen">
+                    <div class="form-group">
+                        <label>Campaign name</label>
+                        <input class="form-control" type="text" name="TITLE" placeholder="e.g. September nurture sequence" required>
+                    </div>
+                    <div class="form-group row">
+                        <div class="col-md-6">
+                            <label>From name</label>
+                            <input class="form-control" name="MANAGER_NAME" type="text" placeholder="EYD Team">
+                        </div>
+                        <div class="col-md-6">
+                            <label>Reply address</label>
+                            <input class="form-control" value="nlp@empoweryourdestiny.com.au" name="REPLY_ADDRESS" type="text" readonly>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Audience</label>
+                        <select class="custom-select" name="MODULE_NAME" id="audienceSelect" required>
+                            <option value="">Choose...</option>
+                            <option value="Lead">Leads</option>
+                            <option value="Client">Clients</option>
+                            <option value="User">Select from users</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="nextScreen()">Next: emails</button>
+                </div>
+
+                <div id="screen2" class="screen" style="display:none;">
+                    <h5>Select one or more email templates</h5>
+                    <p class="text-muted">Only campaign templates are listed. Payment Agreement / eForm templates stay in their own modules.</p>
+                    <?php $campaign_timezone = campaign_default_timezone(); ?>
+                    <?php $this->load->view('campaign/partials/campaign_timezone_bar', ['campaign_timezone' => $campaign_timezone]); ?>
+                    <?php $this->load->view('campaign/partials/campaign_templates_toolbar'); ?>
+                    <div id="templatesTableWrap" class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="template-select-page" title="Select this page"></th>
+                                    <th>Template</th>
+                                    <th>Subject</th>
+                                    <th>Order</th>
+                                    <th>Send date</th>
+                                    <th>Time</th>
+                                    <th>Timezone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($all_templates as $template): ?>
+                                <tr>
+                                    <td><input type="checkbox" name="TEMPLATE_IDS[]" value="<?= $template['TEMPLATE_ID'] ?>"></td>
+                                    <td data-search="<?= htmlspecialchars($template['TEMPLATE_NAME']) ?>"><?= htmlspecialchars($template['TEMPLATE_NAME']) ?></td>
+                                    <td data-search="<?= htmlspecialchars($template['TEMPLATE_SUBJECT']) ?>"><?= htmlspecialchars($template['TEMPLATE_SUBJECT']) ?></td>
+                                    <td><input type="number" name="SENDING_ORDER[<?= $template['TEMPLATE_ID'] ?>]" min="1" class="form-control"></td>
+                                    <td><input type="date" name="SEND_DATE[<?= $template['TEMPLATE_ID'] ?>]" class="form-control"></td>
+                                    <td><input type="time" name="TEMPLATE_START_TIME[<?= $template['TEMPLATE_ID'] ?>]" class="form-control"></td>
+                                    <td><?= campaign_timezone_select('TEMPLATE_TIMEZONE[' . $template['TEMPLATE_ID'] . ']', $campaign_timezone) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <a class="btn btn-outline-secondary" href="<?= base_url('/add-template'); ?>">Create a template</a>
+                    <button type="button" class="btn btn-light" onclick="prevScreen()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="nextScreen()">Next: recipients</button>
+                </div>
+
+                <div id="screen3" class="screen" style="display:none;">
+                    <h5>Choose one or many contacts</h5>
+                    <p class="text-muted" id="recipientsHint">Each selected person gets the emails, with merge tags filled from their record.</p>
+                    <?php
+                    $all_users = isset($all_users) && is_array($all_users) ? $all_users : [];
+                    $crm_users = isset($crm_users) && is_array($crm_users) ? $crm_users : [];
+                    ?>
+                    <?php $this->load->view('campaign/partials/campaign_contacts_toolbar'); ?>
+                    <div id="leadsContactsWrap" class="audience-wrap table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="contact-select-page" title="Select this page"></th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($all_users as $user): ?>
+                                <?php if (($user['IS_LEAD'] ?? '') !== 'Y') continue; ?>
+                                <tr>
+                                    <td><input type="checkbox" name="CONTACT_IDS[]" value="<?= (int)$user['ENTITY_ID'] ?>" disabled></td>
+                                    <td><?= htmlspecialchars($user['NAME']) ?></td>
+                                    <td><?= htmlspecialchars($user['EMAIL']) ?></td>
+                                    <td><?= htmlspecialchars($user['MOBILE']) ?></td>
+                                    <td>Lead</td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="clientsContactsWrap" class="audience-wrap table-responsive" style="display:none;">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="contact-select-page" title="Select this page"></th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($all_users as $user): ?>
+                                <?php if (($user['IS_LEAD'] ?? '') === 'Y') continue; ?>
+                                <tr>
+                                    <td><input type="checkbox" name="CONTACT_IDS[]" value="<?= (int)$user['ENTITY_ID'] ?>" disabled></td>
+                                    <td><?= htmlspecialchars($user['NAME']) ?></td>
+                                    <td><?= htmlspecialchars($user['EMAIL']) ?></td>
+                                    <td><?= htmlspecialchars($user['MOBILE']) ?></td>
+                                    <td>Client</td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="crmUsersWrap" class="audience-wrap table-responsive" style="display:none;">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="contact-select-page" title="Select this page"></th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($crm_users as $crm_user): ?>
+                                <tr>
+                                    <td><input type="checkbox" name="CONTACT_IDS[]" value="<?= (int)$crm_user['USER_ID'] ?>" disabled></td>
+                                    <td><?= htmlspecialchars($crm_user['NAME']) ?></td>
+                                    <td><?= htmlspecialchars($crm_user['EMAIL']) ?></td>
+                                    <td><?= htmlspecialchars($crm_user['MOBILE'] ?? '') ?></td>
+                                    <td>CRM user</td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-light" onclick="prevScreen()">Back</button>
+                    <button type="button" class="btn btn-primary" onclick="nextScreen()">Next: schedule</button>
+                </div>
+
+                <div id="screen4" class="screen" style="display:none;">
+                    <div class="form-group row">
+                        <div class="col-md-6">
+                            <label>Campaign start date</label>
+                            <input class="form-control" name="START_DATE" type="date">
+                        </div>
+                        <div class="col-md-6">
+                            <label>Campaign end date</label>
+                            <input class="form-control" name="END_DATE" type="date">
+                        </div>
+                    </div>
+                    <p class="text-muted">Draft = keep working. Setup done = emails and contacts attached. Trigger = cron will send at the times you set.</p>
+                    <button type="button" class="btn btn-light" onclick="prevScreen()">Back</button>
+                    <button type="button" class="btn btn-secondary" onclick="submitCampaign('draft')">Save as draft</button>
+                    <button type="button" class="btn btn-info" onclick="submitCampaign('setup')">Mark setup done</button>
+                    <button type="button" class="btn btn-success" onclick="submitCampaign('scheduled')">Trigger campaign</button>
+                </div>
+            </form>
         </div>
     </div>
-
-    <?php $this->load->view('includes/footer'); ?>
-    <script>
-        var currentScreen = 1;
-
-        function nextScreen() {
-            if (currentScreen < 4) {
-                document.getElementById('screen' + currentScreen).style.display = 'none';
-                currentScreen++;
-                document.getElementById('screen' + currentScreen).style.display = 'block';
-                updateProgressBar();
-            }
-        }
-
-        function prevScreen() {
-            if (currentScreen > 1) {
-                document.getElementById('screen' + currentScreen).style.display = 'none';
-                currentScreen--;
-                document.getElementById('screen' + currentScreen).style.display = 'block';
-                updateProgressBar();
-            }
-        }
-
-        function submitForm() {
-            document.getElementById('campaignForm').submit();
-        }
-
-        function updateProgressBar() {
-            var progress = (currentScreen - 1) * 33.33;
-            document.getElementById('progressBar').style.width = progress + '%';
-
-            var dots = document.querySelectorAll('.dot');
-            dots.forEach((dot, index) => {
-                if (index === currentScreen - 1) {
-                    dot.classList.add('active');
-                } else {
-                    dot.classList.remove('active');
-                }
-            });
-        }
-    </script>
-</body>
-<script src="src/plugins/datatables/js/jquery.dataTables.min.js"></script>
-<script src="src/plugins/datatables/js/dataTables.bootstrap4.min.js"></script>
-<script src="src/plugins/datatables/js/dataTables.responsive.min.js"></script>
-<script src="src/plugins/datatables/js/responsive.bootstrap4.min.js"></script>
-<!-- buttons for Export datatable -->
-<script src="src/plugins/datatables/js/dataTables.buttons.min.js"></script>
-<script src="src/plugins/datatables/js/buttons.bootstrap4.min.js"></script>
-<script src="src/plugins/datatables/js/buttons.print.min.js"></script>
-<script src="src/plugins/datatables/js/buttons.html5.min.js"></script>
-<script src="src/plugins/datatables/js/buttons.flash.min.js"></script>
-<script src="src/plugins/datatables/js/pdfmake.min.js"></script>
-<script src="src/plugins/datatables/js/vfs_fonts.js"></script>
-<!-- Datatable Setting js -->
-<script src="vendors/scripts/datatable-setting.js"></script>
+</div>
+<?php $this->load->view('includes/footer'); ?>
+<script>
+var currentScreen = 1;
+function currentAudience() {
+    var sel = document.getElementById('audienceSelect');
+    return sel ? sel.value : '';
+}
+function setAudienceTables() {
+    var audience = currentAudience();
+    var wraps = {
+        Lead: document.getElementById('leadsContactsWrap'),
+        Client: document.getElementById('clientsContactsWrap'),
+        User: document.getElementById('crmUsersWrap')
+    };
+    var hints = {
+        Lead: 'Showing all leads. Select one or more.',
+        Client: 'Showing all clients. Select one or more.',
+        User: 'Showing all CRM users. Select one or more.'
+    };
+    var hint = document.getElementById('recipientsHint');
+    if (hint) {
+        hint.textContent = hints[audience] || 'Each selected person gets the emails, with merge tags filled from their record.';
+    }
+    Object.keys(wraps).forEach(function (key) {
+        var wrap = wraps[key];
+        if (!wrap) return;
+        var active = key === audience;
+        wrap.style.display = active ? 'block' : 'none';
+        wrap.querySelectorAll('input[name="CONTACT_IDS[]"]').forEach(function (cb) {
+            cb.disabled = !active;
+            if (!active) cb.checked = false;
+        });
+    });
+}
+function setStep(n) {
+    document.querySelectorAll('.step-label').forEach(function (el) {
+        el.classList.toggle('active', parseInt(el.getAttribute('data-step'), 10) === n);
+    });
+}
+function nextScreen() {
+    if (currentScreen === 1 && !currentAudience()) {
+        alert('Please choose an audience first.');
+        return;
+    }
+    if (currentScreen < 4) {
+        document.getElementById('screen' + currentScreen).style.display = 'none';
+        currentScreen++;
+        document.getElementById('screen' + currentScreen).style.display = 'block';
+        setStep(currentScreen);
+        if (currentScreen === 3) setAudienceTables();
+    }
+}
+function prevScreen() {
+    if (currentScreen > 1) {
+        document.getElementById('screen' + currentScreen).style.display = 'none';
+        currentScreen--;
+        document.getElementById('screen' + currentScreen).style.display = 'block';
+        setStep(currentScreen);
+    }
+}
+function submitCampaign(action) {
+    document.getElementById('SAVE_ACTION').value = action;
+    document.getElementById('campaignForm').submit();
+}
+document.addEventListener('DOMContentLoaded', function () {
+    var sel = document.getElementById('audienceSelect');
+    if (sel) sel.addEventListener('change', setAudienceTables);
+    setAudienceTables();
+});
+</script>
 </html>

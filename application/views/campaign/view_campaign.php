@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('campaign/partials/campaign_styles'); ?>
 <div class="mobile-menu-overlay"></div>
 <div class="main-container">
     <div class="pd-ltr-20 xs-pd-20-10">
@@ -8,7 +9,10 @@
             <div class="row">
                 <div class="col-md-6 col-sm-12">
                     <div class="title">
-                        <h4>View Campaign Details: [<?= $campaign_data['TITLE'] ?>]</h4>
+                        <h4>View Campaign: <?= htmlspecialchars($campaign_data['TITLE']) ?></h4>
+                        <?php $meta = campaign_status_meta($campaign_data['WORKFLOW_STATUS'] ?? 'draft'); ?>
+                        <span class="badge <?= $meta['class'] ?>"><?= $meta['label'] ?></span>
+                        <small class="text-muted"><?= $meta['help'] ?></small>
                     </div>
                 </div>
                 <div class="col-md-6 col-sm-12 text-right">
@@ -51,8 +55,7 @@
                 <label class="col-sm-12 col-md-2 col-form-label">Create campaign for</label>
                 <div class="col-sm-12 col-md-10">
                     <p class="form-control-static">
-                        <?= $campaign_data['MODULE_NAME'] == 'Lead' ? 'Lead' : '' ?>
-                        <?= $campaign_data['MODULE_NAME'] == 'Client' ? 'Client' : '' ?>
+                        <?= htmlspecialchars(campaign_audience_label($campaign_data['MODULE_NAME'])) ?>
                     </p>
                 </div>
             </div>
@@ -61,30 +64,30 @@
             <!-- Selected Templates -->
 
             <h5 class="card-title">Selected Templates</h5>
-            <div class="pb-20 mt-5">
-                <table class="data-table table stripe hover nowrap">
+            <p class="text-muted">Times below show when each email will trigger in India, the Philippines, and Melbourne.</p>
+            <div class="pb-20 mt-3">
+                <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Template ID</th>
-                            <th>Template Name</th>
-                            <th>Module Name</th>
-                            <th>Template Subject</th>
-                            <th>Sending Order</th>
-                            <th>Send Date</th>
-                            <th>Start Time</th>
+                            <th>Template</th>
+                            <th>Subject</th>
+                            <th>Order</th>
+                            <th>Send date</th>
+                            <th>Time and timezone</th>
+                            <th>Triggers at</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($all_templates as $template): ?>
                             <?php if (in_array($template['TEMPLATE_ID'], array_column($selected_templates, 'TEMPLATE_ID'))): ?>
+                                <?php $selected = $selected_templates[$template['TEMPLATE_ID']]; ?>
                                 <tr>
-                                    <td><?= $template['TEMPLATE_ID'] ?></td>
-                                    <td><?= $template['TEMPLATE_NAME'] ?></td>
-                                    <td><?= $template['MODULE_NAME'] ?></td>
-                                    <td><?= $template['TEMPLATE_SUBJECT'] ?></td>
-                                    <td><?= isset($selected_templates[$template['TEMPLATE_ID']]) ? $selected_templates[$template['TEMPLATE_ID']]['SENDING_ORDER'] : '' ?></td>
-                                    <td><?= isset($selected_templates[$template['TEMPLATE_ID']]) ? $selected_templates[$template['TEMPLATE_ID']]['SEND_DATE'] : '' ?></td>
-                                    <td><?= isset($selected_templates[$template['TEMPLATE_ID']]) && !empty($selected_templates[$template['TEMPLATE_ID']]['TEMPLATE_START_TIME']) ? sprintf('%02d:00', $selected_templates[$template['TEMPLATE_ID']]['TEMPLATE_START_TIME']) : '' ?></td>
+                                    <td><?= htmlspecialchars($template['TEMPLATE_NAME']) ?></td>
+                                    <td><?= htmlspecialchars($template['TEMPLATE_SUBJECT']) ?></td>
+                                    <td><?= htmlspecialchars($selected['SENDING_ORDER'] ?? '') ?></td>
+                                    <td><?= htmlspecialchars($selected['SEND_DATE'] ?? '') ?></td>
+                                    <td><?= htmlspecialchars(campaign_format_start_time($selected)) ?></td>
+                                    <td><?= htmlspecialchars(campaign_send_equivalents($selected['SEND_AT'] ?? '')) ?></td>
                                 </tr>
                             <?php endif; ?>
                         <?php endforeach; ?>
@@ -107,15 +110,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($all_users as $user): ?>
-                            <?php if (in_array($user['USER_ID'], $selected_contact_ids)): ?>
+                        <?php foreach (($recipients ?? []) as $user): ?>
                                 <tr>
-                                    <td><?= $user['USER_ID'] ?></td>
-                                    <td><?= $user['NAME'] ?></td>
-                                    <td><?= $user['EMAIL'] ?></td>
-                                    <td><?= $user['PERMISSION_ID'] ?></td>
+                                    <td><?= htmlspecialchars($user['ENTITY_ID']) ?></td>
+                                    <td><?= htmlspecialchars($user['NAME'] ?? $user['user_name'] ?? '') ?></td>
+                                    <td><?= htmlspecialchars($user['EMAIL'] ?? $user['email_id'] ?? '') ?></td>
+                                    <td><?= htmlspecialchars(campaign_audience_label($campaign_data['MODULE_NAME'])) ?></td>
                                 </tr>
-                            <?php endif; ?>
                         <?php endforeach; ?>
                     </tbody>
                 </table>

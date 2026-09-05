@@ -50,10 +50,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |		my-controller/my-method	-> my_controller/my_method
 */
 
-$subdomain = explode('.', $_SERVER['HTTP_HOST'])[0];
-
-// Default route
-$subdomain = explode('.', $_SERVER['HTTP_HOST'])[0];
+$host = explode(':', $_SERVER['HTTP_HOST'] ?? 'localhost')[0];
+$subdomain = explode('.', $host)[0];
+if (in_array($host, ['localhost', '127.0.0.1'], true) || in_array($subdomain, ['localhost', '127'], true)) {
+    $subdomain = 'eyd';
+}
 
 switch ($subdomain) {
     case 'demo':
@@ -279,6 +280,8 @@ $route['view-campaign/(:num)'] = 'CampaignController/viewCampaign/$1';
 $route['add-campaign'] = 'CampaignController/addCampaign';
 $route['edit-campaign/(:num)'] = 'CampaignController/editCampaign/$1';
 $route['delete-campaign/(:num)'] = 'CampaignController/deleteCampaign/$1';
+$route['activate-campaign/(:num)'] = 'CampaignController/activateCampaign/$1';
+$route['pause-campaign/(:num)'] = 'CampaignController/pauseCampaign/$1';
 
 
 $route['templates'] = 'CampaignController/getAllTemplates';

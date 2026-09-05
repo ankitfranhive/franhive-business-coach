@@ -13,7 +13,8 @@
 				<div class="row">
 					<div class="col-md-6 col-sm-12">
 						<div class="title">
-							<h4>Listing of Templates</h4>
+							<h4>Campaign email templates</h4>
+							<p class="text-muted mb-0">These templates are for campaigns only. Payment Agreement templates are unchanged in that module.</p>
 						</div>
 					</div>
 					<div class="col-md-6 col-sm-12 text-right">
