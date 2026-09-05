@@ -11,6 +11,13 @@ class CronController extends CI_Controller {
     }
 
     public function my_cron_job() {
+        // SEND_AT is stored in Melbourne time. Force that here so a
+        // www.franhive.com cron URL (which would otherwise use IST) still
+        // sends at the moment the user picked.
+        date_default_timezone_set('Australia/Melbourne');
+        @set_time_limit(300);
+        @ini_set('max_execution_time', '300');
+
         $config = [
             'protocol' => 'smtp',
             'smtp_host' => 'smtp.hostinger.com',
@@ -24,13 +31,10 @@ class CronController extends CI_Controller {
 
         $this->email->initialize($config);
 
-        $all_campaign = $this->Campaign_Model->get_schedulable_campaigns();
-        if (empty($all_campaign)) {
-            $all_campaign = $this->Campaign_Model->get_all_new_campaigns();
-        }
+        $all_campaign = $this->Campaign_Model->get_campaigns_with_due_emails(20);
 
         if (empty($all_campaign)) {
-            echo "There is no Campaign.";
+            echo "There is no due campaign email.";
             return;
         }
 
@@ -38,7 +42,6 @@ class CronController extends CI_Controller {
             $campaign_id = $val['CAMPAIGN_ID'];
             $all_templates = $this->Campaign_Model->get_due_template_mappings($campaign_id);
             if (empty($all_templates)) {
-                echo "No due emails for campaign {$campaign_id}.<br>";
                 continue;
             }
 

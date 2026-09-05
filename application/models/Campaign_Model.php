@@ -433,4 +433,23 @@ class Campaign_Model extends CI_Model
         $this->db->order_by('CAMPAIGN_ID', 'DESC');
         return $this->db->get('CAMPAIGN')->result_array();
     }
+
+    public function get_campaigns_with_due_emails($limit = 20)
+    {
+        $now = date('Y-m-d H:i:s');
+        $sql = "
+            SELECT DISTINCT C.*
+            FROM CAMPAIGN C
+            INNER JOIN CAMPAIGN_TEMPLATES_MAPPING CTM ON CTM.CAMPAIGN_ID = C.CAMPAIGN_ID
+            WHERE C.RECORD_STATUS = 0
+              AND C.WORKFLOW_STATUS IN ('scheduled', 'in_progress')
+              AND (CTM.SEND_STATUS = 'pending' OR CTM.SEND_STATUS IS NULL OR CTM.SEND_STATUS = '1')
+              AND (
+                    (CTM.SEND_AT IS NOT NULL AND CTM.SEND_AT <= ?)
+                 OR (CTM.SEND_AT IS NULL AND CONCAT(CTM.SEND_DATE, ' ', LPAD(IFNULL(CTM.TEMPLATE_START_TIME, 0), 2, '0'), ':00:00') <= ?)
+              )
+            ORDER BY C.CAMPAIGN_ID DESC
+            LIMIT " . (int)$limit;
+        return $this->db->query($sql, [$now, $now])->result_array();
+    }
 }
