@@ -404,7 +404,7 @@ class LeadController extends CI_Controller
         $this->email->initialize($config);
     
         $this->email->set_newline("\r\n");
-        $this->email->from($user_email, $subject);
+        $this->email->from($user_email, 'Barinderjeet Kaur');
         $this->email->to($lead_email); // Recipient's email address
         $this->email->subject($subject);
         $this->email->message($template_string);
