@@ -324,6 +324,71 @@ function fs($arr, $key, $default = '')
         /* ── Misc ── */
         .other-course-wrap{ display:none;margin-top:12px; }
 
+        .form-control,
+        select.form-control,
+        .phone-combo input.phone-number-input{
+            font-size:16px;
+        }
+        .is-invalid,
+        .phone-combo.is-invalid,
+        .signature-box.is-invalid{
+            border-color:#dc3545 !important;
+            box-shadow:0 0 0 0.15rem rgba(220,53,69,.18);
+        }
+        .pa-submit-errors{
+            display:none;
+            margin:0 0 14px;
+            padding:14px 16px;
+            border:1px solid #f5c2c7;
+            border-radius:12px;
+            background:#fff5f5;
+            color:#842029;
+        }
+        .pa-submit-errors.is-visible{ display:block; }
+        .pa-submit-errors h5{
+            margin:0 0 8px;
+            font-size:16px;
+            font-weight:700;
+            color:#842029;
+        }
+        .pa-submit-errors p{ margin:0 0 8px; font-size:14px; }
+        .pa-submit-errors ul{ margin:0; padding-left:18px; }
+        .pa-submit-errors li{ margin:0 0 6px; font-size:14px; line-height:1.4; }
+        .pa-submit-actions{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+        .pa-error-modal{
+            display:none;
+            position:fixed;
+            inset:0;
+            z-index:20000;
+        }
+        .pa-error-modal.is-open{ display:block; }
+        .pa-error-modal-backdrop{
+            position:absolute;
+            inset:0;
+            background:rgba(17,24,39,0.45);
+        }
+        .pa-error-modal-sheet{
+            position:absolute;
+            left:16px;
+            right:16px;
+            top:50%;
+            transform:translateY(-50%);
+            max-height:80vh;
+            overflow:auto;
+            background:#fff;
+            border-radius:16px;
+            padding:20px 18px 16px;
+            box-shadow:0 16px 40px rgba(0,0,0,0.22);
+        }
+        .pa-error-modal-sheet h3{
+            margin:0 0 8px;
+            font-size:20px;
+            color:var(--brand-blue);
+        }
+        .pa-error-modal-sheet p{ margin:0 0 10px; color:#555; font-size:14px; }
+        .pa-error-modal-sheet ul{ margin:0 0 16px; padding-left:18px; }
+        .pa-error-modal-sheet li{ margin:0 0 6px; font-size:14px; }
+
         @media (max-width:900px){
             .eyd-title{font-size:30px;}
             .eyd-contact{font-size:15px;}
@@ -333,6 +398,62 @@ function fs($arr, $key, $default = '')
             .address-row .addr-post{ flex:0 0 100%; width:100%; }
             input[name="postcode"]{ max-width:100%; }
             .email-dob-row{ flex-wrap:wrap; }
+        }
+        @media (max-width:767px){
+            body{ overflow-x:hidden; }
+            .eyd-header-inner{ padding:12px 14px; gap:12px; align-items:flex-start; }
+            .eyd-logo-wrap{ width:58px; height:58px; border-width:4px; }
+            .eyd-title{
+                font-size:22px;
+                white-space:normal;
+                text-underline-offset:5px;
+                text-decoration-thickness:3px;
+                line-height:1.2;
+            }
+            .eyd-contact{
+                font-size:12px;
+                white-space:normal;
+                margin-top:6px;
+                line-height:1.4;
+            }
+            .eyd-footer-inner{
+                font-size:13px;
+                white-space:normal;
+                padding:12px 14px;
+                line-height:1.4;
+            }
+            .public-wrapper{ margin:12px auto; padding:10px; }
+            .public-header{ padding:16px; }
+            .public-header h2{ font-size:20px; line-height:1.3; }
+            .public-body{ padding:16px 14px; }
+            .section-title{ font-size:17px; margin-top:20px; }
+            .address-row{ flex-direction:column; gap:12px; }
+            .address-row .addr-postal,
+            .address-row .addr-city,
+            .address-row .addr-post{ flex:1 1 100%; width:100%; }
+            input[name="postcode"],
+            input[name="total_inc_gst"],
+            input[name="deposit_amount"],
+            input[name="balance_amount"],
+            select[name="deposit_paid_via"],
+            input[name="deposit_paid_on"],
+            input[name="due_date"]{ max-width:100% !important; width:100%; }
+            .phone-combo{ width:100%; }
+            .signature-box{ height:180px; }
+            .pa-submit-actions .btn{ width:100%; }
+            .pa-error-modal-sheet{
+                left:0;
+                right:0;
+                top:auto;
+                bottom:0;
+                transform:none;
+                max-height:78vh;
+                border-radius:16px 16px 0 0;
+            }
+            .custom-control-label{ word-break:break-word; }
+            .consent-rich-body,
+            .delivery-services-notice-body,
+            .payment-modes-notice-body{ overflow-wrap:anywhere; }
         }
         @media (max-width:600px){
             .phone-combo input.iti-phone-picker{ width:90px; }
@@ -400,7 +521,7 @@ function fs($arr, $key, $default = '')
                 <div class="alert alert-danger"><?= $flash_err; ?></div>
             <?php endif; ?>
 
-            <form method="post" action="<?= base_url('payment-agreement/submit/' . $request['token']); ?>" enctype="multipart/form-data" onsubmit="return beforeSubmit();">
+            <form id="paymentAgreementForm" method="post" action="<?= base_url('payment-agreement/submit/' . $request['token']); ?>" enctype="multipart/form-data" novalidate onsubmit="return beforeSubmit();">
 
                 <h4 class="section-title"><?= html_escape(fs($fs, 'section_personal_details', 'Personal Details')); ?></h4>
                 <?php
@@ -885,11 +1006,21 @@ function fs($arr, $key, $default = '')
                     </div>
                 </div>
 
-                <div class="mt-4">
+                <div class="mt-4 pa-submit-wrap">
+                    <div id="formSubmitErrors" class="pa-submit-errors<?= ($flash_err || validation_errors()) ? ' is-visible' : ''; ?>" role="alert">
+                        <h5>Please fix the following before submitting</h5>
+                        <p>This form is long, so the missing items are listed here next to the submit button.</p>
+                        <ul id="formSubmitErrorsList">
+                            <?php if ($flash_err): ?><li><?= $flash_err; ?></li><?php endif; ?>
+                            <?= validation_errors('<li>', '</li>'); ?>
+                        </ul>
+                    </div>
                     <input type="hidden" name="client_timezone"   id="client_timezone">
                     <input type="hidden" name="client_time_iso"   id="client_time_iso">
                     <input type="hidden" name="screen_resolution" id="screen_resolution">
-                    <button type="submit" class="btn btn-primary btn-lg">Submit Agreement</button>
+                    <div class="pa-submit-actions">
+                        <button type="submit" class="btn btn-primary btn-lg">Submit Agreement</button>
+                    </div>
                 </div>
             </form>
 
@@ -904,6 +1035,74 @@ function fs($arr, $key, $default = '')
     </div>
 </div>
 
+<div id="formErrorModal" class="pa-error-modal" aria-hidden="true">
+    <div class="pa-error-modal-backdrop" data-error-modal-close></div>
+    <div class="pa-error-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="formErrorModalTitle">
+        <h3 id="formErrorModalTitle">Unable to submit yet</h3>
+        <p>Please complete or correct these items:</p>
+        <ul id="formErrorModalList"></ul>
+        <button type="button" class="btn btn-primary btn-block mb-2" id="formErrorGoFirst">Go to first missing field</button>
+        <button type="button" class="btn btn-outline-secondary btn-block" data-error-modal-close>OK, I will fix these</button>
+    </div>
+</div>
+
+<script>
+(function(){
+    var modal = document.getElementById('formErrorModal');
+    var box = document.getElementById('formSubmitErrors');
+    var list = document.getElementById('formSubmitErrorsList');
+    var modalList = document.getElementById('formErrorModalList');
+    var firstTarget = null;
+
+    function closeModal(){
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function escapeHtml(str){
+        return String(str || '').replace(/[&<>"']/g, function(ch){
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]);
+        });
+    }
+
+    window.showPaymentFormErrors = function(items){
+        firstTarget = (items && items[0] && items[0].el) ? items[0].el : null;
+        var html = '';
+        (items || []).forEach(function(item){
+            html += '<li>' + escapeHtml(item.message) + '</li>';
+        });
+        if (list) list.innerHTML = html;
+        if (modalList) modalList.innerHTML = html;
+        if (box) {
+            box.classList.add('is-visible');
+            box.style.display = 'block';
+        }
+        if (modal) {
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+        if (box && box.scrollIntoView) {
+            box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
+
+    document.querySelectorAll('[data-error-modal-close]').forEach(function(btn){
+        btn.addEventListener('click', closeModal);
+    });
+    var goFirst = document.getElementById('formErrorGoFirst');
+    if (goFirst) {
+        goFirst.addEventListener('click', function(){
+            closeModal();
+            if (!firstTarget) return;
+            if (firstTarget.scrollIntoView) firstTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (typeof firstTarget.focus === 'function') {
+                try { firstTarget.focus(); } catch (e) {}
+            }
+        });
+    }
+})();
+</script>
 <script>
     document.getElementById('client_timezone').value   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     document.getElementById('client_time_iso').value   = new Date().toISOString();
@@ -972,10 +1171,45 @@ function fs($arr, $key, $default = '')
 
     /* Exposed globally so the form's onsubmit="return beforeSubmit()" works */
     window.beforeSubmit = function(){
-        function fail(msg, el) {
-            alert(msg);
-            if (el && typeof el.focus === 'function') el.focus();
-            return false;
+        var items = [];
+        var seen = {};
+
+        function fieldLabel(el) {
+            if (!el) return 'This field';
+            if (el.id) {
+                var byFor = document.querySelector('label[for="' + el.id + '"]');
+                if (byFor) return byFor.textContent.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+            }
+            var group = el.closest('.form-group') || el.closest('.phone-combo') || el.closest('.custom-control');
+            if (group) {
+                var lab = group.querySelector('label');
+                if (lab) return lab.textContent.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+            }
+            return el.getAttribute('title') || el.name || 'This field';
+        }
+
+        function markInvalid(el) {
+            if (!el) return;
+            el.classList.add('is-invalid');
+            var combo = el.closest('.phone-combo');
+            if (combo) combo.classList.add('is-invalid');
+        }
+
+        function addError(msg, el) {
+            var key = (el && (el.name || el.id) ? (el.name || el.id) : '') + '|' + msg;
+            if (seen[key]) return;
+            seen[key] = true;
+            if (el) markInvalid(el);
+            items.push({ message: msg, el: el || null });
+        }
+
+        function isVisibleField(el) {
+            if (!el || el.disabled) return false;
+            if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button') return false;
+            if (el.closest('.d-none')) return false;
+            var block = el.closest('[style*="display: none"], [style*="display:none"]');
+            if (block) return false;
+            return true;
         }
 
         function isDigits(val, minLen, maxLen) {
@@ -991,6 +1225,8 @@ function fs($arr, $key, $default = '')
             return /^[A-Za-z][A-Za-z .'\-]*$/.test(String(val || '').trim());
         }
 
+        document.querySelectorAll('.is-invalid').forEach(function(el){ el.classList.remove('is-invalid'); });
+
         var firstName = document.querySelector('input[name="first_name"]');
         var lastName = document.querySelector('input[name="last_name"]');
         var email = document.querySelector('input[name="email_address"]');
@@ -1005,24 +1241,24 @@ function fs($arr, $key, $default = '')
         var sigFirst = document.querySelector('input[name="signature_first_name"]');
         var sigLast = document.querySelector('input[name="signature_last_name"]');
 
-        if (!isValidName(firstName && firstName.value)) return fail('First name must contain letters only.', firstName);
-        if (!isValidName(lastName && lastName.value)) return fail('Last name must contain letters only.', lastName);
-        if (!isValidName(city && city.value)) return fail('City / Suburb must contain letters only.', city);
-        if (!isDigits(postcode && postcode.value, 3, 10)) return fail('Postcode must be 3–10 digits (numbers only).', postcode);
-        if (!isDigits(mobile && mobile.value, 7, 15)) return fail('Mobile number must be 7–15 digits (numbers only).', mobile);
-        if (!isDigits(work && work.value, 7, 15)) return fail('Work number must be 7–15 digits (numbers only).', work);
-        if (!isValidEmail(email && email.value)) return fail('Please enter a valid email address.', email);
-        if (!isValidName(emergencyName && emergencyName.value)) return fail('Emergency contact name must contain letters only.', emergencyName);
-        if (!isDigits(emergencyPhone && emergencyPhone.value, 7, 15)) return fail('Emergency contact number must be 7–15 digits (numbers only).', emergencyPhone);
-        if (!isValidName(relationship && relationship.value)) return fail('Relationship must contain letters only.', relationship);
+        if (!isValidName(firstName && firstName.value)) addError('First name must contain letters only.', firstName);
+        if (!isValidName(lastName && lastName.value)) addError('Last name must contain letters only.', lastName);
+        if (!isValidName(city && city.value)) addError('City / Suburb must contain letters only.', city);
+        if (!isDigits(postcode && postcode.value, 3, 10)) addError('Postcode must be 3–10 digits (numbers only).', postcode);
+        if (!isDigits(mobile && mobile.value, 7, 15)) addError('Mobile number must be 7–15 digits (numbers only).', mobile);
+        if (!isDigits(work && work.value, 7, 15)) addError('Work number must be 7–15 digits (numbers only).', work);
+        if (!isValidEmail(email && email.value)) addError('Please enter a valid email address.', email);
+        if (!isValidName(emergencyName && emergencyName.value)) addError('Emergency contact name must contain letters only.', emergencyName);
+        if (!isDigits(emergencyPhone && emergencyPhone.value, 7, 15)) addError('Emergency contact number must be 7–15 digits (numbers only).', emergencyPhone);
+        if (!isValidName(relationship && relationship.value)) addError('Relationship must contain letters only.', relationship);
 
         if (deposit) {
             var depVal = parseFloat(deposit.value);
-            if (isNaN(depVal) || depVal < 0) return fail('Deposit amount must be a valid number (0 or greater).', deposit);
+            if (isNaN(depVal) || depVal < 0) addError('Deposit amount must be a valid number (0 or greater).', deposit);
         }
 
-        if (!isValidName(sigFirst && sigFirst.value)) return fail('Signature first name must contain letters only.', sigFirst);
-        if (!isValidName(sigLast && sigLast.value)) return fail('Signature last name must contain letters only.', sigLast);
+        if (!isValidName(sigFirst && sigFirst.value)) addError('Signature first name must contain letters only.', sigFirst);
+        if (!isValidName(sigLast && sigLast.value)) addError('Signature last name must contain letters only.', sigLast);
 
         var courseSelected = false;
         var lockedCourse = document.querySelector('input[type="hidden"][name="course_name[]"]');
@@ -1034,25 +1270,46 @@ function fs($arr, $key, $default = '')
             });
         }
         if (!courseSelected) {
-            return fail('Please select at least one course before submitting.');
+            addError('Please select at least one course before submitting.', document.querySelector('.course-checkbox'));
         }
 
         var otherCb = document.getElementById('course_other');
         if (otherCb && otherCb.checked) {
             var otherName = document.getElementById('other_course_name');
             if (!otherName || !String(otherName.value || '').trim()) {
-                return fail('Please enter the Other Course Name.', otherName);
+                addError('Please enter the Other Course Name.', otherName);
             }
         }
 
         var paFull = document.getElementById('pa_type_full');
         var paPlan = document.getElementById('pa_type_plan');
         if ((!paFull || !paFull.checked) && (!paPlan || !paPlan.checked)) {
-            return fail('Please select a preferred payment arrangement.');
+            addError('Please select a preferred payment arrangement.', paFull || paPlan);
+        }
+
+        var form = document.getElementById('paymentAgreementForm');
+        if (form) {
+            Array.prototype.forEach.call(form.querySelectorAll('input, select, textarea'), function(el) {
+                if (!isVisibleField(el) || !el.willValidate) return;
+                if (el.checkValidity()) return;
+                if (el.name && items.some(function(i){ return i.el && i.el.name === el.name; })) return;
+                var label = fieldLabel(el);
+                var msg = el.validationMessage || (label + ' is required.');
+                if (el.validity && el.validity.valueMissing) {
+                    msg = label + ' is required.';
+                }
+                addError(msg, el);
+            });
         }
 
         if (!hasSignature) {
-            return fail('Please draw your signature before submitting.');
+            addError('Please draw your signature before submitting.', canvas);
+            canvas.classList.add('is-invalid');
+        }
+
+        if (items.length) {
+            if (window.showPaymentFormErrors) window.showPaymentFormErrors(items);
+            return false;
         }
         hiddenInput.value = canvas.toDataURL('image/png');
         return true;
