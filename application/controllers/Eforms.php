@@ -224,14 +224,15 @@ class Eforms extends CI_Controller {
           }
         }
 
-        // PDF HTML — client copy (no Audit/Proof section) for email $PDF$ link
-        $pdf_html = $this->load->view('eforms/pdf/submission_pdf', [
-          'template' => $tpl,
-          'request'  => $req,
-          'data'     => $data_for_pdf,
-          'signature_path' => $signature_path,
-          'include_audit' => false,
-          'meta' => [
+        // Same PDF builder as admin download — full form body, before/after HTML, and field values.
+        $pdf_html = $this->eform->render_submission_pdf_html(
+          $tpl,
+          $fields,
+          $overrides,
+          $values,
+          $req,
+          $signature_path,
+          [
             'template_title' => $tpl['title'] ?? ($tpl['heading'] ?? 'Form'),
             'client_name'    => $pdf_client_name,
             'client_email'   => $pdf_client_email,
@@ -239,7 +240,9 @@ class Eforms extends CI_Controller {
             'ip_address'     => $ip,
             'user_agent'     => $user_agent,
           ],
-        ], true);
+          false,
+          $data_for_pdf
+        );
 
         $pdf_binary = $this->pdf->create($pdf_html);
 
@@ -426,6 +429,13 @@ class Eforms extends CI_Controller {
 
     foreach ($attachment_paths as $attachment_path) {
       $this->email->attach($attachment_path);
+    }
+
+    if (!empty($pdf_path)) {
+      $full_pdf = FCPATH . ltrim((string)$pdf_path, '/');
+      if (is_file($full_pdf)) {
+        $this->email->attach($full_pdf);
+      }
     }
 
     if (!$this->email->send()) {

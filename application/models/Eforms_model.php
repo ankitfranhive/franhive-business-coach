@@ -249,6 +249,31 @@ class Eforms_model extends CI_Model {
         ]);
     }
 
+    /**
+     * Shared HTML for the submission PDF used on public submit and admin download.
+     * Passes form fields, before/after HTML, body text, and filled values.
+     */
+    public function render_submission_pdf_html($template, $fields, $overrides, $values, $request, $signature_path, $meta, $include_audit = false, $extra_data = [])
+    {
+        $data_for_pdf = is_array($extra_data) ? $extra_data : [];
+        foreach ((array)$values as $row) {
+            $label = $row['field_label'] ?? ($row['field_name'] ?? 'Field');
+            $data_for_pdf[$label] = (string)($row['value_text'] ?? '');
+        }
+
+        return $this->load->view('eforms/pdf/submission_pdf', [
+            'template' => $template ?: [],
+            'request' => $request ?: [],
+            'data' => $data_for_pdf,
+            'fields' => $fields ?: [],
+            'overrides' => $overrides ?: [],
+            'values' => $values ?: [],
+            'signature_path' => $signature_path,
+            'include_audit' => !empty($include_audit),
+            'meta' => is_array($meta) ? $meta : [],
+        ], true);
+    }
+
     // ---------- Submission ----------
     public function create_submission($request_id, $template_id, $values, $signature_path, $pdf_path, $static_form_slug = null) {
 
@@ -342,13 +367,139 @@ class Eforms_model extends CI_Model {
         $this->db->order_by('s.created_at', 'DESC');
         $this->db->limit((int)$limit);
         $rows = $this->db->get()->result_array();
+        $first_fields = $this->get_name_submission_values(array_column($rows, 'id'));
         foreach ($rows as &$row) {
             if (empty($row['template_title']) && !empty($row['static_form_slug'])) {
                 [$tpl] = $this->get_static_form_config($row['static_form_slug']);
                 $row['template_title'] = $tpl['title'] ?? 'Static Form';
             }
+            $name = trim((string)($row['client_name'] ?? ''));
+            $email = trim((string)($row['client_email'] ?? ''));
+            $row['source_type'] = ($name !== '' && $email !== '') ? 'crm' : 'direct';
+            $row['first_field'] = $first_fields[(int)$row['id']] ?? null;
         }
+        unset($row);
         return $rows;
+    }
+
+    private function get_name_submission_values($submission_ids)
+    {
+        $map = [];
+        $ids = [];
+        foreach ((array)$submission_ids as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if (empty($ids)) {
+            return $map;
+        }
+
+        $sql = "
+            SELECT submission_id, field_label, field_name, value_text
+            FROM ef_submission_values
+            WHERE submission_id IN (" . implode(',', $ids) . ")
+            ORDER BY id ASC
+        ";
+        $grouped = [];
+        foreach ($this->db->query($sql)->result_array() as $value) {
+            $grouped[(int)$value['submission_id']][] = $value;
+        }
+
+        foreach ($grouped as $submission_id => $values) {
+            $picked = $this->pick_name_field_value($values);
+            if ($picked !== null) {
+                $map[$submission_id] = $picked;
+            }
+        }
+        return $map;
+    }
+
+    private function pick_name_field_value($values)
+    {
+        $best = null;
+        $best_rank = 99;
+        $last_name = '';
+
+        foreach ((array)$values as $value) {
+            $field_name = strtolower(trim((string)($value['field_name'] ?? '')));
+            $field_label = strtolower(trim((string)($value['field_label'] ?? '')));
+            $filled = trim((string)($value['value_text'] ?? ''));
+
+            $name_key = trim(preg_replace('/[^a-z0-9]+/', '_', $field_name), '_');
+            $label_key = trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9]+/', ' ', $field_label)));
+
+            if (in_array($name_key, ['last_name', 'lastname', 'surname'], true) || $label_key === 'last name') {
+                if ($filled !== '') {
+                    $last_name = $filled;
+                }
+                continue;
+            }
+
+            $rank = $this->name_field_rank($name_key, $label_key);
+            if ($rank === null || $filled === '') {
+                continue;
+            }
+            if ($rank < $best_rank) {
+                $best = $value;
+                $best_rank = $rank;
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        $display = trim((string)($best['value_text'] ?? ''));
+        $best_name = trim(preg_replace('/[^a-z0-9]+/', '_', strtolower((string)($best['field_name'] ?? ''))), '_');
+        $best_label = trim(preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9]+/', ' ', strtolower((string)($best['field_label'] ?? '')))));
+        if ($last_name !== '' && (in_array($best_name, ['first_name', 'firstname'], true) || $best_label === 'first name')) {
+            $display = trim($display . ' ' . $last_name);
+            $best['value_text'] = $display;
+        }
+
+        return $best;
+    }
+
+    private function name_field_rank($name_key, $label_key)
+    {
+        $skip_needles = ['emergency', 'signature', 'business', 'company', 'course', 'program', 'parent', 'guardian'];
+        foreach ($skip_needles as $needle) {
+            if (strpos($name_key, $needle) !== false || strpos($label_key, $needle) !== false) {
+                return null;
+            }
+        }
+
+        $name_ranks = [
+            'first_name' => 1,
+            'firstname' => 1,
+            'full_name' => 2,
+            'fullname' => 2,
+            'name' => 3,
+            'your_name' => 3,
+            'client_name' => 4,
+        ];
+        if (isset($name_ranks[$name_key])) {
+            return $name_ranks[$name_key];
+        }
+
+        $label_ranks = [
+            'first name' => 1,
+            'firstname' => 1,
+            'full name' => 2,
+            'fullname' => 2,
+            'your full name' => 2,
+            'name' => 3,
+            'your name' => 3,
+            'client name' => 4,
+        ];
+        if (isset($label_ranks[$label_key])) {
+            return $label_ranks[$label_key];
+        }
+
+        return null;
     }
 
     public function get_submission($id) {

@@ -559,6 +559,7 @@ class AdminEforms extends CI_Controller {
      * Keeps older submissions up to date with the latest PDF layout.
      */
     public function download_pdf($id) {
+        @set_time_limit(120);
         $this->load->library('pdf');
 
         $submission = $this->eforms->get_submission($id);
@@ -571,20 +572,21 @@ class AdminEforms extends CI_Controller {
             $data_for_pdf[$label] = (string)($row['value_text'] ?? '');
         }
 
-        $template = null;
-        if (!empty($submission['static_form_slug'])) {
-            [$template] = $this->eforms->get_static_form_config($submission['static_form_slug']);
-        } elseif (!empty($submission['template_id'])) {
-            $template = $this->eforms->get_template((int)$submission['template_id']);
-        }
+        [$template, $fields] = $this->eforms->get_template_with_type_fields(
+            (int)($submission['template_id'] ?? 0),
+            $submission
+        );
         if (!$template) {
             $template = [
                 'title' => $submission['template_title'] ?? 'Form',
                 'heading' => $submission['template_title'] ?? 'Form',
                 'subheading' => '',
                 'body_html' => '',
+                'overrides_json' => '{}',
             ];
+            $fields = [];
         }
+        $overrides = json_decode($template['overrides_json'] ?? '{}', true) ?: [];
 
         $request = [
             'client_name' => $submission['client_name'] ?? '',
@@ -603,13 +605,14 @@ class AdminEforms extends CI_Controller {
             }
         }
 
-        $pdf_html = $this->load->view('eforms/pdf/submission_pdf', [
-            'template' => $template,
-            'request' => $request,
-            'data' => $data_for_pdf,
-            'signature_path' => $submission['signature_path'] ?? null,
-            'include_audit' => true,
-            'meta' => [
+        $pdf_html = $this->eforms->render_submission_pdf_html(
+            $template,
+            $fields,
+            $overrides,
+            $values,
+            $request,
+            $submission['signature_path'] ?? null,
+            [
                 'template_title' => $submission['template_title'] ?? ($template['title'] ?? 'Form'),
                 'client_name' => $client_name,
                 'client_email' => $client_email,
@@ -617,7 +620,9 @@ class AdminEforms extends CI_Controller {
                 'ip_address' => $submission['ip_address'] ?? '',
                 'user_agent' => $submission['user_agent'] ?? '',
             ],
-        ], true);
+            true,
+            $data_for_pdf
+        );
 
         $pdf_binary = $this->pdf->create($pdf_html);
 

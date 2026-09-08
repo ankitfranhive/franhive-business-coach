@@ -168,8 +168,9 @@ $config['subclass_prefix'] = 'MY_';
 | Note: This will NOT disable or override the CodeIgniter-specific
 |	autoloading (application/config/autoload.php)
 */
-$config['composer_autoload'] = '/home/u649484662/domains/franhive.com/public_html/franhive_portal/vendor/autoload.php';
- // or TRUE if vendor/ next to index.php
+$local_composer = FCPATH . 'vendor/autoload.php';
+$shared_composer = '/home/u649484662/domains/franhive.com/public_html/franhive_portal/vendor/autoload.php';
+$config['composer_autoload'] = is_file($local_composer) ? $local_composer : $shared_composer;
 
 
 /*

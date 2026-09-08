@@ -99,6 +99,98 @@
     .results-bar strong {
         color: #1b2a4e;
     }
+    .source-badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .source-badge-crm {
+        background: #e8f5e9;
+        color: #1b5e20;
+        border: 1px solid #c8e6c9;
+    }
+    .source-badge-direct {
+        background: #eef4ff;
+        color: #1b2a4e;
+        border: 1px solid #d6e4ff;
+    }
+    .first-field-label {
+        display: block;
+        font-size: 11px;
+        color: #6b7280;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+    .first-field-value {
+        display: block;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        line-height: 1.4;
+    }
+    .submissions-table-wrap {
+        overflow-x: auto;
+        border: 1px solid #e8edf5;
+        border-radius: 10px;
+    }
+    .submissions-table {
+        width: 100%;
+        min-width: 1180px;
+        margin-bottom: 0;
+        table-layout: auto;
+    }
+    .submissions-table thead th {
+        background: #f8fafc;
+        color: #1b2a4e;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        max-width: none !important;
+        vertical-align: middle;
+    }
+    .submissions-table tbody td {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: unset !important;
+        max-width: none !important;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        vertical-align: top;
+        line-height: 1.4;
+        font-size: 13px;
+    }
+    .submissions-table .col-id {
+        white-space: nowrap !important;
+        width: 70px;
+        font-weight: 600;
+        color: #374151;
+    }
+    .submissions-table .col-template {
+        min-width: 220px;
+    }
+    .submissions-table .col-client {
+        min-width: 160px;
+    }
+    .submissions-table .col-email {
+        min-width: 200px;
+    }
+    .submissions-table .col-source {
+        white-space: nowrap !important;
+        width: 120px;
+    }
+    .submissions-table .col-first {
+        min-width: 180px;
+    }
+    .submissions-table .col-date,
+    .submissions-table .col-ip,
+    .submissions-table .col-actions {
+        white-space: nowrap !important;
+        width: 1%;
+    }
 </style>
 
 <div class="mobile-menu-overlay"></div>
@@ -173,44 +265,68 @@
                 </div>
             </div>
 
-            <div class="table-responsive">
-                <table class="table table-striped table-bordered">
+            <div class="table-responsive submissions-table-wrap">
+                <table class="table table-striped table-bordered submissions-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Template</th>
-                            <th>Client</th>
-                            <th>Email</th>
-                            <th>Submitted At</th>
-                            <th>IP</th>
-                            <th>PDF</th>
-                            <th>Action</th>
+                            <th class="col-id">ID</th>
+                            <th class="col-template">Template</th>
+                            <th class="col-client">Client</th>
+                            <th class="col-email">Email</th>
+                            <th class="col-source">Sent from</th>
+                            <th class="col-first">First field</th>
+                            <th class="col-date">Submitted At</th>
+                            <th class="col-ip">IP</th>
+                            <th class="col-actions">PDF</th>
+                            <th class="col-actions">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                     <?php if(!empty($submissions)): ?>
                         <?php foreach($submissions as $s): ?>
                             <tr>
-                                <td><?= (int)$s['id'] ?></td>
-                                <td><?= html_escape($s['template_title'] ?? '') ?></td>
-                                <td><?= html_escape($s['client_name'] ?? '') ?></td>
-                                <td><?= html_escape($s['client_email'] ?? '') ?></td>
-                                <td><?= html_escape($s['created_at'] ?? '') ?></td>
-                                <td><?= html_escape($s['ip_address'] ?? '') ?></td>
-                                <td>
+                                <td class="col-id"><?= (int)$s['id'] ?></td>
+                                <td class="col-template"><?= html_escape($s['template_title'] ?? '') ?></td>
+                                <td class="col-client"><?= html_escape($s['client_name'] ?? '') ?></td>
+                                <td class="col-email"><?= html_escape($s['client_email'] ?? '') ?></td>
+                                <td class="col-source">
+                                    <?php if (($s['source_type'] ?? '') === 'crm'): ?>
+                                        <span class="source-badge source-badge-crm">From CRM</span>
+                                    <?php else: ?>
+                                        <span class="source-badge source-badge-direct">Direct link</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="col-first">
+                                    <?php
+                                        $first = is_array($s['first_field'] ?? null) ? $s['first_field'] : [];
+                                        $first_label = trim((string)($first['field_label'] ?? $first['field_name'] ?? ''));
+                                        $first_value = trim((string)($first['value_text'] ?? ''));
+                                    ?>
+                                    <?php if ($first_label !== '' || $first_value !== ''): ?>
+                                        <?php if ($first_label !== ''): ?>
+                                            <span class="first-field-label"><?= html_escape($first_label) ?></span>
+                                        <?php endif; ?>
+                                        <span class="first-field-value"><?= html_escape($first_value !== '' ? $first_value : '—') ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="col-date"><?= html_escape($s['created_at'] ?? '') ?></td>
+                                <td class="col-ip"><?= html_escape($s['ip_address'] ?? '') ?></td>
+                                <td class="col-actions">
                                     <?php if(!empty($s['pdf_path'])): ?>
                                         <a class="btn btn-sm btn-success" target="_blank" href="<?= base_url('admin_eforms/download_pdf/' . (int)$s['id']); ?>">Download</a>
                                     <?php else: ?>
                                         <a class="btn btn-sm btn-outline-success" target="_blank" href="<?= base_url('admin_eforms/download_pdf/' . (int)$s['id']); ?>">Generate PDF</a>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td class="col-actions">
                                     <a class="btn btn-sm btn-warning" href="<?= base_url('admin_eforms/submission_view/'.(int)$s['id']); ?>">View</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <tr><td colspan="8" class="text-center">No submissions found for the selected filter.</td></tr>
+                        <tr><td colspan="10" class="text-center">No submissions found for the selected filter.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
