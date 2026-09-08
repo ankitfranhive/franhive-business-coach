@@ -103,7 +103,9 @@ if (!function_exists('pdf_field_media_src')) {
 $template_title = $meta['template_title'] ?? ($template['title'] ?? $heading);
 $client_name    = $meta['client_name'] ?? ($request['client_name'] ?? '');
 $client_email   = $meta['client_email'] ?? ($request['client_email'] ?? '');
-$submitted_at   = $meta['submitted_at'] ?? date('Y-m-d H:i:s');
+$submitted_raw  = $meta['submitted_at'] ?? date('Y-m-d H:i:s');
+$submitted_ts   = strtotime((string)$submitted_raw);
+$submitted_at   = $submitted_ts ? date('Y-m-d h:i A', $submitted_ts) : (string)$submitted_raw;
 $ip_address     = $meta['ip_address'] ?? '';
 $user_agent     = $meta['user_agent'] ?? '';
 $ua_short       = $user_agent !== '' ? pdf_ua_summary($user_agent) : '';
@@ -270,7 +272,7 @@ if (!empty($signature_path)) {
       <?php endif; ?>
       <div>
         <div class="brand-name"><?= h($brand_name) ?></div>
-        <div class="muted">Generated on: <?= h(date('Y-m-d H:i:s')) ?></div>
+        <!-- <div class="muted">Generated on: <?= h(date('Y-m-d H:i:s')) ?></div> -->
       </div>
     </div>
   </div>

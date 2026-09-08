@@ -72,19 +72,39 @@ class Payment_agreement_model extends CI_Model
 
     public function get_all_payment_requests()
     {
-        // Explicit column list — never pull thank_you_message (large HTML) into the list page.
+        return $this->get_payment_requests('', 5000, 0);
+    }
+
+    public function count_payment_requests($search = '')
+    {
+        $this->db->from('payment_agreement_requests');
+        $this->apply_payment_request_search($search);
+        return (int)$this->db->count_all_results();
+    }
+
+    public function get_payment_requests($search = '', $limit = 25, $offset = 0)
+    {
         $cols = 'id, client_id, client_name, client_email, business_name, total_inc_gst, deposit_amount, deposit_paid_on, selected_course_id, selected_course_start_date, selected_course_end_date, payment_arrangement_intro_override, thank_you_email_template_id, token, token_expires_at, status, sent_at, opened_at, submitted_at, agreement_id, sent_by';
-        $query = $this->db->query('SELECT ' . $cols . ' FROM payment_agreement_requests ORDER BY id DESC');
+        $limit = max(1, (int)$limit);
+        $offset = max(0, (int)$offset);
+
+        $this->db->select($cols);
+        $this->db->from('payment_agreement_requests');
+        $this->apply_payment_request_search($search);
+        $this->db->order_by('id', 'DESC');
+        $this->db->limit($limit, $offset);
+        $query = $this->db->get();
         if ($query !== false) {
             return $query->result_array();
         }
 
-        // Fallback if some optional columns do not exist yet.
-        $fallback = $this->db
-            ->order_by('id', 'DESC')
-            ->get('payment_agreement_requests');
+        $this->db->reset_query();
+        $this->apply_payment_request_search($search);
+        $this->db->order_by('id', 'DESC');
+        $this->db->limit($limit, $offset);
+        $fallback = $this->db->get('payment_agreement_requests');
         if ($fallback === false) {
-            return array();
+            return [];
         }
         $rows = $fallback->result_array();
         foreach ($rows as &$row) {
@@ -92,6 +112,23 @@ class Payment_agreement_model extends CI_Model
         }
         unset($row);
         return $rows;
+    }
+
+    private function apply_payment_request_search($search)
+    {
+        $search = trim((string)$search);
+        if ($search === '') {
+            return;
+        }
+        $this->db->group_start();
+        $this->db->like('client_name', $search);
+        $this->db->or_like('client_email', $search);
+        $this->db->or_like('business_name', $search);
+        $this->db->or_like('status', $search);
+        if (ctype_digit($search)) {
+            $this->db->or_where('id', (int)$search);
+        }
+        $this->db->group_end();
     }
 
     public function get_payment_request_by_id($id)

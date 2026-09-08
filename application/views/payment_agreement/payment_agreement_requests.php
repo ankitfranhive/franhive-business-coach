@@ -166,8 +166,38 @@
             </form>
         </div>
 
+        <?php
+            $search = isset($search) ? (string)$search : '';
+            $page = isset($page) ? (int)$page : 1;
+            $per_page = isset($per_page) ? (int)$per_page : 25;
+            $total_requests = isset($total_requests) ? (int)$total_requests : 0;
+            $total_pages = isset($total_pages) ? (int)$total_pages : 1;
+            $showing_from = isset($showing_from) ? (int)$showing_from : 0;
+            $showing_to = isset($showing_to) ? (int)$showing_to : 0;
+            $pa_qs = function ($page_num, $per = null, $q = null) use ($page, $per_page, $search) {
+                $params = array(
+                    'page' => (int)$page_num,
+                    'per_page' => $per !== null ? (int)$per : $per_page,
+                );
+                $q = $q !== null ? (string)$q : $search;
+                if ($q !== '') {
+                    $params['q'] = $q;
+                }
+                return base_url('payment-agreement/requests?' . http_build_query($params));
+            };
+        ?>
         <div class="pd-20 card-box mb-30">
-            <h5 class="mb-20">Sent Requests</h5>
+            <div class="d-flex flex-wrap align-items-center justify-content-between mb-20" style="gap:12px;">
+                <h5 class="mb-0">Sent Requests</h5>
+                <form method="get" action="<?= base_url('payment-agreement/requests'); ?>" class="d-flex flex-wrap align-items-center" style="gap:8px;">
+                    <input type="hidden" name="per_page" value="<?= (int)$per_page; ?>">
+                    <input type="search" name="q" class="form-control" value="<?= html_escape($search); ?>" placeholder="Search name, email, subject, status, ID" style="min-width:260px;">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                    <?php if ($search !== ''): ?>
+                        <a class="btn btn-outline-secondary" href="<?= base_url('payment-agreement/requests?per_page=' . (int)$per_page); ?>">Clear</a>
+                    <?php endif; ?>
+                </form>
+            </div>
 
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -283,11 +313,70 @@
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="15" class="text-center">No requests found.</td>
+                            <td colspan="15" class="text-center">
+                                <?= $search !== '' ? 'No requests match your search.' : 'No requests found.'; ?>
+                            </td>
                         </tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between mt-20" style="gap:12px;">
+                <div class="text-muted">
+                    <?php if ($total_requests > 0): ?>
+                        Showing <?= (int)$showing_from; ?>–<?= (int)$showing_to; ?> of <?= (int)$total_requests; ?>
+                    <?php else: ?>
+                        0 results
+                    <?php endif; ?>
+                </div>
+                <div class="d-flex flex-wrap align-items-center" style="gap:8px;">
+                    <form method="get" action="<?= base_url('payment-agreement/requests'); ?>" class="d-flex align-items-center" style="gap:6px;">
+                        <?php if ($search !== ''): ?>
+                            <input type="hidden" name="q" value="<?= html_escape($search); ?>">
+                        <?php endif; ?>
+                        <label class="mb-0 text-muted" for="pa-per-page">Per page</label>
+                        <select id="pa-per-page" name="per_page" class="form-control" style="width:auto;" onchange="this.form.submit()">
+                            <?php foreach ([10, 25, 50, 100] as $opt): ?>
+                                <option value="<?= (int)$opt; ?>" <?= ((int)$per_page === (int)$opt) ? 'selected' : ''; ?>><?= (int)$opt; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                    <?php if ($total_pages > 1): ?>
+                        <?php
+                            $window = 2;
+                            $start_p = max(1, $page - $window);
+                            $end_p = min($total_pages, $page + $window);
+                        ?>
+                        <nav aria-label="Sent requests pages">
+                            <ul class="pagination mb-0">
+                                <li class="page-item <?= $page <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="<?= $page <= 1 ? '#' : $pa_qs($page - 1); ?>">Prev</a>
+                                </li>
+                                <?php if ($start_p > 1): ?>
+                                    <li class="page-item"><a class="page-link" href="<?= $pa_qs(1); ?>">1</a></li>
+                                    <?php if ($start_p > 2): ?>
+                                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                                <?php for ($p = $start_p; $p <= $end_p; $p++): ?>
+                                    <li class="page-item <?= $p === $page ? 'active' : ''; ?>">
+                                        <a class="page-link" href="<?= $pa_qs($p); ?>"><?= (int)$p; ?></a>
+                                    </li>
+                                <?php endfor; ?>
+                                <?php if ($end_p < $total_pages): ?>
+                                    <?php if ($end_p < $total_pages - 1): ?>
+                                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                                    <?php endif; ?>
+                                    <li class="page-item"><a class="page-link" href="<?= $pa_qs($total_pages); ?>"><?= (int)$total_pages; ?></a></li>
+                                <?php endif; ?>
+                                <li class="page-item <?= $page >= $total_pages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="<?= $page >= $total_pages ? '#' : $pa_qs($page + 1); ?>">Next</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 

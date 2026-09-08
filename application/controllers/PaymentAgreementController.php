@@ -14,16 +14,39 @@ class PaymentAgreementController extends CI_Controller
 
     public function paymentAgreementRequests()
 {
-    $data['requests'] = $this->Payment_agreement_model->get_all_payment_requests();
+    $search = trim((string)$this->input->get('q', true));
+    $page = (int)$this->input->get('page');
+    $per_page = (int)$this->input->get('per_page');
+    if ($page < 1) {
+        $page = 1;
+    }
+    if (!in_array($per_page, [10, 25, 50, 100], true)) {
+        $per_page = 25;
+    }
+
+    $total = $this->Payment_agreement_model->count_payment_requests($search);
+    $total_pages = max(1, (int)ceil($total / $per_page));
+    if ($page > $total_pages) {
+        $page = $total_pages;
+    }
+    $offset = ($page - 1) * $per_page;
+
+    $data['requests'] = $this->Payment_agreement_model->get_payment_requests($search, $per_page, $offset);
     $data['all_courses'] = $this->Payment_agreement_model->get_data();
     $data['email_templates'] = $this->Campaign_Model->get_templates_for_payment_agreement();
+    $data['search'] = $search;
+    $data['page'] = $page;
+    $data['per_page'] = $per_page;
+    $data['total_requests'] = $total;
+    $data['total_pages'] = $total_pages;
+    $data['showing_from'] = $total > 0 ? ($offset + 1) : 0;
+    $data['showing_to'] = min($offset + $per_page, $total);
 
     $data['success'] = $this->session->flashdata('success');
     $data['error']   = $this->session->flashdata('error');
 
     $this->load->view('payment_agreement/payment_agreement_requests', $data);
 
-    // force clear
     $this->session->unset_userdata('success');
     $this->session->unset_userdata('error');
 }
