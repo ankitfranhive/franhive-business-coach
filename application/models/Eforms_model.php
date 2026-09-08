@@ -522,6 +522,28 @@ class Eforms_model extends CI_Model {
             ->result_array();
     }
 
+    public function humanize_submission_values($values, $fields = [])
+    {
+        $type_by_name = [];
+        foreach ((array)$fields as $field) {
+            $name = (string)($field['name'] ?? '');
+            if ($name !== '') {
+                $type_by_name[$name] = strtolower((string)($field['type'] ?? ''));
+            }
+        }
+
+        foreach ($values as &$row) {
+            $name = (string)($row['field_name'] ?? '');
+            $type = $type_by_name[$name] ?? '';
+            $value = trim((string)($row['value_text'] ?? ''));
+            if ($type === 'checkbox' && ($value === '1' || strtolower($value) === 'on')) {
+                $row['value_text'] = 'I accept and agree';
+            }
+        }
+        unset($row);
+        return $values;
+    }
+
     // ---------- Thank You page templates ----------
     private function thank_you_templates_table_ready() {
         static $ready = null;

@@ -549,7 +549,12 @@ class AdminEforms extends CI_Controller {
         if (!$submission) show_404();
     
         $data['submission'] = $submission;
-        $data['values'] = $this->eforms->get_submission_values($id);
+        $values = $this->eforms->get_submission_values($id);
+        [$template, $fields] = $this->eforms->get_template_with_type_fields(
+            (int)($submission['template_id'] ?? 0),
+            $submission
+        );
+        $data['values'] = $this->eforms->humanize_submission_values($values, $fields ?: []);
     
         $this->load->view('eforms/submission_view', $data);
     }
@@ -566,12 +571,6 @@ class AdminEforms extends CI_Controller {
         if (!$submission) show_404();
 
         $values = $this->eforms->get_submission_values($id);
-        $data_for_pdf = [];
-        foreach ($values as $row) {
-            $label = $row['field_label'] ?? ($row['field_name'] ?? 'Field');
-            $data_for_pdf[$label] = (string)($row['value_text'] ?? '');
-        }
-
         [$template, $fields] = $this->eforms->get_template_with_type_fields(
             (int)($submission['template_id'] ?? 0),
             $submission
@@ -585,6 +584,12 @@ class AdminEforms extends CI_Controller {
                 'overrides_json' => '{}',
             ];
             $fields = [];
+        }
+        $values = $this->eforms->humanize_submission_values($values, $fields ?: []);
+        $data_for_pdf = [];
+        foreach ($values as $row) {
+            $label = $row['field_label'] ?? ($row['field_name'] ?? 'Field');
+            $data_for_pdf[$label] = (string)($row['value_text'] ?? '');
         }
         $overrides = json_decode($template['overrides_json'] ?? '{}', true) ?: [];
 

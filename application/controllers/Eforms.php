@@ -192,7 +192,22 @@ class Eforms extends CI_Controller {
           if (in_array($f['type'] ?? '', ['image', 'video', 'section'])) continue;
 
           $posted = $this->input->post($f['name'], true);
-          if (is_array($posted)) $posted = implode(', ', $posted);
+          if (($f['type'] ?? '') === 'checkbox') {
+            $options = [];
+            if (!empty($f['options_json'])) {
+              $decoded = json_decode($f['options_json'], true);
+              if (is_array($decoded)) {
+                $options = $decoded;
+              }
+            }
+            if (is_array($posted)) {
+              $posted = implode(', ', $posted);
+            } elseif (($posted === '1' || $posted === 'on') && empty($options)) {
+              $posted = 'I accept and agree';
+            }
+          } elseif (is_array($posted)) {
+            $posted = implode(', ', $posted);
+          }
 
           $label = $overrides['labels'][$f['name']] ?? $f['label'];
 
@@ -499,18 +514,34 @@ class Eforms extends CI_Controller {
   }
 
   private function save_signature_png($dataUrl, $request_id) {
-    if (strpos($dataUrl, 'data:image/png;base64,') !== 0) return null;
+    $dataUrl = trim((string)$dataUrl);
+    if (strpos($dataUrl, 'data:image/png;base64,') !== 0) {
+      log_message('error', 'Eform signature skipped: missing PNG data URL for request ' . (int)$request_id);
+      return null;
+    }
 
     $b64 = str_replace('data:image/png;base64,', '', $dataUrl);
-    $bin = base64_decode($b64);
-    if (!$bin) return null;
+    $b64 = preg_replace('/\s+/', '', $b64);
+    $bin = base64_decode($b64, true);
+    if ($bin === false || $bin === '') {
+      log_message('error', 'Eform signature skipped: invalid base64 for request ' . (int)$request_id);
+      return null;
+    }
 
     $dir = FCPATH.'uploads/eforms/signatures/';
-    if (!is_dir($dir)) mkdir($dir, 0755, true);
+    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+      log_message('error', 'Eform signature folder could not be created: ' . $dir);
+      return null;
+    }
 
     $name = 'sig_'.$request_id.'_'.time().'.png';
     $path = 'uploads/eforms/signatures/'.$name;
-    file_put_contents(FCPATH.$path, $bin);
+    $bytes = file_put_contents(FCPATH.$path, $bin);
+    if ($bytes === false || !is_file(FCPATH.$path) || filesize(FCPATH.$path) < 1) {
+      log_message('error', 'Eform signature file was not written: ' . $path);
+      return null;
+    }
+
     return $path;
   }
 
