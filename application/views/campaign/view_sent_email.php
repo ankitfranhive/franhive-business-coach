@@ -31,12 +31,6 @@ if ($print_name === '') {
 }
 $print_title = $print_name . '_sent_email_' . (int)($log['ID'] ?? 0);
 ?>
-<script>
-document.title = <?= json_encode($print_title) ?>;
-window.addEventListener('beforeprint', function () {
-    document.title = <?= json_encode($print_title) ?>;
-});
-</script>
 <div class="mobile-menu-overlay"></div>
 <div class="main-container sent-email-print-page">
     <div class="pd-ltr-20 xs-pd-20-10">
@@ -56,7 +50,7 @@ window.addEventListener('beforeprint', function () {
 
         <div class="gmail-actions">
             <span class="cm-sent-status">Sent from our side</span>
-            <button type="button" class="btn btn-sm btn-warning" onclick="document.title=<?= json_encode($print_title) ?>; window.print();">Print / save for screenshot</button>
+            <button type="button" class="btn btn-sm btn-warning" id="printSentEmailBtn">Print / save for screenshot</button>
         </div>
 
         <div class="gmail-mail" id="sentEmailCard">
@@ -89,6 +83,21 @@ window.addEventListener('beforeprint', function () {
 <?php $this->load->view('includes/footer'); ?>
 <script>
 (function () {
+    var printTitle = <?= json_encode($print_title) ?>;
+    document.title = printTitle;
+
+    var printBtn = document.getElementById('printSentEmailBtn');
+    if (printBtn) {
+        printBtn.addEventListener('click', function () {
+            document.title = printTitle;
+            window.print();
+        });
+    }
+
+    window.addEventListener('beforeprint', function () {
+        document.title = printTitle;
+    });
+
     var frame = document.querySelector('.gmail-body-frame');
     if (!frame) return;
     frame.addEventListener('load', function () {
