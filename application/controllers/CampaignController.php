@@ -120,8 +120,28 @@ class CampaignController extends CI_Controller
         $selected_templates = $this->Campaign_Model->get_selected_templates($campaign_id);
         $data['selected_templates'] = array_column($selected_templates, null, 'TEMPLATE_ID');
         $data['recipients'] = $this->Campaign_Model->get_users_by_campiagn_id($campaign_id);
+        $data['sent_emails'] = $this->Campaign_Model->get_campaign_email_logs($campaign_id);
         $data['campaign_data'] = $campaign;
         $this->load->view('campaign/view_campaign', $data);
+    }
+
+    public function viewCampaignEmail($log_id)
+    {
+        $log = $this->Campaign_Model->get_campaign_email_log($log_id);
+        if (empty($log)) {
+            show_404();
+            return;
+        }
+
+        $campaign = $this->Campaign_Model->get_campaign_by_id($log['CAMPAIGN_ID']);
+        if (empty($campaign)) {
+            show_404();
+            return;
+        }
+
+        $data['log'] = $log;
+        $data['campaign_data'] = $campaign;
+        $this->load->view('campaign/view_sent_email', $data);
     }
 
     public function deleteCampaign($campaign_id)

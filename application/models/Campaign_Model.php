@@ -404,6 +404,38 @@ class Campaign_Model extends CI_Model
         $this->db->insert('CAMPAIGN_EMAIL_LOGS', $data);
     }
 
+    public function get_campaign_email_logs($campaign_id)
+    {
+        $sql = "
+            SELECT CEL.ID, CEL.CAMPAIGN_ID, CEL.TEMPLATE_ID, CEL.FOREIGN_ID,
+                   CEL.TO_EMAIL, CEL.SUBJECT, CEL.SEND_DATE,
+                   T.TEMPLATE_NAME,
+                   COALESCE(NULLIF(E.NAME, ''), NULLIF(U.NAME, ''), CEL.TO_EMAIL) AS RECIPIENT_NAME
+            FROM CAMPAIGN_EMAIL_LOGS CEL
+            LEFT JOIN TEMPLATES T ON T.TEMPLATE_ID = CEL.TEMPLATE_ID
+            LEFT JOIN ENTITY E ON E.ENTITY_ID = CEL.FOREIGN_ID
+            LEFT JOIN USERS U ON U.USER_ID = CEL.FOREIGN_ID
+            WHERE CEL.CAMPAIGN_ID = ?
+            ORDER BY CEL.SEND_DATE DESC, CEL.ID DESC
+        ";
+        return $this->db->query($sql, [(int)$campaign_id])->result_array();
+    }
+
+    public function get_campaign_email_log($log_id)
+    {
+        $sql = "
+            SELECT CEL.*, T.TEMPLATE_NAME,
+                   COALESCE(NULLIF(E.NAME, ''), NULLIF(U.NAME, ''), CEL.TO_EMAIL) AS RECIPIENT_NAME
+            FROM CAMPAIGN_EMAIL_LOGS CEL
+            LEFT JOIN TEMPLATES T ON T.TEMPLATE_ID = CEL.TEMPLATE_ID
+            LEFT JOIN ENTITY E ON E.ENTITY_ID = CEL.FOREIGN_ID
+            LEFT JOIN USERS U ON U.USER_ID = CEL.FOREIGN_ID
+            WHERE CEL.ID = ?
+            LIMIT 1
+        ";
+        return $this->db->query($sql, [(int)$log_id])->row_array();
+    }
+
     public function refresh_campaign_counts($campaign_id)
     {
         $this->db->where('CAMPAIGN_ID', $campaign_id);

@@ -277,6 +277,7 @@ $route['knowledge-center/view-my-course-lesson/(:num)'] = 'KnowldegeCenterContro
 $route['campaign-dashboard'] = 'CampaignController/campaignDashboard';
 $route['campaigns'] = 'CampaignController/getAllCampaign';
 $route['view-campaign/(:num)'] = 'CampaignController/viewCampaign/$1';
+$route['view-campaign-email/(:num)'] = 'CampaignController/viewCampaignEmail/$1';
 $route['add-campaign'] = 'CampaignController/addCampaign';
 $route['edit-campaign/(:num)'] = 'CampaignController/editCampaign/$1';
 $route['delete-campaign/(:num)'] = 'CampaignController/deleteCampaign/$1';

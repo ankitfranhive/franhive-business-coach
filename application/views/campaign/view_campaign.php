@@ -123,6 +123,46 @@
             </div>
         </div>
         <div class="pd-20 card-box mb-30">
+            <h5 class="card-title">Sent emails</h5>
+            <p class="text-muted mb-3">These are the emails already sent from our side. Open any email to see the same subject and body the client received — use that screen for screenshots.</p>
+            <?php if (!empty($sent_emails)): ?>
+            <div class="pb-20">
+                <table class="data-table table stripe hover nowrap cm-sent-table">
+                    <thead>
+                        <tr>
+                            <th>To</th>
+                            <th>Recipient</th>
+                            <th>Subject</th>
+                            <th>Template</th>
+                            <th>Sent at</th>
+                            <th>Status</th>
+                            <th>View</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($sent_emails as $email): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($email['TO_EMAIL'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($email['RECIPIENT_NAME'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($email['SUBJECT'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($email['TEMPLATE_NAME'] ?? '') ?></td>
+                                <td><?= htmlspecialchars($email['SEND_DATE'] ?? '') ?></td>
+                                <td><span class="cm-sent-status">Sent</span></td>
+                                <td>
+                                    <a class="btn btn-sm btn-warning" href="<?= base_url('view-campaign-email/' . (int)$email['ID']); ?>">
+                                        Open email
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php else: ?>
+                <p class="text-muted mb-0">No emails have been sent for this campaign yet.</p>
+            <?php endif; ?>
+        </div>
+        <div class="pd-20 card-box mb-30">
             <!-- Campaign Dates -->
             <div class="form-group row">
                 <label class="col-sm-12 col-md-2 col-form-label">Start Date</label>
