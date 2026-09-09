@@ -11,38 +11,72 @@ function campaign_merge_tags()
         '{{phone}}' => 'Phone / mobile',
         '{{company}}' => 'Company / store',
         '{{city}}' => 'City',
+        '{{NAME}}' => 'Full name (caps)',
+        '{{FIRST_NAME}}' => 'First name (caps)',
+        '{{LAST_NAME}}' => 'Last name (caps)',
+        '{{EMAIL}}' => 'Email (caps)',
+        '{{PHONE}}' => 'Phone / mobile (caps)',
+        '{{COMPANY}}' => 'Company / store (caps)',
+        '{{CITY}}' => 'City (caps)',
         '$Name$' => 'Full name (legacy)',
         '$Email$' => 'Email (legacy)',
         '$Phone$' => 'Phone (legacy)',
         '$Company$' => 'Company (legacy)',
+        '$NAME$' => 'Full name (caps)',
+        '$FIRST_NAME$' => 'First name (caps)',
+        '$LAST_NAME$' => 'Last name (caps)',
+        '$EMAIL$' => 'Email (caps)',
+        '$PHONE$' => 'Phone (caps)',
+        '$COMPANY$' => 'Company (caps)',
+        '$CITY$' => 'City (caps)',
     ];
+}
+
+function campaign_merge_tag_values($entity)
+{
+    $name = trim((string)($entity['NAME'] ?? $entity['user_name'] ?? $entity['name'] ?? ''));
+    $parts = preg_split('/\s+/', $name, 2);
+    $first = $parts[0] ?? '';
+    $last = $parts[1] ?? '';
+    $email = (string)($entity['EMAIL'] ?? $entity['email_id'] ?? $entity['email'] ?? '');
+    $phone = (string)($entity['MOBILE'] ?? $entity['PHONE'] ?? $entity['phone'] ?? '');
+    $company = (string)($entity['COMPANY'] ?? $entity['STORE_NAME'] ?? $entity['company'] ?? '');
+    $city = (string)($entity['CITY'] ?? $entity['city'] ?? '');
+
+    return [
+        'name' => $name,
+        'first_name' => $first,
+        'last_name' => $last,
+        'email' => $email,
+        'phone' => $phone,
+        'company' => $company,
+        'city' => $city,
+    ];
+}
+
+function campaign_merge_tag_replacements($entity)
+{
+    $map = [];
+    foreach (campaign_merge_tag_values($entity) as $key => $value) {
+        $lower = strtolower($key);
+        $upper = strtoupper($key);
+        $title = str_replace(' ', '', ucwords(str_replace('_', ' ', $lower)));
+        $title_underscore = str_replace(' ', '_', ucwords(str_replace('_', ' ', $lower)));
+
+        $map['{{' . $lower . '}}'] = $value;
+        $map['{{' . $upper . '}}'] = $value;
+        $map['$' . $lower . '$'] = $value;
+        $map['$' . $upper . '$'] = $value;
+        $map['$' . $title . '$'] = $value;
+        $map['$' . $title_underscore . '$'] = $value;
+    }
+
+    return $map;
 }
 
 function campaign_fill_merge_tags($text, $entity)
 {
-    $name = trim((string)($entity['NAME'] ?? $entity['user_name'] ?? ''));
-    $parts = preg_split('/\s+/', $name, 2);
-    $first = $parts[0] ?? '';
-    $last = $parts[1] ?? '';
-    $email = (string)($entity['EMAIL'] ?? $entity['email_id'] ?? '');
-    $phone = (string)($entity['MOBILE'] ?? $entity['PHONE'] ?? '');
-    $company = (string)($entity['COMPANY'] ?? $entity['STORE_NAME'] ?? '');
-    $city = (string)($entity['CITY'] ?? '');
-
-    $map = [
-        '{{name}}' => $name,
-        '{{first_name}}' => $first,
-        '{{last_name}}' => $last,
-        '{{email}}' => $email,
-        '{{phone}}' => $phone,
-        '{{company}}' => $company,
-        '{{city}}' => $city,
-        '$Name$' => $name,
-        '$Email$' => $email,
-        '$Phone$' => $phone,
-        '$Company$' => $company,
-    ];
-
+    $map = campaign_merge_tag_replacements($entity);
     return str_replace(array_keys($map), array_values($map), (string)$text);
 }
 

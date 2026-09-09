@@ -87,6 +87,7 @@
 												<a class="dropdown-item" href="<?php echo base_url('payment-agreement'); ?>"><i class="dw dw-edit2"></i> Enrollment and Payment Agreement</a>
 												<!-- <a class="dropdown-item" href="<?php echo base_url('admin/underMaintenance/'); ?>"><i class="dw dw-text"></i> Send SMS</a> -->
 												<a class="dropdown-item" href="<?php echo base_url('leadController/sendLeadEmail/' . $lead['ENTITY_ID'] . ''); ?>"><i class="dw dw-mail"></i> Send Email</a>
+												<a class="dropdown-item" href="<?php echo base_url('lead-emails/' . $lead['ENTITY_ID'] . ''); ?>"><i class="dw dw-eye"></i> Email history</a>
 											</div>
 										</div>
 									</td>

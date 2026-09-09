@@ -348,4 +348,83 @@ class LeadModel extends CI_Model
         // Return true if the update was successful, false otherwise
         return $this->db->affected_rows() > 0;
     }
+
+    public function ensure_lead_email_logs_table()
+    {
+        if ($this->db->table_exists('LEAD_EMAIL_LOGS')) {
+            return true;
+        }
+
+        $sql = "CREATE TABLE IF NOT EXISTS `LEAD_EMAIL_LOGS` (
+            `ID` int(11) NOT NULL AUTO_INCREMENT,
+            `LEAD_ID` int(11) NOT NULL,
+            `TEMPLATE_ID` int(11) DEFAULT NULL,
+            `TO_EMAIL` varchar(255) NOT NULL,
+            `TO_NAME` varchar(255) DEFAULT NULL,
+            `SUBJECT` varchar(500) DEFAULT NULL,
+            `BODY` longtext,
+            `STATUS` varchar(20) NOT NULL DEFAULT 'sent',
+            `SENT_BY` int(11) DEFAULT NULL,
+            `SEND_DATE` datetime NOT NULL,
+            PRIMARY KEY (`ID`),
+            KEY `idx_lead_id` (`LEAD_ID`),
+            KEY `idx_send_date` (`SEND_DATE`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+        return (bool)$this->db->query($sql);
+    }
+
+    public function log_lead_email(array $data)
+    {
+        $this->ensure_lead_email_logs_table();
+        $ok = $this->db->insert('LEAD_EMAIL_LOGS', $data);
+        if (!$ok) {
+            $err = $this->db->error();
+            $msg = is_array($err) && !empty($err['message']) ? $err['message'] : 'unknown database error';
+            log_message('error', 'Lead email log insert failed: ' . $msg);
+        }
+        return $ok;
+    }
+
+    public function get_lead_email_logs($lead_id)
+    {
+        try {
+            $this->ensure_lead_email_logs_table();
+            $sql = "
+                SELECT LEL.ID, LEL.LEAD_ID, LEL.TEMPLATE_ID, LEL.TO_EMAIL, LEL.TO_NAME,
+                       LEL.SUBJECT, LEL.STATUS, LEL.SEND_DATE, LEL.SENT_BY,
+                       T.TEMPLATE_NAME
+                FROM LEAD_EMAIL_LOGS LEL
+                LEFT JOIN TEMPLATES T ON T.TEMPLATE_ID = LEL.TEMPLATE_ID
+                WHERE LEL.LEAD_ID = ?
+                ORDER BY LEL.SEND_DATE DESC, LEL.ID DESC
+            ";
+            $query = $this->db->query($sql, [(int)$lead_id]);
+            return $query ? $query->result_array() : [];
+        } catch (Throwable $e) {
+            log_message('error', 'Lead email logs read failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function get_lead_email_log($log_id)
+    {
+        try {
+            $this->ensure_lead_email_logs_table();
+            $sql = "
+                SELECT LEL.*, T.TEMPLATE_NAME,
+                       COALESCE(NULLIF(E.NAME, ''), LEL.TO_NAME, LEL.TO_EMAIL) AS RECIPIENT_NAME
+                FROM LEAD_EMAIL_LOGS LEL
+                LEFT JOIN TEMPLATES T ON T.TEMPLATE_ID = LEL.TEMPLATE_ID
+                LEFT JOIN ENTITY E ON E.ENTITY_ID = LEL.LEAD_ID
+                WHERE LEL.ID = ?
+                LIMIT 1
+            ";
+            $query = $this->db->query($sql, [(int)$log_id]);
+            return $query ? $query->row_array() : null;
+        } catch (Throwable $e) {
+            log_message('error', 'Lead email log read failed: ' . $e->getMessage());
+            return null;
+        }
+    }
 }

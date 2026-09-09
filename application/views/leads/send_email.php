@@ -13,6 +13,11 @@
                     </div>
                 </div>
                 <div class="col-md-6 col-sm-12 text-right">
+                    <?php if (!empty($user['ENTITY_ID'])): ?>
+                        <a class="btn btn-outline-secondary" href="<?= base_url('lead-emails/' . (int)$user['ENTITY_ID']); ?>" role="button">
+                            Email history
+                        </a>
+                    <?php endif; ?>
                     <a class="btn btn-warning" href="<?= base_url('/leads'); ?>" role="button">
                         Back To Lead List
                     </a>
@@ -61,6 +66,12 @@
                     </div>
                 </div>
             </form>
+        </div>
+        <div class="pd-20 card-box mb-30">
+            <h5 class="card-title">Sent emails</h5>
+            <p class="text-muted mb-3">Open any email to see the same subject and body the client received — use that screen for screenshots.</p>
+            <?php $this->load->view('campaign/partials/campaign_styles'); ?>
+            <?php $this->load->view('leads/partials/sent_emails_table', ['sent_emails' => isset($sent_emails) ? $sent_emails : []]); ?>
         </div>
         <!-- Default Basic Forms End -->
     </div>

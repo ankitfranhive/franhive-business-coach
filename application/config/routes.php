@@ -143,6 +143,8 @@ $route['login-auth'] = 'admin/login';
 
 $route['lead-dashboard'] = 'LeadController/leadDashboard';
 $route['leads'] = 'LeadController/getAllLeads';
+$route['lead-emails/(:num)'] = 'LeadController/leadEmailLogs/$1';
+$route['view-lead-email/(:num)'] = 'LeadController/viewLeadEmail/$1';
 $route['add-lead'] = 'LeadController/addLead';
 $route['lead-edit/(:num)'] = 'LeadController/editLead/$1';
 $route['lead-delete/(:num)'] = 'LeadController/deleteLead/$1';

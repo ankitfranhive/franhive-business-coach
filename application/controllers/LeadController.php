@@ -145,6 +145,7 @@ class LeadController extends CI_Controller
         $data['all_users'] = $this->User_Model->get_all_users();
         $data['all_countries'] = $this->User_Model->get_all_countries();
         $data['lead'] = $this->LeadModel->getLeadById($id);
+        $data['sent_emails'] = $this->LeadModel->get_lead_email_logs($id);
         // echo "<pre>";
         // print_r($data['lead']);die;
         $this->load->view('leads/view_lead', $data);
@@ -389,9 +390,24 @@ class LeadController extends CI_Controller
         // echo $template_string;die;
         // Replace placeholders with actual values in the subject
         foreach ($template_data as $key => $value) {
+            if (!is_scalar($value)) {
+                continue;
+            }
             $subject = str_replace('$' . strtoupper($key) . '$', $value, $subject);
             $template_string = str_replace('$' . strtoupper($key) . '$', $value, $template_string);
         }
+
+        $entity = [
+            'NAME' => $template_data['name'] ?? '',
+            'user_name' => $template_data['name'] ?? '',
+            'EMAIL' => $template_data['email_id'] ?? $lead_email,
+            'email_id' => $template_data['email_id'] ?? $lead_email,
+        ];
+        if (!empty($template_data['entity']) && is_array($template_data['entity'])) {
+            $entity = array_merge($entity, $template_data['entity']);
+        }
+        $subject = campaign_fill_merge_tags($subject, $entity);
+        $template_string = campaign_fill_merge_tags($template_string, $entity);
         $config['protocol'] = 'smtp';
         $config['smtp_host'] = 'smtp.hostinger.com';
         $config['smtp_user'] = 'nlp@empoweryourdestiny.com.au';
@@ -445,9 +461,42 @@ class LeadController extends CI_Controller
     
             // Combine email body with the updated signature
             $template_body_with_signature = $template_result['TEMPLATE_BODY'] . $signature_html;
+
+            $filled_subject = (string)$template_result['TEMPLATE_SUBJECT'];
+            $filled_body = (string)$template_body_with_signature;
+            foreach ($template_data as $key => $value) {
+                if (!is_scalar($value)) {
+                    continue;
+                }
+                $filled_subject = str_replace('$' . strtoupper($key) . '$', $value, $filled_subject);
+                $filled_body = str_replace('$' . strtoupper($key) . '$', $value, $filled_body);
+            }
+            $lead_row = !empty($data['ENTITY_ID']) ? $this->LeadModel->getLeadById($data['ENTITY_ID']) : null;
+            $entity_for_tags = is_array($lead_row) ? $lead_row : [
+                'NAME' => $data['LEAD_NAME'],
+                'EMAIL' => $data['LEAD_EMAIL'],
+            ];
+            $template_data['entity'] = $entity_for_tags;
+            $filled_subject = campaign_fill_merge_tags($filled_subject, $entity_for_tags);
+            $filled_body = campaign_fill_merge_tags($filled_body, $entity_for_tags);
     
             // Send the email
             if ($this->send_email_template(EMAIL_CONFIG_EMAIL, $template_result['TEMPLATE_SUBJECT'], $template_body_with_signature, $data['LEAD_EMAIL'], $template_data)) {
+                try {
+                    $this->LeadModel->log_lead_email([
+                        'LEAD_ID' => isset($data['ENTITY_ID']) ? (int)$data['ENTITY_ID'] : (int)$id,
+                        'TEMPLATE_ID' => (!empty($data['EMAIL_TEMPLATE']) && (int)$data['EMAIL_TEMPLATE'] > 0) ? (int)$data['EMAIL_TEMPLATE'] : null,
+                        'TO_EMAIL' => $data['LEAD_EMAIL'],
+                        'TO_NAME' => $data['LEAD_NAME'],
+                        'SUBJECT' => $filled_subject,
+                        'BODY' => $filled_body,
+                        'STATUS' => 'sent',
+                        'SENT_BY' => $this->session->userdata('user_id') ? (int)$this->session->userdata('user_id') : null,
+                        'SEND_DATE' => date('Y-m-d H:i:s'),
+                    ]);
+                } catch (Throwable $e) {
+                    log_message('error', 'Lead email log failed after send: ' . $e->getMessage());
+                }
                 $this->session->set_flashdata('success', 'Email sent successfully!');
                 redirect('leads');
             } else {
@@ -456,9 +505,41 @@ class LeadController extends CI_Controller
         } else {
             $data['user'] = $this->LeadModel->getLeadById($id);
             $data['templates'] = $this->Template_Model->get_all_templates();
+            $data['sent_emails'] = $this->LeadModel->get_lead_email_logs($id);
     
             $this->load->view('leads/send_email', $data);
         }
+    }
+
+    public function leadEmailLogs($id)
+    {
+        $lead = $this->LeadModel->getLeadById($id);
+        if (empty($lead)) {
+            show_404();
+            return;
+        }
+
+        $data['lead'] = $lead;
+        $data['sent_emails'] = $this->LeadModel->get_lead_email_logs($id);
+        $this->load->view('leads/lead_email_logs', $data);
+    }
+
+    public function viewLeadEmail($log_id)
+    {
+        $log = $this->LeadModel->get_lead_email_log($log_id);
+        if (empty($log)) {
+            show_404();
+            return;
+        }
+
+        $lead = $this->LeadModel->getLeadById($log['LEAD_ID']);
+        $data['log'] = $log;
+        $data['lead'] = $lead ?: [
+            'ENTITY_ID' => $log['LEAD_ID'],
+            'NAME' => $log['TO_NAME'] ?? '',
+            'EMAIL' => $log['TO_EMAIL'] ?? '',
+        ];
+        $this->load->view('leads/view_sent_email', $data);
     }
     
 
