@@ -7,3 +7,12 @@ application/config/database.php
 application/config/secrets.php
 application/logs/*
 .DS_Store
+
+# New user-generated files only. Files already tracked in Git stay tracked.
+# Hostinger deploys still need uploads/ excluded so live signatures/PDFs are not wiped.
+uploads/eforms/signatures/*
+!uploads/eforms/signatures/.gitkeep
+uploads/eforms/submission_*.pdf
+uploads/payment_agreement/*
+!uploads/payment_agreement/.gitkeep
+

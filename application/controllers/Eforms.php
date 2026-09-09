@@ -291,6 +291,11 @@ class Eforms extends CI_Controller {
 
         $this->eform->mark_submitted($req['id']);
         $this->send_submission_confirmation_email($req, $values, $pdf_path);
+        try {
+          $this->send_submission_admin_email($req, $values, $tpl, $pdf_path);
+        } catch (Throwable $e) {
+          log_message('error', 'Eform admin notification failed: ' . $e->getMessage());
+        }
 
         $this->load->view('eforms_public/thank_you', [
           'thank_you_template' => $this->resolve_thank_you_page_template($req, $tpl),
@@ -455,6 +460,94 @@ class Eforms extends CI_Controller {
 
     if (!$this->email->send()) {
       log_message('error', 'Eform confirmation email failed for ' . $email . ': ' . $this->email->print_debugger());
+    }
+  }
+
+  /**
+   * Notify admin of a new eForm submission. Failures are logged only —
+   * they must not affect the client confirmation email or thank-you page.
+   */
+  private function send_submission_admin_email($req, $values, $tpl, $pdf_path = null)
+  {
+    $admin_email = defined('EMAIL_CONFIG_EMAIL') ? EMAIL_CONFIG_EMAIL : 'nlp@empoweryourdestiny.com.au';
+    if ($admin_email === '' || !filter_var($admin_email, FILTER_VALIDATE_EMAIL)) {
+      return;
+    }
+
+    $client_email = $this->extract_submission_value($values, ['email', 'client_email', 'email_address']);
+    if ($client_email === '') {
+      $client_email = trim((string)($req['client_email'] ?? ''));
+    }
+    $client_name = $this->extract_submission_value($values, ['full_name', 'client_name', 'name', 'first_name']);
+    if ($client_name === '') {
+      $client_name = trim((string)($req['client_name'] ?? ''));
+    }
+
+    $form_title = trim((string)($tpl['title'] ?? $tpl['heading'] ?? 'eForm'));
+    $submitted_at = date('d/m/y h:i A');
+    $request_id = (int)($req['id'] ?? 0);
+
+    $rows_html = '';
+    if (is_array($values)) {
+      foreach ($values as $row) {
+        $label = trim((string)($row['field_label'] ?? $row['field_name'] ?? ''));
+        $value = trim((string)($row['value_text'] ?? ''));
+        if ($label === '' && $value === '') {
+          continue;
+        }
+        $rows_html .= '<tr><td style="padding:6px 8px;border:1px solid #e5e7eb;vertical-align:top;"><strong>'
+          . htmlspecialchars($label !== '' ? $label : 'Field')
+          . '</strong></td><td style="padding:6px 8px;border:1px solid #e5e7eb;">'
+          . nl2br(htmlspecialchars($value !== '' ? $value : '—'))
+          . '</td></tr>';
+      }
+    }
+
+    $subject = 'New eForm submission: ' . ($form_title !== '' ? $form_title : 'Form');
+    $message_body = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#202124;">'
+      . '<p>A new eForm was submitted.</p>'
+      . '<table style="border-collapse:collapse;margin:0 0 16px;">'
+      . '<tr><td style="padding:6px 8px;border:1px solid #e5e7eb;"><strong>Form</strong></td><td style="padding:6px 8px;border:1px solid #e5e7eb;">' . htmlspecialchars($form_title) . '</td></tr>'
+      . '<tr><td style="padding:6px 8px;border:1px solid #e5e7eb;"><strong>Request ID</strong></td><td style="padding:6px 8px;border:1px solid #e5e7eb;">' . $request_id . '</td></tr>'
+      . '<tr><td style="padding:6px 8px;border:1px solid #e5e7eb;"><strong>Client</strong></td><td style="padding:6px 8px;border:1px solid #e5e7eb;">' . htmlspecialchars($client_name !== '' ? $client_name : '—') . '</td></tr>'
+      . '<tr><td style="padding:6px 8px;border:1px solid #e5e7eb;"><strong>Client email</strong></td><td style="padding:6px 8px;border:1px solid #e5e7eb;">' . htmlspecialchars($client_email !== '' ? $client_email : '—') . '</td></tr>'
+      . '<tr><td style="padding:6px 8px;border:1px solid #e5e7eb;"><strong>Submitted at</strong></td><td style="padding:6px 8px;border:1px solid #e5e7eb;">' . htmlspecialchars($submitted_at) . '</td></tr>'
+      . '</table>';
+    if ($rows_html !== '') {
+      $message_body .= '<p><strong>Filled values</strong></p><table style="border-collapse:collapse;width:100%;">' . $rows_html . '</table>';
+    }
+    $message_body .= '<p style="margin-top:16px;color:#6b7280;">The submitted PDF is attached when available.</p></div>';
+
+    $this->load->library('email');
+    $this->email->clear(true);
+    $this->email->initialize([
+      'protocol'    => 'smtp',
+      'smtp_host'   => 'smtp.hostinger.com',
+      'smtp_user'   => 'nlp@empoweryourdestiny.com.au',
+      'smtp_pass'   => 'Franh1ve@2024',
+      'smtp_port'   => 465,
+      'smtp_crypto' => 'ssl',
+      'mailtype'    => 'html',
+      'charset'     => 'utf-8',
+      'newline'     => "\r\n",
+      'wordwrap'    => true,
+    ]);
+    $this->email->set_newline("\r\n");
+    $this->email->set_crlf("\r\n");
+    $this->email->from($admin_email, 'Empower Your Destiny');
+    $this->email->to($admin_email);
+    $this->email->subject($subject);
+    $this->email->message($message_body);
+
+    if (!empty($pdf_path)) {
+      $full_pdf = FCPATH . ltrim((string)$pdf_path, '/');
+      if (is_file($full_pdf)) {
+        $this->email->attach($full_pdf);
+      }
+    }
+
+    if (!$this->email->send()) {
+      log_message('error', 'Eform admin notification failed for request ' . $request_id . ': ' . $this->email->print_debugger());
     }
   }
 
