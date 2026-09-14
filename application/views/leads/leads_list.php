@@ -162,5 +162,12 @@
 <script src="src/plugins/datatables/js/vfs_fonts.js"></script>
 <!-- Datatable Setting js -->
 <script src="vendors/scripts/datatable-setting.js"></script>
+<script>
+	$(function () {
+		if ($.fn.DataTable && $.fn.DataTable.isDataTable('.data-table')) {
+			$('.data-table').DataTable().order([0, 'desc']).draw();
+		}
+	});
+</script>
 
 </html>

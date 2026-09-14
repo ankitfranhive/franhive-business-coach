@@ -31,6 +31,10 @@ class Campaign_Model extends CI_Model
             'CAMPAIGN_TEMPLATE_USER_MAPPING' => [
                 'CONTACT_SOURCE' => "ALTER TABLE CAMPAIGN_TEMPLATE_USER_MAPPING ADD COLUMN CONTACT_SOURCE VARCHAR(20) NULL DEFAULT 'entity'",
             ],
+            'ENTITY' => [
+                'TEAMS_LINK' => "ALTER TABLE `ENTITY` ADD COLUMN `TEAMS_LINK` TEXT NULL",
+                'TEAMS_PASSWORD' => "ALTER TABLE `ENTITY` ADD COLUMN `TEAMS_PASSWORD` VARCHAR(255) NULL DEFAULT NULL",
+            ],
         ];
         foreach ($needed as $table => $cols) {
             foreach ($cols as $column => $sql) {
@@ -206,6 +210,22 @@ class Campaign_Model extends CI_Model
     }
 
     /**
+     * Templates shown on /templates (includes Payment Agreement so they can be created/edited).
+     */
+    public function get_templates_for_admin_list()
+    {
+        $query = $this->db->query("
+            SELECT TEMPLATE_SUBJECT, TEMPLATE_NAME, MODULE_NAME, TEMPLATE_ID, MERGE_TAGS
+            FROM TEMPLATES
+            WHERE (RECORD_STATUS = 0 OR RECORD_STATUS IS NULL)
+              AND TRIM(MODULE_NAME) IN ('Lead', 'Client', 'Campaign', 'Payment Agreement')
+            ORDER BY TEMPLATE_ID DESC
+        ");
+
+        return $query->result_array();
+    }
+
+    /**
      * Email templates for payment agreement sends (Payment Agreement module only).
      */
     public function get_templates_for_payment_agreement()
@@ -322,7 +342,8 @@ class Campaign_Model extends CI_Model
     {
         $sql = "
             SELECT ENTITY.EMAIL as email_id, ENTITY.NAME as user_name, ENTITY.ENTITY_ID,
-                   ENTITY.EMAIL, ENTITY.NAME, ENTITY.MOBILE, ENTITY.PHONE, ENTITY.COMPANY, ENTITY.STORE_NAME, ENTITY.CITY
+                   ENTITY.EMAIL, ENTITY.NAME, ENTITY.MOBILE, ENTITY.PHONE, ENTITY.COMPANY, ENTITY.STORE_NAME, ENTITY.CITY,
+                   ENTITY.TEAMS_LINK, ENTITY.TEAMS_PASSWORD
             FROM CAMPAIGN_TEMPLATE_USER_MAPPING
             INNER JOIN ENTITY ON CAMPAIGN_TEMPLATE_USER_MAPPING.USER_ID = ENTITY.ENTITY_ID
             WHERE CAMPAIGN_TEMPLATE_USER_MAPPING.CAMPAIGN_ID = ?
@@ -331,7 +352,8 @@ class Campaign_Model extends CI_Model
                    OR CAMPAIGN_TEMPLATE_USER_MAPPING.CONTACT_SOURCE = 'entity')
             UNION ALL
             SELECT USERS.EMAIL as email_id, USERS.NAME as user_name, USERS.USER_ID as ENTITY_ID,
-                   USERS.EMAIL, USERS.NAME, USERS.MOBILE, USERS.MOBILE as PHONE, NULL as COMPANY, NULL as STORE_NAME, USERS.CITY
+                   USERS.EMAIL, USERS.NAME, USERS.MOBILE, USERS.MOBILE as PHONE, NULL as COMPANY, NULL as STORE_NAME, USERS.CITY,
+                   NULL as TEAMS_LINK, NULL as TEAMS_PASSWORD
             FROM CAMPAIGN_TEMPLATE_USER_MAPPING
             INNER JOIN USERS ON CAMPAIGN_TEMPLATE_USER_MAPPING.USER_ID = USERS.USER_ID
             WHERE CAMPAIGN_TEMPLATE_USER_MAPPING.CAMPAIGN_ID = ?

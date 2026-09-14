@@ -81,6 +81,25 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group row">
+                            <label class="col-form-label col-md-4">Teams link</label>
+                            <div class="col-md-8">
+                                <input class="form-control" type="text" name="TEAMS_LINK" placeholder="https://teams.microsoft.com/..." value="<?= htmlspecialchars($lead['TEAMS_LINK'] ?? '') ?>" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group row">
+                            <label class="col-form-label col-md-4">Teams password</label>
+                            <div class="col-md-8">
+                                <input class="form-control" type="text" name="TEAMS_PASSWORD" placeholder="Teams password" value="<?= htmlspecialchars($lead['TEAMS_PASSWORD'] ?? '') ?>" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group row">
                             <label class="col-form-label col-md-4">Business type</label>
                             <div class="col-md-8">
                                 <!-- Business Type -->

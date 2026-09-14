@@ -12,6 +12,18 @@ class CampaignController extends CI_Controller
         $this->load->model('Campaign_Model');
         $this->load->model('User_Model');
         $this->load->model('Client_Model');
+        $this->load->helper('email_template');
+    }
+
+    private function allowed_template_modules()
+    {
+        return ['Lead', 'Client', 'Campaign', 'Payment Agreement'];
+    }
+
+    private function normalize_template_module($module, $fallback = 'Lead')
+    {
+        $module = trim((string)$module);
+        return in_array($module, $this->allowed_template_modules(), true) ? $module : $fallback;
     }
 
 
@@ -280,7 +292,7 @@ class CampaignController extends CI_Controller
     public function getAllTemplates()
     {
 
-        $data['all_templates'] = $this->Campaign_Model->get_all_templates();
+        $data['all_templates'] = $this->Campaign_Model->get_templates_for_admin_list();
         // echo "<pre>";
         // print_r($data['all_course']);die;
 
@@ -353,7 +365,7 @@ class CampaignController extends CI_Controller
 
         // Save the data to the database using your model
         $data = array(
-            'MODULE_NAME' => in_array($MODULE_NAME, ['Lead', 'Client', 'Campaign'], true) ? $MODULE_NAME : 'Lead',
+            'MODULE_NAME' => $this->normalize_template_module($MODULE_NAME, 'Lead'),
             'TEMPLATE_NAME' => $TEMPLATE_NAME,
             'TEMPLATE_SUBJECT' => $TEMPLATE_SUBJECT,
             'TEMPLATE_BODY' => $TEMPLATE_BODY,
@@ -383,10 +395,6 @@ class CampaignController extends CI_Controller
     public function editTemplate($template_id)
     {
         $template = $this->Campaign_Model->get_template_by_id($template_id);
-        if (!empty($template) && trim((string)$template['MODULE_NAME']) === 'Payment Agreement') {
-            redirect('templates');
-            return;
-        }
         $data['template_data'] = $template;
         $this->load->view('campaign/edit_template', $data);
     }
@@ -471,7 +479,7 @@ class CampaignController extends CI_Controller
         // Save the updated data to the database using your model
         $data = array(
             'TEMPLATE_NAME' => $TEMPLATE_NAME,
-            'MODULE_NAME' => in_array($MODULE_NAME, ['Lead', 'Client', 'Campaign'], true) ? $MODULE_NAME : $existing_template['MODULE_NAME'],
+            'MODULE_NAME' => $this->normalize_template_module($MODULE_NAME, $existing_template['MODULE_NAME'] ?? 'Lead'),
             'TEMPLATE_SUBJECT' => $TEMPLATE_SUBJECT,
             'TEMPLATE_BODY' => $TEMPLATE_BODY,
             'TEMPLATE_SIGN' => $TEMPLATE_SIGN,
@@ -487,11 +495,6 @@ class CampaignController extends CI_Controller
 
     public function deleteTemplate($campaign_id)
     {
-        $template = $this->Campaign_Model->get_template_by_id($campaign_id);
-        if (!empty($template) && trim((string)$template['MODULE_NAME']) === 'Payment Agreement') {
-            redirect('templates');
-            return;
-        }
         $this->Campaign_Model->delete_template($campaign_id);
         redirect('templates');
     }

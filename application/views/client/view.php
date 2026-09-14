@@ -209,6 +209,24 @@
                     </div>
                 </div>
             </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group row">
+                        <label class="col-form-label col-md-4">Teams link</label>
+                        <div class="col-md-8">
+                            <?= !empty($client_data['TEAMS_LINK']) ? htmlspecialchars($client_data['TEAMS_LINK']) : '—' ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group row">
+                        <label class="col-form-label col-md-4">Teams password</label>
+                        <div class="col-md-8">
+                            <?= !empty($client_data['TEAMS_PASSWORD']) ? htmlspecialchars($client_data['TEAMS_PASSWORD']) : '—' ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div style="border-bottom: 1px dotted #000;">
             </div>

@@ -6,6 +6,17 @@ class LeadModel extends CI_Model
     {
         parent::__construct();
         $this->load->database(); // Load the database library
+        $this->ensure_teams_columns();
+    }
+
+    public function ensure_teams_columns()
+    {
+        if (!$this->db->field_exists('TEAMS_LINK', 'ENTITY')) {
+            $this->db->query("ALTER TABLE `ENTITY` ADD COLUMN `TEAMS_LINK` TEXT NULL");
+        }
+        if (!$this->db->field_exists('TEAMS_PASSWORD', 'ENTITY')) {
+            $this->db->query("ALTER TABLE `ENTITY` ADD COLUMN `TEAMS_PASSWORD` VARCHAR(255) NULL DEFAULT NULL");
+        }
     }
 
 
@@ -30,7 +41,7 @@ class LeadModel extends CI_Model
             LEFT JOIN STATES S ON L.STATE = S.STATE_ID 
             LEFT JOIN COMMON_DROPDOWNS CD ON L.LEAD_SOURCE = CD.OPTION_ID AND CD.DROPDOWN_TYPE = 'leadsource'
             WHERE L.RECORD_STATUS = 0 AND L.IS_LEAD = 'Y'  
-            ORDER BY L.CREATED_ON DESC
+            ORDER BY L.CREATED_ON DESC, L.ENTITY_ID DESC
         ");
 
 

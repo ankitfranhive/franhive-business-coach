@@ -109,6 +109,8 @@ class LeadController extends CI_Controller
         'BACKGROUND'               => $get('BACKGROUND'),
         'SOURCE_OF_INVESTMENT'     => $get('SOURCE_OF_INVESTMENT'),
         'NEXT_CALL_DATE'           => $get('NEXT_CALL_DATE'),
+        'TEAMS_LINK'               => ($v = trim((string)$this->input->post('TEAMS_LINK'))) === '' ? NULL : $v,
+        'TEAMS_PASSWORD'           => ($v = trim((string)$this->input->post('TEAMS_PASSWORD'))) === '' ? NULL : $v,
         'IS_LEAD'                  => 'Y',
         // 'created_at'             => date('Y-m-d H:i:s'), // optional
     );
@@ -191,6 +193,8 @@ class LeadController extends CI_Controller
             'INVESTMENT_TIMEFRAME' => $this->input->post('INVESTMENT_TIMEFRAME'),
             'BACKGROUND' => $this->input->post('BACKGROUND'),
             'SOURCE_OF_INVESTMENT' => $this->input->post('SOURCE_OF_INVESTMENT'),
+            'TEAMS_LINK' => trim((string)$this->input->post('TEAMS_LINK')),
+            'TEAMS_PASSWORD' => trim((string)$this->input->post('TEAMS_PASSWORD')),
             // 'NEXT_CALL_DATE' => $this->input->post('NEXT_CALL_DATE'),
             'MODIFIED_ON' => date('Y-m-d H:i:s'),
             'MODIFIED_BY' => $this->session->userdata('user')['USER_ID']

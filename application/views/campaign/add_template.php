@@ -19,13 +19,14 @@
       <div class="pd-20 card-box mb-30">
          <form action="<?= base_url('CampaignController/createTemplate') ?>" method="post" enctype="multipart/form-data">
             <div class="form-group">
-               <label>This template is for</label>
-               <select class="custom-select" name="MODULE_NAME" required>
+               <label>Template Module</label>
+               <select class="custom-select" name="MODULE_NAME" id="moduleSelect" required>
                   <option value="Lead">Leads</option>
                   <option value="Client">Clients</option>
                   <option value="Campaign">Any campaign audience</option>
+                  <option value="Payment Agreement">Payment Agreement</option>
                </select>
-               <small class="text-muted">Payment Agreement templates are managed in that module, not here.</small>
+               <small class="text-muted">Use <strong>Payment Agreement</strong> for invite and thank-you emails on Payment Agreement requests. Those templates stay out of campaigns.</small>
             </div>
             <div class="form-group">
                <label>Template name</label>
@@ -37,8 +38,13 @@
             </div>
             <div class="form-group">
                <label>Merge tags — click to insert into the email</label>
-               <div>
+               <div id="campaignMergeTags">
                   <?php foreach (campaign_merge_tags() as $tag => $label): ?>
+                     <span class="cm-chip" data-tag="<?= htmlspecialchars($tag) ?>"><?= htmlspecialchars($tag) ?> · <?= htmlspecialchars($label) ?></span>
+                  <?php endforeach; ?>
+               </div>
+               <div id="paMergeTags" style="display:none">
+                  <?php foreach (payment_agreement_merge_tags() as $tag => $label): ?>
                      <span class="cm-chip" data-tag="<?= htmlspecialchars($tag) ?>"><?= htmlspecialchars($tag) ?> · <?= htmlspecialchars($label) ?></span>
                   <?php endforeach; ?>
                </div>
@@ -87,6 +93,18 @@
       if (editor) editor.insertText(tag);
     });
   });
+  var moduleSelect = document.getElementById('moduleSelect');
+  function syncMergeTags() {
+    var isPa = moduleSelect && moduleSelect.value === 'Payment Agreement';
+    var campaignTags = document.getElementById('campaignMergeTags');
+    var paTags = document.getElementById('paMergeTags');
+    if (campaignTags) campaignTags.style.display = isPa ? 'none' : '';
+    if (paTags) paTags.style.display = isPa ? '' : 'none';
+  }
+  if (moduleSelect) {
+    moduleSelect.addEventListener('change', syncMergeTags);
+    syncMergeTags();
+  }
 })();
 </script>
 </html>

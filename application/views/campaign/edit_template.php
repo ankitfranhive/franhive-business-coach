@@ -29,13 +29,15 @@
         <input type="hidden" name="TEMPLATE_ID" value="<?= $template_data['TEMPLATE_ID'] ?>">
 
         <div class="form-group row">
-          <label class="col-sm-12 col-md-2 col-form-label">Create Template for</label>
+          <label class="col-sm-12 col-md-2 col-form-label">Template Module</label>
           <div class="col-sm-12 col-md-10">
-            <select class="custom-select col-12" name="MODULE_NAME">
+            <select class="custom-select col-12" name="MODULE_NAME" id="moduleSelect">
               <option value="Lead" <?= $template_data['MODULE_NAME'] == 'Lead' ? 'selected' : '' ?>>Leads</option>
               <option value="Client" <?= $template_data['MODULE_NAME'] == 'Client' ? 'selected' : '' ?>>Clients</option>
               <option value="Campaign" <?= $template_data['MODULE_NAME'] == 'Campaign' ? 'selected' : '' ?>>Any campaign audience</option>
+              <option value="Payment Agreement" <?= trim((string)$template_data['MODULE_NAME']) === 'Payment Agreement' ? 'selected' : '' ?>>Payment Agreement</option>
             </select>
+            <small class="text-muted">Use <strong>Payment Agreement</strong> for invite and thank-you emails on Payment Agreement requests.</small>
           </div>
         </div>
 
@@ -76,10 +78,16 @@
             Template Content <span style="color: red;">*</span>
           </label>
           <div class="col-sm-12 col-md-10">
-            <p class="text-muted small mb-2">Click a merge tag to insert it into the email. Values are filled when the campaign sends.</p>
-            <div class="mb-2">
+            <p class="text-muted small mb-2">Click a merge tag to insert it into the email.</p>
+            <?php $is_pa_template = trim((string)$template_data['MODULE_NAME']) === 'Payment Agreement'; ?>
+            <div class="mb-2" id="campaignMergeTags" <?= $is_pa_template ? 'style="display:none"' : '' ?>>
               <?php foreach (campaign_merge_tags() as $tag => $label): ?>
                 <span class="cm-chip" data-tag="<?= htmlspecialchars($tag) ?>"><?= htmlspecialchars($tag) ?></span>
+              <?php endforeach; ?>
+            </div>
+            <div class="mb-2" id="paMergeTags" <?= $is_pa_template ? '' : 'style="display:none"' ?>>
+              <?php foreach (payment_agreement_merge_tags() as $tag => $label): ?>
+                <span class="cm-chip" data-tag="<?= htmlspecialchars($tag) ?>"><?= htmlspecialchars($tag) ?> · <?= htmlspecialchars($label) ?></span>
               <?php endforeach; ?>
             </div>
             <textarea name="TEMPLATE_BODY" id="ckeditor" class="form-control js-richtext" required>
@@ -203,6 +211,18 @@
       if (editor) editor.insertText(tag);
     });
   });
+  var moduleSelect = document.getElementById('moduleSelect');
+  function syncMergeTags() {
+    var isPa = moduleSelect && moduleSelect.value === 'Payment Agreement';
+    var campaignTags = document.getElementById('campaignMergeTags');
+    var paTags = document.getElementById('paMergeTags');
+    if (campaignTags) campaignTags.style.display = isPa ? 'none' : '';
+    if (paTags) paTags.style.display = isPa ? '' : 'none';
+  }
+  if (moduleSelect) {
+    moduleSelect.addEventListener('change', syncMergeTags);
+    syncMergeTags();
+  }
 })();
 </script>
 

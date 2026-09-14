@@ -13,8 +13,8 @@
 				<div class="row">
 					<div class="col-md-6 col-sm-12">
 						<div class="title">
-							<h4>Campaign email templates</h4>
-							<p class="text-muted mb-0">These templates are for campaigns only. Payment Agreement templates are unchanged in that module.</p>
+							<h4>Email templates</h4>
+							<p class="text-muted mb-0">Campaign templates and Payment Agreement templates. Payment Agreement ones appear in the Payment Agreement request dropdowns, not in campaigns.</p>
 						</div>
 					</div>
 					<div class="col-md-6 col-sm-12 text-right">
@@ -94,5 +94,12 @@
 <script src="src/plugins/datatables/js/vfs_fonts.js"></script>
 <!-- Datatable Setting js -->
 <script src="vendors/scripts/datatable-setting.js"></script>
+<script>
+	$(function () {
+		if ($.fn.DataTable && $.fn.DataTable.isDataTable('.data-table')) {
+			$('.data-table').DataTable().order([0, 'desc']).draw();
+		}
+	});
+</script>
 
 </html>

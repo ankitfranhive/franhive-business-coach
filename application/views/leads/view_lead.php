@@ -99,6 +99,25 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="form-group row">
+                        <label class="col-form-label col-md-4">Teams link</label>
+                        <div class="col-md-8">
+                            <p class="form-control-static"><?= !empty($lead['TEAMS_LINK']) ? htmlspecialchars($lead['TEAMS_LINK']) : '—' ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group row">
+                        <label class="col-form-label col-md-4">Teams password</label>
+                        <div class="col-md-8">
+                            <p class="form-control-static"><?= !empty($lead['TEAMS_PASSWORD']) ? htmlspecialchars($lead['TEAMS_PASSWORD']) : '—' ?></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group row">
                         <label class="col-form-label col-md-4">Business type<span style="color: red;">*</span></label>
                         <div class="col-md-8">
                             <p class="form-control-static">

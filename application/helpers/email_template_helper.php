@@ -1,6 +1,17 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+function payment_agreement_merge_tags()
+{
+    return [
+        '$Name$' => 'Client name',
+        '$Link$' => 'Form link (invite email)',
+        '$BusinessName$' => 'Form subject title',
+        '$SenderName$' => 'Sending organisation',
+        '$PDF$' => 'Submission PDF URL (after submit)',
+    ];
+}
+
 /**
  * Replace campaign-style placeholders in email template text.
  *

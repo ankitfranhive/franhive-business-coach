@@ -18,6 +18,10 @@ function campaign_merge_tags()
         '{{PHONE}}' => 'Phone / mobile (caps)',
         '{{COMPANY}}' => 'Company / store (caps)',
         '{{CITY}}' => 'City (caps)',
+        '{{teams_link}}' => 'Teams meeting link',
+        '{{TEAMS_LINK}}' => 'Teams meeting link (caps)',
+        '{{teams_password}}' => 'Teams password',
+        '{{TEAMS_PASSWORD}}' => 'Teams password (caps)',
         '$Name$' => 'Full name (legacy)',
         '$Email$' => 'Email (legacy)',
         '$Phone$' => 'Phone (legacy)',
@@ -29,6 +33,8 @@ function campaign_merge_tags()
         '$PHONE$' => 'Phone (caps)',
         '$COMPANY$' => 'Company (caps)',
         '$CITY$' => 'City (caps)',
+        '$TEAMS_LINK$' => 'Teams meeting link (caps)',
+        '$TEAMS_PASSWORD$' => 'Teams password (caps)',
     ];
 }
 
@@ -42,6 +48,8 @@ function campaign_merge_tag_values($entity)
     $phone = (string)($entity['MOBILE'] ?? $entity['PHONE'] ?? $entity['phone'] ?? '');
     $company = (string)($entity['COMPANY'] ?? $entity['STORE_NAME'] ?? $entity['company'] ?? '');
     $city = (string)($entity['CITY'] ?? $entity['city'] ?? '');
+    $teams_link = (string)($entity['TEAMS_LINK'] ?? $entity['teams_link'] ?? '');
+    $teams_password = (string)($entity['TEAMS_PASSWORD'] ?? $entity['teams_password'] ?? '');
 
     return [
         'name' => $name,
@@ -51,6 +59,8 @@ function campaign_merge_tag_values($entity)
         'phone' => $phone,
         'company' => $company,
         'city' => $city,
+        'teams_link' => $teams_link,
+        'teams_password' => $teams_password,
     ];
 }
 
