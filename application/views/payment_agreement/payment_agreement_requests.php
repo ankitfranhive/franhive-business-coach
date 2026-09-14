@@ -93,7 +93,7 @@
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </select>
-                        <small class="text-muted">Sent to the client after they successfully submit the form. Put Zoom/WhatsApp content in this template.</small>
+                        <!-- <small class="text-muted">Sent to the client after they successfully submit the form. Put Zoom/WhatsApp content in this template.</small> -->
                     </div>
                     <div class="col-md-2 mb-3">
                         <label>Total (inc GST) <span class="text-danger">*</span></label>
