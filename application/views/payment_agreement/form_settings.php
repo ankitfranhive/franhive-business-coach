@@ -191,7 +191,7 @@
 
                 <h5 class="mb-3 mt-4">Payment arrangement (public form)</h5>
                 <p class="text-muted mb-3" style="font-size:14px;">
-                    Shown after course / financial fields and before Certification. HTML is allowed. Use form fields on the public page for pay-in-full vs payment plan; this area customises intro, bonus, and footer text. Optional hard end-date caps commitment dates together with course dates.
+                    Shown after course / financial fields and before Certification. HTML is allowed. Use form fields on the public page for pay-in-full vs payment plan; this area customises intro, bonus, and footer text. Final payment date can be any future date (including after the course).
                 </p>
                 <div class="form-group">
                     <label>Intro (HTML)</label>
@@ -204,17 +204,6 @@
                 <div class="form-group">
                     <label>Footer note (HTML, Payment Plan block)</label>
                     <textarea name="payment_arrangement_plan_footer_html" class="form-control" rows="3"><?= htmlspecialchars($settings['payment_arrangement_plan_footer_html'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Optional latest allowed date (YYYY-MM-DD)</label>
-                    <input type="date" name="payment_arrangement_date_max_override" class="form-control" value="<?= html_escape($settings['payment_arrangement_date_max_override'] ?? ''); ?>">
-                    <small class="text-muted">If set, commitment dates cannot be after this date <em>or</em> after the latest course date (whichever is earlier). Ignored for the next option.</small>
-                </div>
-                <div class="form-group">
-                    <div class="custom-control custom-checkbox">
-                        <input type="checkbox" class="custom-control-input" id="payment_arrangement_allow_dates_after_training" name="payment_arrangement_allow_dates_after_training" value="1" <?= !empty($settings['payment_arrangement_allow_dates_after_training']) && (string)$settings['payment_arrangement_allow_dates_after_training'] === '1' ? 'checked' : ''; ?>>
-                        <label class="custom-control-label" for="payment_arrangement_allow_dates_after_training">Allow dates after training (use only optional admin date above, not course dates)</label>
-                    </div>
                 </div>
 
                 <h5 class="mb-3 mt-4">Payment modes (public form)</h5>

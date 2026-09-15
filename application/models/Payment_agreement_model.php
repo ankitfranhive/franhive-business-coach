@@ -3,6 +3,35 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Payment_agreement_model extends CI_Model
 {
+    public function __construct()
+    {
+        parent::__construct();
+        $this->ensure_signature_date_datetime();
+    }
+
+    public function ensure_signature_date_datetime()
+    {
+        if (!$this->db->field_exists('signature_date', 'ENROLL_AGREEMENT_DATA')) {
+            return;
+        }
+        $col = $this->db->query("SHOW COLUMNS FROM `ENROLL_AGREEMENT_DATA` LIKE 'signature_date'");
+        $row = $col ? $col->row_array() : null;
+        $type = strtolower((string)($row['Type'] ?? ''));
+        if ($type !== '' && strpos($type, 'datetime') === false) {
+            $this->db->query("SET SESSION sql_mode=''");
+            $this->db->query("ALTER TABLE `ENROLL_AGREEMENT_DATA` MODIFY COLUMN `signature_date` DATETIME NULL DEFAULT NULL");
+        }
+    }
+
+    public function format_signature_datetime($value)
+    {
+        $value = trim((string)$value);
+        if ($value === '' || strpos($value, '0000-00-00') === 0) {
+            return '';
+        }
+        $ts = strtotime($value);
+        return $ts ? date('d/m/Y h:i A', $ts) : $value;
+    }
     public function create_payment_request($data)
     {
         $ok = $this->db->insert('payment_agreement_requests', $data);

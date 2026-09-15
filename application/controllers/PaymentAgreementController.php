@@ -563,7 +563,6 @@ class PaymentAgreementController extends CI_Controller
         $this->form_validation->set_rules('email_address', 'Email', 'required|trim|valid_email|max_length[120]');
         $this->form_validation->set_rules('signature_first_name', 'Signature First Name', 'required|trim|max_length[60]|regex_match[/^[A-Za-z][A-Za-z .\'-]*$/]');
         $this->form_validation->set_rules('signature_last_name', 'Signature Last Name', 'required|trim|max_length[60]|regex_match[/^[A-Za-z][A-Za-z .\'-]*$/]');
-        $this->form_validation->set_rules('signature_date', 'Signature Date', 'required|trim|regex_match[/^\d{4}-\d{2}-\d{2}$/]');
         $this->form_validation->set_rules('signature_data', 'Signature', 'required|trim');
         $this->form_validation->set_rules('country_code', 'Country Code', 'required|trim|regex_match[/^\+[0-9]{1,4}$/]');
         $this->form_validation->set_rules('country_code_work', 'Work Country Code', 'required|trim|regex_match[/^\+[0-9]{1,4}$/]');
@@ -726,6 +725,7 @@ class PaymentAgreementController extends CI_Controller
     
         $post['signature_data'] = $signature_data;
         $post['signature'] = $signature_full_name;
+        $post['signature_date'] = date('Y-m-d H:i:s');
     
         // Save separate values too if your DB has these columns
         $post['signature_first_name'] = $signature_first_name;
@@ -972,50 +972,13 @@ public function saveFormFieldSettings()
     $post['payment_arrangement_plan_footer_html'] = is_string($this->input->post('payment_arrangement_plan_footer_html', false))
         ? $this->input->post('payment_arrangement_plan_footer_html', false) : '';
 
-    $post['payment_arrangement_allow_dates_after_training'] = !empty($this->input->post('payment_arrangement_allow_dates_after_training')) ? '1' : '0';
+    unset($post['payment_arrangement_date_max_override'], $post['payment_arrangement_allow_dates_after_training']);
 
     $this->Payment_agreement_model->save_form_settings($post);
 
     $this->session->set_flashdata('success', 'Form settings updated successfully.');
     redirect('payment-agreement/form-settings');
 }
-
-    protected function payment_arrangement_effective_max_date(array $course_date_values, array $form_settings)
-    {
-        $dates = array();
-        foreach ($course_date_values as $d) {
-            $d = trim((string)$d);
-            if ($d !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) {
-                $dates[] = $d;
-            }
-        }
-        sort($dates);
-        $training_max = !empty($dates) ? $dates[count($dates) - 1] : null;
-
-        $ignore = !empty($form_settings['payment_arrangement_allow_dates_after_training'])
-            && (string)$form_settings['payment_arrangement_allow_dates_after_training'] === '1';
-
-        $backend = isset($form_settings['payment_arrangement_date_max_override'])
-            ? trim((string)$form_settings['payment_arrangement_date_max_override'])
-            : '';
-
-        if ($ignore) {
-            return $backend !== '' ? $backend : null;
-        }
-
-        $candidates = array();
-        if ($training_max !== null) {
-            $candidates[] = $training_max;
-        }
-        if ($backend !== '') {
-            $candidates[] = $backend;
-        }
-        if (empty($candidates)) {
-            return null;
-        }
-        sort($candidates);
-        return $candidates[0];
-    }
 
     /**
      * @param array|object $post
@@ -1047,27 +1010,9 @@ public function saveFormFieldSettings()
             if ($ni < 1) {
                 return 'Please enter the number of instalments (at least 1).';
             }
-        }
-
-        $max = $this->payment_arrangement_effective_max_date($course_dates_raw, $form_settings);
-        if ($max === null) {
-            return null;
-        }
-
-        $check = array();
-        if ($pa_type === 'pay_full') {
-            // No max date cap for the full payment commitment date.
-        } else {
-            $check[] = isset($post['pay_plan_final_date']) ? trim((string)$post['pay_plan_final_date']) : '';
-            // No max date cap for the plan commitment date.
-        }
-
-        foreach ($check as $d) {
-            if ($d === '') {
-                continue;
-            }
-            if ($d > $max) {
-                return 'A payment arrangement date is after the latest date allowed (your training dates or an administrator limit).';
+            $final = isset($post['pay_plan_final_date']) ? trim((string)$post['pay_plan_final_date']) : '';
+            if ($final === '') {
+                return 'Please choose the final payment date for your payment plan.';
             }
         }
 

@@ -589,8 +589,8 @@ function pv($value) {
                         <?= pv($agreement['signature'] ?? '') ?>
                     </div>
                     <div class="col-md-6 preview-field">
-                        <span class="preview-label">Signature Date</span>
-                        <?= pv($agreement['signature_date'] ?? '') ?>
+                        <span class="preview-label">Signed at</span>
+                        <?= pv($this->Payment_agreement_model->format_signature_datetime($agreement['signature_date'] ?? '')) ?>
                     </div>
 
                     <?php if (!empty($agreement['signature_image'])): ?>

@@ -967,23 +967,19 @@ function fs($arr, $key, $default = '')
                 <!-- ── Signature ── -->
                 <h4 class="section-title">Signature</h4>
                 <div class="row">
-                    <div class="col-md-4 form-group mb-3">
+                    <div class="col-md-6 form-group mb-3">
                         <label>Signature First Name <span class="text-danger">*</span></label>
                         <input type="text" name="signature_first_name" class="form-control js-alpha-name"
                                value="<?= set_value('signature_first_name'); ?>" maxlength="60" required
                                pattern="[A-Za-z][A-Za-z .'\-]{0,59}"
                                title="Enter a valid first name (letters only)">
                     </div>
-                    <div class="col-md-4 form-group mb-3">
+                    <div class="col-md-6 form-group mb-3">
                         <label>Signature Last Name <span class="text-danger">*</span></label>
                         <input type="text" name="signature_last_name" class="form-control js-alpha-name"
                                value="<?= set_value('signature_last_name'); ?>" maxlength="60" required
                                pattern="[A-Za-z][A-Za-z .'\-]{0,59}"
                                title="Enter a valid last name (letters only)">
-                    </div>
-                    <div class="col-md-4 form-group mb-3">
-                        <label>Signature Date <span class="text-danger">*</span></label>
-                        <input type="date" name="signature_date" class="form-control" value="<?= set_value('signature_date', date('Y-m-d')); ?>" required>
                     </div>
                     <div class="col-md-12 form-group mb-3">
                         <label>Draw Signature <span class="text-danger">*</span></label>

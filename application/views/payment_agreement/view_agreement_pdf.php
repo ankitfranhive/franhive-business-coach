@@ -333,7 +333,7 @@ function pdfv($value) {
         <table class="grid">
             <tr>
                 <td><div class="label">Signature Name</div><div class="value"><?= pdfv($agreement['signature'] ?? '') ?></div></td>
-                <td><div class="label">Signature Date</div><div class="value"><?= pdfv($agreement['signature_date'] ?? '') ?></div></td>
+                <td><div class="label">Signed at</div><div class="value"><?= pdfv($this->Payment_agreement_model->format_signature_datetime($agreement['signature_date'] ?? '')) ?></div></td>
             </tr>
         </table>
 

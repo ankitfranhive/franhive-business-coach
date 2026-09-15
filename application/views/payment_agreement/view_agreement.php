@@ -547,8 +547,8 @@ function agreement_value($value)
                         <div class="detail-value"><?= html_escape(agreement_value($agreement['signature'] ?? '')); ?></div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">Signature Date</div>
-                        <div class="detail-value"><?= html_escape(agreement_value($agreement['signature_date'] ?? '')); ?></div>
+                        <div class="detail-label">Signed at</div>
+                        <div class="detail-value"><?= html_escape(agreement_value($this->Payment_agreement_model->format_signature_datetime($agreement['signature_date'] ?? ''))); ?></div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Approved By</div>

@@ -15,9 +15,6 @@ $intro_html = $intro_override !== ''
 $bonus_html = !empty($fs['payment_arrangement_bonus_html']) ? $fs['payment_arrangement_bonus_html'] : '';
 $footer_html = !empty($fs['payment_arrangement_plan_footer_html']) ? $fs['payment_arrangement_plan_footer_html'] : '';
 
-$date_max_backend = !empty($fs['payment_arrangement_date_max_override']) ? trim((string)$fs['payment_arrangement_date_max_override']) : '';
-$ignore_training = !empty($fs['payment_arrangement_allow_dates_after_training']) && (string)$fs['payment_arrangement_allow_dates_after_training'] === '1';
-
 if ($intro_html === '') {
     $intro_html = '<p class="mb-2"><strong>Please select your preferred payment arrangement:</strong></p>';
 }
@@ -30,9 +27,7 @@ if ($footer_html === '') {
     $footer_html = '<p class="mb-2">Payment reminders may not be issued. It is the participant\'s responsibility to ensure payments are made on time.</p>';
 }
 ?>
-<div class="payment-arrangement-section mb-4" id="payment-arrangement-section"
-     data-ignore-training="<?= $ignore_training ? '1' : '0'; ?>"
-     data-backend-max="<?= html_escape($date_max_backend); ?>">
+<div class="payment-arrangement-section mb-4" id="payment-arrangement-section">
     <h4 class="section-title"><?= html_escape($heading); ?></h4>
 
     <div class="payment-arrangement-intro mb-3 consent-rich-body"><?= $intro_html; ?></div>
@@ -81,7 +76,7 @@ if ($footer_html === '') {
             </div>
             <div class="col-md-4 form-group mb-2">
                 <label>Final payment date <span class="text-danger">*</span></label>
-                <input type="date" name="pay_plan_final_date" id="pay_plan_final_date" class="form-control pa-capped-date pa-plan-required" value="<?= set_value('pay_plan_final_date'); ?>">
+                <input type="date" name="pay_plan_final_date" id="pay_plan_final_date" class="form-control pa-plan-required" value="<?= set_value('pay_plan_final_date'); ?>">
             </div>
             <div class="col-md-8 form-group mb-2">
                 <label>Notes <span class="text-danger">*</span></label>
@@ -217,60 +212,5 @@ if ($footer_html === '') {
         syncAck();
     }
     toggles();
-
-    function parseISODate(s) {
-        if (!s || typeof s !== 'string') return null;
-        var d = new Date(s + 'T12:00:00');
-        return isNaN(d.getTime()) ? null : d;
-    }
-
-    function getTrainingMaxDate() {
-        var inputs = document.querySelectorAll('input[name^="course_dates"]');
-        var max = null;
-        inputs.forEach(function (inp) {
-            if (!inp.value) return;
-            var d = parseISODate(inp.value);
-            if (!d) return;
-            if (!max || d > max) max = d;
-        });
-        return max;
-    }
-
-    function applyDateCaps() {
-        var ignore = root.getAttribute('data-ignore-training') === '1';
-        var backend = (root.getAttribute('data-backend-max') || '').trim();
-        var trainMax = getTrainingMaxDate();
-        var capDate = null;
-
-        if (ignore) {
-            if (backend) {
-                capDate = parseISODate(backend);
-            }
-        } else {
-            if (trainMax) {
-                capDate = trainMax;
-            }
-            if (backend) {
-                var bd = parseISODate(backend);
-                if (bd && (!capDate || bd < capDate)) {
-                    capDate = bd;
-                }
-            }
-        }
-
-        var capStr = capDate ? capDate.toISOString().slice(0, 10) : '';
-        document.querySelectorAll('.pa-capped-date').forEach(function (el) {
-            el.removeAttribute('max');
-            if (capStr) {
-                el.setAttribute('max', capStr);
-            }
-        });
-    }
-
-    document.querySelectorAll('input[name^="course_dates"]').forEach(function (inp) {
-        inp.addEventListener('change', applyDateCaps);
-        inp.addEventListener('input', applyDateCaps);
-    });
-    applyDateCaps();
 })();
 </script>
