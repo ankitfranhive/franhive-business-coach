@@ -584,7 +584,7 @@ function fs($arr, $key, $default = '')
                             <input type="tel" id="country_code_picker" class="iti-phone-picker" autocomplete="off">
                             <input type="hidden" name="country_code" id="country_code" value="<?= html_escape(set_value('country_code', '+61')); ?>">
                             <span class="phone-combo-divider"></span>
-                            <input type="text" name="contact_number_mobile" class="phone-number-input js-digits-only" placeholder="Mobile number"
+                            <input type="text" name="contact_number_mobile" id="contact_number_mobile" class="phone-number-input js-digits-only" placeholder="Mobile number"
                                    value="<?= set_value('contact_number_mobile'); ?>"
                                    inputmode="numeric" pattern="[0-9]{7,15}" maxlength="15" required
                                    title="Enter 7–15 digits only">
@@ -638,11 +638,12 @@ function fs($arr, $key, $default = '')
                             <input type="hidden" name="emergency_country_code" id="emergency_country_code"
                                    value="<?= html_escape(set_value('emergency_country_code', set_value('country_code', '+61'))); ?>">
                             <span class="phone-combo-divider"></span>
-                            <input type="text" name="emergency_contact_number" class="phone-number-input js-digits-only" placeholder="Contact number"
+                            <input type="text" name="emergency_contact_number" id="emergency_contact_number" class="phone-number-input js-digits-only" placeholder="Contact number"
                                    value="<?= set_value('emergency_contact_number'); ?>"
                                    inputmode="numeric" pattern="[0-9]{7,15}" maxlength="15" required
                                    title="Enter 7–15 digits only">
                         </div>
+                        <small id="emergency_phone_mismatch" class="form-text text-danger<?= (strpos((string)form_error('emergency_contact_number', '', ''), 'cannot be the same') !== false) ? '' : ' d-none'; ?>">Emergency Contact Number cannot be the same as Contact Number (Mobile).</small>
                     </div>
                     <div class="col-md-3 form-group mb-3">
                         <label>Relationship <span class="text-danger">*</span></label>
@@ -990,12 +991,18 @@ function fs($arr, $key, $default = '')
                         </div>
                         <div class="signature-note">Draw your signature in the box above. This will be saved with the form.</div>
                     </div>
-                    <div class="col-md-6 form-group mb-3">
+                    <div class="col-md-4 form-group mb-3">
+                        <label>Signature Date</label>
+                        <input type="text" id="signature_date_display" class="form-control bg-light" value="" readonly>
+                        <input type="hidden" name="signature_date" id="signature_date" value="">
+                        <small class="form-text text-muted">Current date and time in your location. This field cannot be edited.</small>
+                    </div>
+                    <div class="col-md-4 form-group mb-3">
                         <label>Approved By</label>
                         <input type="text" name="approved_by" class="form-control bg-light" value="<?= set_value('approved_by'); ?>" readonly disabled>
                         <small class="form-text text-muted">This field is managed by admin.</small>
                     </div>
-                    <div class="col-md-6 form-group mb-3">
+                    <div class="col-md-4 form-group mb-3">
                         <label>Approval Date</label>
                         <input type="date" name="approval_date" class="form-control bg-light" value="<?= set_value('approval_date'); ?>" readonly disabled>
                         <small class="form-text text-muted">This field is managed by admin.</small>
@@ -1100,9 +1107,97 @@ function fs($arr, $key, $default = '')
 })();
 </script>
 <script>
-    document.getElementById('client_timezone').value   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-    document.getElementById('client_time_iso').value   = new Date().toISOString();
-    document.getElementById('screen_resolution').value = (window.screen.width||'') + 'x' + (window.screen.height||'');
+(function(){
+    var tzField = document.getElementById('client_timezone');
+    var isoField = document.getElementById('client_time_iso');
+    var display = document.getElementById('signature_date_display');
+    var hidden = document.getElementById('signature_date');
+    var screenField = document.getElementById('screen_resolution');
+    var tz = '';
+    try {
+        tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').trim();
+    } catch (e) {
+        tz = '';
+    }
+
+    function partValue(parts, type) {
+        for (var i = 0; i < parts.length; i++) {
+            if (parts[i].type === type) return parts[i].value;
+        }
+        return '';
+    }
+
+    function tick() {
+        var now = new Date();
+        if (screenField) {
+            screenField.value = (window.screen.width || '') + 'x' + (window.screen.height || '');
+        }
+        if (tzField) tzField.value = tz;
+        if (isoField) isoField.value = now.toISOString();
+
+        var displayText = '';
+        try {
+            var parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: tz || undefined,
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
+            }).formatToParts(now);
+            var day = partValue(parts, 'day');
+            var month = partValue(parts, 'month');
+            var year = partValue(parts, 'year');
+            var hour = partValue(parts, 'hour');
+            var minute = partValue(parts, 'minute');
+            var second = partValue(parts, 'second');
+            var dayPeriod = partValue(parts, 'dayPeriod');
+            var tzName = partValue(parts, 'timeZoneName');
+            displayText = day + '-' + month + '-' + year + ' ' + hour + ':' + minute + ':' + second;
+            if (dayPeriod) displayText += ' ' + dayPeriod.toUpperCase();
+            if (tzName) displayText += ' ' + tzName;
+        } catch (e) {
+            var d = now.getDate();
+            var m = now.getMonth() + 1;
+            displayText = (d < 10 ? '0' : '') + d + '-' + (m < 10 ? '0' : '') + m + '-' + now.getFullYear();
+        }
+        if (display) display.value = displayText;
+
+        var sql = '';
+        try {
+            var parts = new Intl.DateTimeFormat('en-CA', {
+                timeZone: tz || undefined,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                hourCycle: 'h23'
+            }).formatToParts(now);
+            var hour = partValue(parts, 'hour');
+            if (hour === '24') hour = '00';
+            sql = partValue(parts, 'year') + '-' + partValue(parts, 'month') + '-' + partValue(parts, 'day')
+                + ' ' + hour + ':' + partValue(parts, 'minute') + ':' + partValue(parts, 'second');
+        } catch (e) {
+            sql = now.getFullYear()
+                + '-' + String(now.getMonth() + 1).padStart(2, '0')
+                + '-' + String(now.getDate()).padStart(2, '0')
+                + ' ' + String(now.getHours()).padStart(2, '0')
+                + ':' + String(now.getMinutes()).padStart(2, '0')
+                + ':' + String(now.getSeconds()).padStart(2, '0');
+        }
+        if (hidden) hidden.value = sql;
+    }
+
+    window.paTickSignatureClock = tick;
+    tick();
+    setInterval(tick, 1000);
+})();
 </script>
 
 <!-- Consent scroll -->
@@ -1221,6 +1316,27 @@ function fs($arr, $key, $default = '')
             return /^[A-Za-z][A-Za-z .'\-]*$/.test(String(val || '').trim());
         }
 
+        function normalizePhone(cc, num) {
+            var dial = String(cc || '').replace(/\D+/g, '');
+            var n = String(num || '').replace(/\D+/g, '');
+            if (!n) return '';
+            if (dial && n.indexOf(dial) === 0 && n.length > dial.length + 6) {
+                n = n.slice(dial.length);
+            }
+            n = n.replace(/^0+/, '');
+            return n ? (dial + n) : '';
+        }
+
+        function paymentPhonesMatch() {
+            var mobileEl = document.querySelector('input[name="contact_number_mobile"]');
+            var emergencyEl = document.querySelector('input[name="emergency_contact_number"]');
+            var mobileCc = document.getElementById('country_code');
+            var emergencyCc = document.getElementById('emergency_country_code');
+            var left = normalizePhone(mobileCc && mobileCc.value, mobileEl && mobileEl.value);
+            var right = normalizePhone(emergencyCc && emergencyCc.value, emergencyEl && emergencyEl.value);
+            return left !== '' && left === right;
+        }
+
         document.querySelectorAll('.is-invalid').forEach(function(el){ el.classList.remove('is-invalid'); });
 
         var firstName = document.querySelector('input[name="first_name"]');
@@ -1246,6 +1362,9 @@ function fs($arr, $key, $default = '')
         if (!isValidEmail(email && email.value)) addError('Please enter a valid email address.', email);
         if (!isValidName(emergencyName && emergencyName.value)) addError('Emergency contact name must contain letters only.', emergencyName);
         if (!isDigits(emergencyPhone && emergencyPhone.value, 7, 15)) addError('Emergency contact number must be 7–15 digits (numbers only).', emergencyPhone);
+        if (isDigits(mobile && mobile.value, 7, 15) && isDigits(emergencyPhone && emergencyPhone.value, 7, 15) && paymentPhonesMatch()) {
+            addError('Emergency Contact Number cannot be the same as Contact Number (Mobile). Please enter a different number.', emergencyPhone);
+        }
         if (!isValidName(relationship && relationship.value)) addError('Relationship must contain letters only.', relationship);
 
         if (deposit) {
@@ -1308,6 +1427,9 @@ function fs($arr, $key, $default = '')
             return false;
         }
         hiddenInput.value = canvas.toDataURL('image/png');
+        if (typeof window.paTickSignatureClock === 'function') {
+            window.paTickSignatureClock();
+        }
         return true;
     };
 
@@ -1351,6 +1473,51 @@ function fs($arr, $key, $default = '')
 
     document.querySelectorAll('.js-digits-only').forEach(digitsOnly);
     document.querySelectorAll('.js-alpha-name').forEach(alphaNameOnly);
+
+    function normalizePhone(cc, num) {
+        var dial = String(cc || '').replace(/\D+/g, '');
+        var n = String(num || '').replace(/\D+/g, '');
+        if (!n) return '';
+        if (dial && n.indexOf(dial) === 0 && n.length > dial.length + 6) {
+            n = n.slice(dial.length);
+        }
+        n = n.replace(/^0+/, '');
+        return n ? (dial + n) : '';
+    }
+
+    function syncEmergencyMobileMismatch() {
+        var mobile = document.getElementById('contact_number_mobile');
+        var emergency = document.getElementById('emergency_contact_number');
+        var hint = document.getElementById('emergency_phone_mismatch');
+        var combo = document.getElementById('emergency_phone_combo');
+        if (!mobile || !emergency) return;
+        var mobileDigits = String(mobile.value || '').replace(/\D+/g, '');
+        var emergencyDigits = String(emergency.value || '').replace(/\D+/g, '');
+        var same = false;
+        if (/^[0-9]{7,15}$/.test(mobileDigits) && /^[0-9]{7,15}$/.test(emergencyDigits)) {
+            var left = normalizePhone((document.getElementById('country_code') || {}).value, mobileDigits);
+            var right = normalizePhone((document.getElementById('emergency_country_code') || {}).value, emergencyDigits);
+            same = left !== '' && left === right;
+        }
+        if (hint) hint.classList.toggle('d-none', !same);
+        if (combo) combo.classList.toggle('is-invalid', same);
+        if (emergency) {
+            if (same) {
+                emergency.setCustomValidity('Emergency Contact Number cannot be the same as Contact Number (Mobile).');
+            } else {
+                emergency.setCustomValidity('');
+            }
+        }
+    }
+
+    ['contact_number_mobile', 'emergency_contact_number', 'country_code', 'emergency_country_code'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', syncEmergencyMobileMismatch);
+        el.addEventListener('change', syncEmergencyMobileMismatch);
+        el.addEventListener('blur', syncEmergencyMobileMismatch);
+    });
+    syncEmergencyMobileMismatch();
 })();
 </script>
 
@@ -1422,6 +1589,9 @@ function fs($arr, $key, $default = '')
         function syncHidden(){
             var cd=iti.getSelectedCountryData();
             if(cd&&cd.dialCode) hiddenField.value='+'+cd.dialCode;
+            if (typeof Event === 'function') {
+                hiddenField.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         }
 
         /* Keep picker input display text in sync with selected dial code */

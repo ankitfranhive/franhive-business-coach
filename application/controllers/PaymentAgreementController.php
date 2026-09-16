@@ -569,7 +569,11 @@ class PaymentAgreementController extends CI_Controller
         $this->form_validation->set_rules('emergency_country_code', 'Emergency Country Code', 'required|trim|regex_match[/^\+[0-9]{1,4}$/]');
         $this->form_validation->set_rules('contact_number_mobile', 'Contact Number (Mobile)', 'required|trim|regex_match[/^[0-9]{7,15}$/]');
         $this->form_validation->set_rules('contact_number_work', 'Contact Number (Work)', 'required|trim|regex_match[/^[0-9]{7,15}$/]');
-        $this->form_validation->set_rules('emergency_contact_number', 'Emergency Contact Number', 'required|trim|regex_match[/^[0-9]{7,15}$/]');
+        $this->form_validation->set_rules(
+            'emergency_contact_number',
+            'Emergency Contact Number',
+            'required|trim|regex_match[/^[0-9]{7,15}$/]|callback_emergency_mobile_distinct'
+        );
         $this->form_validation->set_rules('total_inc_gst', 'Total (inc GST)', 'trim|numeric|greater_than_equal_to[0]');
         $this->form_validation->set_rules('deposit_amount', 'Deposit Paid', 'required|trim|numeric|greater_than_equal_to[0]');
         $this->form_validation->set_rules('deposit_paid_via', 'Deposit Paid Via', 'required|trim|in_list[Bank Transfer,Payment Link,Others]');
@@ -725,7 +729,11 @@ class PaymentAgreementController extends CI_Controller
     
         $post['signature_data'] = $signature_data;
         $post['signature'] = $signature_full_name;
-        $post['signature_date'] = date('Y-m-d H:i:s');
+        $post['signature_date'] = $this->signature_datetime_from_client(
+            isset($post['client_time_iso']) ? $post['client_time_iso'] : '',
+            isset($post['client_timezone']) ? $post['client_timezone'] : '',
+            isset($post['signature_date']) ? $post['signature_date'] : ''
+        );
     
         // Save separate values too if your DB has these columns
         $post['signature_first_name'] = $signature_first_name;
@@ -1187,5 +1195,104 @@ public function saveFormFieldSettings()
         }
 
         return date('Y-m-d H:i:s', strtotime('+' . $value . ' ' . $unit));
+    }
+
+    /**
+     * Form-validation callback: emergency contact number must differ from the client's mobile.
+     */
+    public function emergency_mobile_distinct($emergency_number)
+    {
+        $same = $this->payment_phones_match(
+            $this->input->post('country_code'),
+            $this->input->post('contact_number_mobile'),
+            $this->input->post('emergency_country_code'),
+            $emergency_number
+        );
+        if ($same) {
+            $this->form_validation->set_message(
+                'emergency_mobile_distinct',
+                'Emergency Contact Number cannot be the same as Contact Number (Mobile). Please enter a different number.'
+            );
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Compare two phone numbers as country code + national digits.
+     * Leading zeros and duplicate dial-code prefixes are ignored.
+     */
+    private function payment_phones_match($country_a, $number_a, $country_b, $number_b)
+    {
+        $left = $this->normalize_payment_phone($country_a, $number_a);
+        $right = $this->normalize_payment_phone($country_b, $number_b);
+        return ($left !== '' && $left === $right);
+    }
+
+    private function normalize_payment_phone($country_code, $number)
+    {
+        $cc = preg_replace('/\D+/', '', (string)$country_code);
+        $num = preg_replace('/\D+/', '', (string)$number);
+        if ($num === '') {
+            return '';
+        }
+        if ($cc !== '' && strpos($num, $cc) === 0 && strlen($num) > (strlen($cc) + 6)) {
+            $num = substr($num, strlen($cc));
+        }
+        $num = ltrim($num, '0');
+        if ($num === '') {
+            return '';
+        }
+        return $cc . $num;
+    }
+
+    /**
+     * Store the signer's local date/time. Prefer the browser ISO timestamp converted
+     * into their timezone so India and Australia each save the time they saw.
+     */
+    private function signature_datetime_from_client($iso, $timezone, $posted_local)
+    {
+        $iso = trim((string)$iso);
+        $timezone = trim((string)$timezone);
+        $posted_local = trim((string)$posted_local);
+        $zone = null;
+        if ($timezone !== '') {
+            try {
+                $zone = new DateTimeZone($timezone);
+            } catch (Exception $e) {
+                $zone = null;
+            }
+        }
+
+        $nowUtc = new DateTime('now', new DateTimeZone('UTC'));
+        $fromIso = null;
+        if ($iso !== '') {
+            try {
+                $fromIso = new DateTime($iso);
+            } catch (Exception $e) {
+                $fromIso = null;
+            }
+        }
+
+        if ($fromIso && abs($fromIso->getTimestamp() - $nowUtc->getTimestamp()) <= 3600) {
+            if ($zone) {
+                $fromIso->setTimezone($zone);
+            }
+            return $fromIso->format('Y-m-d H:i:s');
+        }
+
+        if ($posted_local !== '' && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $posted_local)) {
+            $postedTs = strtotime($posted_local);
+            if ($postedTs !== false && abs($postedTs - time()) <= (16 * 3600)) {
+                return $posted_local;
+            }
+        }
+
+        if ($zone) {
+            $nowUtc->setTimezone($zone);
+            return $nowUtc->format('Y-m-d H:i:s');
+        }
+
+        return date('Y-m-d H:i:s');
     }
 }

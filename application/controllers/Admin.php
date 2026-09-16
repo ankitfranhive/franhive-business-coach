@@ -31,6 +31,7 @@ class Admin extends CI_Controller
         $this->load->model('KnowledgeCenterModel');
         $this->load->model('Client_Model');
         $this->load->model('LandingPage_Model');
+        $this->load->model('Dashboard_Model');
         $this->load->library('session');
     }
 
@@ -61,156 +62,17 @@ class Admin extends CI_Controller
                 ->row_array();
     
             $welcome_note_text = $welcomeConfig['WELCOME_NOTE_TEXT'] ?? null;
-    
-            // keep: store in session (even though we also pass to view)
             $this->session->set_userdata('welcome_note_text', $welcome_note_text);
-    
-            // ---------- NEW: subdomain detection (non-breaking) ----------
+
             $host      = $this->input->server('HTTP_HOST');
             $parts     = explode('.', (string)$host);
             $subdomain = (count($parts) >= 3) ? $parts[0] : '';
             if (!defined('SUBDOMAIN')) {
-                // define only if not already defined elsewhere
                 define('SUBDOMAIN', $subdomain);
             }
 
-
-
-        $data['recently_leads'] = $this->LeadModel->get_recent_leads();
-        // $data['recently_task'] = $this->LeadModel->get_recent_tasks();
-    
-        $recently_leads = $this->LeadModel->get_recent_leads();
-
-        // recent tasks for dashboard table (still 10)
-    $data['recently_task'] = $this->LeadModel->get_recent_tasks();
-
-    // KPI: Tasks created in last 30 days
-    $tasks_30d = $this->LeadModel->count_tasks_last_30_days();
-
-        // Map to the view’s table structure (fill missing fields with “-” for now)
-        $data['recent_leads'] =   $data['recently_leads'];
-    
-        // 2) KPI: New Leads (Last 30 Days)
-        $leads_30d = $this->LeadModel->count_leads_last_30_days();
-
-        $total_clients = $this->Client_Model->getTotalClients();
-
-       
-        $all_course_lesson = $this->KnowledgeCenterModel->get_all_training_course_lessons();
-
-        $data['get_all_users'] = $this->User_Model->get_all_users();
-
-        // echo "<pre>";
-        // print_r( $data['recently_task']);die;
-
-        // Top performers (compact list)
-        $data['top_agents'] = [
-            ['name' => ' EYD Admin',   'score' => 98, 'leads' => 54],
-            ['name' => 'Reign Martinez',     'score' => 94, 'leads' => 49],
-            ['name' => 'Maris Sorpresa', 'score' => 91, 'leads' => 44],
-            ['name' => 'Barinderjeet Kaur',   'score' => 90, 'leads' => 42],
-        ];
-
-        $all_landing_pages = $this->LandingPage_Model->get_all_landingpages();
-
-
-       
-    
-            // KPIs
-            $data['kpis'] = [
-                ['label' => 'Total Active Users',     'value' => count( $data['get_all_users']),  'icon' => 'ti-user',   'delta' => '+12%'],
-                ['label' => 'Active Landing Pages',       'value' => count($all_landing_pages) ,  'icon' => 'ti-check-box',  'delta' => '-8%'],
-                ['label' => 'Active Clients',        'value' => $total_clients, 'icon' => 'ti-briefcase',  'delta' => '+40%'],
-                ['label' => 'Total Course Lessons', 'value' => count($all_course_lesson), 'icon' => 'ti-target',     'delta' => '+0.7%'],
-            ];
-    
-
-            // $data['all_leads'] = $this->LeadModel->get_all_leads();
-
-            // =================== Leads Funnel (Dynamic) ===================
-            $leads = $this->LeadModel->get_all_leads();
-
-            // Initialize counters
-            $funnelCounts = [
-                'Captured'  => 0,
-                'Visited'   => 0,
-                'Qualified' => 0,
-                'Won'       => 0,
-            ];
-
-            // Map statuses to labels
-            $statusMap = [
-                '0'  => 'Captured',
-                '-1' => 'Visited',
-                '1'  => 'Qualified',
-                '2'  => 'Won',
-            ];
-
-            // Count leads by LEAD_STATUS
-            foreach ($leads as $lead) {
-                $status = (string)($lead['LEAD_STATUS'] ?? '');
-                if (isset($statusMap[$status])) {
-                    $label = $statusMap[$status];
-                    $funnelCounts[$label]++;
-                }
-            }
-
-            // Build final array for chart
-            $data['leads_funnel'] = [
-                'labels' => array_keys($funnelCounts),
-                'values' => array_values($funnelCounts),
-            ];
-
-    
-            // Tasks status
-            $data['tasks_status'] = [
-                'labels' => ['Open', 'In Progress', 'Blocked', 'Completed', 'Overdue'],
-                'values' => [58, 73, 11, 214, 9],
-            ];
-    
-            // Clients growth (12 months)
-            $data['clients_growth'] = [
-                'months' => ['Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov'],
-                'active' => [280,302,318,333,351,362,374,389,395,402,407,412],
-                'new'    => [22,25,21,19,26,18,20,24,17,15,13,12],
-                'churn'  => [6,3,5,4,8,5,8,9,10,5,8,7],
-            ];
-    
-            // Landing pages performance
-            // $data['landing_pages'] = [
-            //     'pages'       => ['/consultation','/ebook','/webinar','/demo','/offer'],
-            //     'visits'      => [8200, 4600, 5200, 3900, 2800],
-            //     'conversions' => [480, 365, 410, 295, 145],
-            // ];
-    
-            // // Knowledge Center – views (7d)
-            // $data['kc_views'] = [
-            //     'days'  => ['Sat','Sun','Mon','Tue','Wed','Thu','Fri'],
-            //     'views' => [420, 388, 512, 601, 558, 640, 690],
-            // ];
-    
-            // Test Management – avg score by test
-            $data['tests'] = [
-                'names'  => ['NLP Basics','Advanced NLP','Quiz A','Quiz B','Final Eval'],
-                'scores' => [78, 67, 84, 72, 81],
-            ];
-    
-            
-    
-            // Recent leads table
-            // $data['recent_leads'] = [
-            //     ['name'=>'Aditi Sharma', 'source'=>'Webinar',  'stage'=>'Qualified','owner'=>'Neil',    'created'=>'2025-11-05'],
-            //     ['name'=>'Rohit Mehra',  'source'=>'LP: Demo', 'stage'=>'Proposal', 'owner'=>'Ren',     'created'=>'2025-11-05'],
-            //     ['name'=>'Julia Thomas', 'source'=>'Ebook',    'stage'=>'Captured', 'owner'=>'Garrett', 'created'=>'2025-11-04'],
-            //     ['name'=>'Karan Verma',  'source'=>'Referral', 'stage'=>'Won',      'owner'=>'Callie',  'created'=>'2025-11-03'],
-            //     ['name'=>'Sneha Kapoor', 'source'=>'LP: Offer','stage'=>'Visited',  'owner'=>'Neil',    'created'=>'2025-11-03'],
-            // ];
-    
-            // pass welcome note to view (unchanged behavior)
+            $data = $this->Dashboard_Model->get_dashboard_data();
             $data['welcome_note_text'] = $welcome_note_text;
-    
-            // ---------- keep: render your existing/new dashboard view name ----------
-            // NOTE: your view is spelled "dashbaord_new" in your snippet; keeping it unchanged.
             $this->load->view('dashbaord_new', $data);
         }
     }

@@ -23,14 +23,29 @@ class Payment_agreement_model extends CI_Model
         }
     }
 
-    public function format_signature_datetime($value)
+    public function format_signature_datetime($value, $timezone = null)
     {
         $value = trim((string)$value);
         if ($value === '' || strpos($value, '0000-00-00') === 0) {
             return '';
         }
         $ts = strtotime($value);
-        return $ts ? date('d/m/Y h:i A', $ts) : $value;
+        $formatted = $ts ? date('d-m-Y h:i A', $ts) : $value;
+        $timezone = trim((string)$timezone);
+        if ($timezone === '') {
+            return $formatted;
+        }
+        $label = $timezone;
+        try {
+            $dt = new DateTime('now', new DateTimeZone($timezone));
+            $abbr = $dt->format('T');
+            if ($abbr !== '' && strtoupper($abbr) !== strtoupper($timezone)) {
+                $label = $abbr . ' · ' . $timezone;
+            }
+        } catch (Exception $e) {
+            $label = $timezone;
+        }
+        return $formatted . ' (' . $label . ')';
     }
     public function create_payment_request($data)
     {
