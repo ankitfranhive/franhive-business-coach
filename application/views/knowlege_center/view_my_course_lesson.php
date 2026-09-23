@@ -84,15 +84,18 @@
                 <div class="bg-light p-3 rounded">
                     <?php 
                     if (!empty($lesson_data['ATTACHMENT'])) {
-                        $attachments = json_decode($lesson_data['ATTACHMENT'], true);
-                        if (!empty($attachments) && is_array($attachments)) {
+                        $this->load->helper('lesson_attachment');
+                        $attachments = lesson_attachment_items($lesson_data['ATTACHMENT']);
+                        if (!empty($attachments)) {
                             echo '<div class="d-flex flex-wrap">';
-                            foreach ($attachments as $index => $file) {
+                            foreach ($attachments as $file) {
+                                $file_url = htmlspecialchars(lesson_attachment_url($file));
+                                $file_name = htmlspecialchars(lesson_attachment_label($file));
                                 echo '<div class="p-2">
                                       <a href="#" 
                                 class="btn btn-sm btn-outline-primary view-pdf" 
-                                data-file="' . $file . '">
-                                <i class="fa fa-paperclip"></i> Attachment ' . ($index + 1) . '
+                                data-file="' . $file_url . '">
+                                <i class="fa fa-paperclip"></i> ' . $file_name . '
                                 </a>
 
                             </div>';

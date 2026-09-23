@@ -2,15 +2,18 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
-| -------------------------------------------------------------------------
-| Hooks
-| -------------------------------------------------------------------------
-| This file lets you define "hooks" to extend CI without hacking the core
-| files.  Please see the user guide for info:
-|
-|	https://codeigniter.com/user_guide/general/hooks.html
-|
+| Existing CheckPermission / Common hooks stay disabled — they are incomplete
+| and would break login. License enforcement is the only active hook.
 */
+
+$hook['post_controller_constructor'][] = array(
+    'class'    => 'LicenseEnforcer',
+    'function' => 'enforce',
+    'filename' => 'LicenseEnforcer.php',
+    'filepath' => 'hooks',
+);
+
+/*
 $hook['pre_controller'][] = array(
     'class'    => 'CheckPermission',
     'function' => 'check',
@@ -24,3 +27,4 @@ $hook['pre_controller'][] = array(
     'filename' => 'CommonHooks.php',
     'filepath' => 'hooks'
 );
+*/

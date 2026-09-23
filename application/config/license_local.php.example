@@ -1,0 +1,12 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$config['license_admin_slug'] = 'sys-changeme';
+$config['license_signing_secret'] = 'replace-with-a-long-random-string';
+$config['license_admin_allowed_ips'] = ''; // comma-separated; empty = any IP
+$config['license_cron_token'] = 'replace-cron-token';
+$config['license_alert_email'] = 'you@example.com';
+$config['license_alert_webhook'] = '';
+$config['license_heartbeat_url'] = '';
+$config['license_vendor_email'] = 'you@example.com';
+$config['license_vendor_password_hash'] = '$2y$12$replace_with_password_hash';

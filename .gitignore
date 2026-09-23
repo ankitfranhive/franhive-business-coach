@@ -5,6 +5,7 @@ application/logs/*
 /vendor
 application/config/database.php
 application/config/secrets.php
+application/config/license_local.php
 application/logs/*
 .DS_Store
 

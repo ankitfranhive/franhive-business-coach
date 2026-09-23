@@ -114,17 +114,33 @@
             multiple
         />
 
-        <?php if (isset($lesson['ATTACHMENT']) && !empty($lesson['ATTACHMENT'])): 
-            $attachments = json_decode($lesson['ATTACHMENT'], true); // Decode stored JSON
-            if (!empty($attachments)): ?>
-                <ul class="mt-2">
-                    <?php foreach ($attachments as $file): ?>
-                        <li>
-                            <a href="<?= $file; ?>" target="_blank">Download Attachment</a>
+        <?php
+            $this->load->helper('lesson_attachment');
+            $attachments = lesson_attachment_items($lesson['ATTACHMENT'] ?? '');
+            if (!empty($attachments)):
+        ?>
+                <ul class="mt-3 list-unstyled">
+                    <?php foreach ($attachments as $file):
+                        $file_url = lesson_attachment_url($file);
+                        $file_name = lesson_attachment_label($file);
+                        $remove_url = base_url('knowledge-center/remove-lesson-attachment/' . (int)$lesson['LESSON_ID'] . '?file=' . rawurlencode($file_url));
+                    ?>
+                        <li class="d-flex align-items-center mb-2">
+                            <a href="<?= htmlspecialchars($file_url); ?>" target="_blank" rel="noopener">
+                                <?= htmlspecialchars($file_name); ?>
+                            </a>
+                            <a class="btn btn-sm btn-outline-danger ml-3"
+                               href="<?= htmlspecialchars($remove_url); ?>"
+                               onclick="return confirm('Remove this attachment from the lesson?');">Remove</a>
                         </li>
                     <?php endforeach; ?>
                 </ul>
-            <?php endif; ?>
+        <?php endif; ?>
+        <?php if ($this->session->flashdata('success')): ?>
+            <div class="text-success mt-2"><?= htmlspecialchars($this->session->flashdata('success')); ?></div>
+        <?php endif; ?>
+        <?php if ($this->session->flashdata('error')): ?>
+            <div class="text-danger mt-2"><?= htmlspecialchars($this->session->flashdata('error')); ?></div>
         <?php endif; ?>
     </div>
 </div>

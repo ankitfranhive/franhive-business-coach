@@ -261,6 +261,7 @@ $route['training-course-lesson'] = 'KnowldegeCenterController/getAllTrainingCour
 $route['add-training-course-lesson'] = 'KnowldegeCenterController/addTraingCourseLesson';
 $route['knowledge-center/view-course-lesson/(:num)'] = 'KnowldegeCenterController/viewCourseLesson/$1';
 $route['knowledge-center/edit-course-lesson/(:num)'] = 'KnowldegeCenterController/editCourseLesson/$1';
+$route['knowledge-center/remove-lesson-attachment/(:num)'] = 'KnowldegeCenterController/removeLessonAttachment/$1';
 $route['knowledge-center/delete-course-lesson/(:num)'] = 'KnowldegeCenterController/deleteCourseLesson/$1';
 
 $route['lesson-allocation'] = 'KnowldegeCenterController/lessonAllocation';
@@ -441,6 +442,19 @@ $route['admin_media/delete_image'] = 'AdminMedia/delete_image';
 
 
 // $route->post('webhooks/cloudtalk', 'CloudTalkWebhook::handle', ['filter' => 'ctsecret']);
+
+$license_admin_slug = 'sys-38564376';
+if (defined('APPPATH') && is_file(APPPATH . 'config/license.php')) {
+    include APPPATH . 'config/license.php';
+    if (!empty($config['license_admin_slug'])) {
+        $license_admin_slug = $config['license_admin_slug'];
+    }
+}
+$route[$license_admin_slug] = 'LicenseVendor/index';
+$route[$license_admin_slug . '/(:any)'] = 'LicenseVendor/$1';
+$route[$license_admin_slug . '/(:any)/(:num)'] = 'LicenseVendor/$1/$2';
+$route[$license_admin_slug . '/(:any)/(:num)/(:num)'] = 'LicenseVendor/$1/$2/$3';
+
 
 
 

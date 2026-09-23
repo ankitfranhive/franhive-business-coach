@@ -10,6 +10,7 @@ class KnowldegeCenterController extends CI_Controller
         parent::__construct();
         $this->load->model('KnowledgeCenterModel');
         $this->load->model('AdminConsoleModel');
+        $this->load->helper('lesson_attachment');
     }
 
     public function viewCourse($id)
@@ -342,7 +343,7 @@ class KnowldegeCenterController extends CI_Controller
 
     // Retain existing files unless replaced
     $thumbnailImage = $currentLesson['THUMBNAIL_IMAGE'];
-    $existingAttachments = json_decode($currentLesson['ATTACHMENT'], true) ?? [];
+    $existingAttachments = lesson_attachment_items($currentLesson['ATTACHMENT'] ?? '', true);
 
     // Upload new THUMBNAIL_IMAGE if provided
     if (!empty($_FILES['THUMNAIL_IMAGE']['name'])) {
@@ -384,7 +385,12 @@ class KnowldegeCenterController extends CI_Controller
 
             if ($this->upload->do_upload('file')) {
                 $uploadData = $this->upload->data();
-                $existingAttachments[] = base_url('uploads/' . $uploadData['file_name']);
+                $storedName = $uploadData['orig_name'] ?: $uploadData['file_name'];
+                $existingAttachments[] = array(
+                    'url' => base_url('uploads/' . $uploadData['file_name']),
+                    'name' => $storedName,
+                    'deleted' => 0,
+                );
             } else {
                 echo "Attachment Upload Error: " . $this->upload->display_errors();
                 die();
@@ -414,6 +420,44 @@ class KnowldegeCenterController extends CI_Controller
 
 
 
+
+    public function removeLessonAttachment($lesson_id)
+    {
+        $lesson_id = (int)$lesson_id;
+        $file = trim((string)$this->input->get_post('file'));
+        $lesson = $this->KnowledgeCenterModel->get_course_lesson_by_id($lesson_id);
+        if (!$lesson || $file === '') {
+            $this->session->set_flashdata('error', 'Attachment could not be removed.');
+            redirect('knowledge-center/edit-course-lesson/' . $lesson_id);
+            return;
+        }
+
+        $items = lesson_attachment_items($lesson['ATTACHMENT'] ?? '', true);
+        $found = false;
+        foreach ($items as &$item) {
+            if (empty($item['deleted']) && (
+                (string)$item['url'] === $file
+                || rawurldecode((string)$item['url']) === rawurldecode($file)
+            )) {
+                $item['deleted'] = 1;
+                $found = true;
+                break;
+            }
+        }
+        unset($item);
+
+        if (!$found) {
+            $this->session->set_flashdata('error', 'Attachment was not found.');
+            redirect('knowledge-center/edit-course-lesson/' . $lesson_id);
+            return;
+        }
+
+        $this->KnowledgeCenterModel->update_course_lesson($lesson_id, array(
+            'ATTACHMENT' => json_encode(array_values($items)),
+        ));
+        $this->session->set_flashdata('success', 'Attachment removed.');
+        redirect('knowledge-center/edit-course-lesson/' . $lesson_id);
+    }
 
     public function deleteCourseLesson($lesson_id)
     {
