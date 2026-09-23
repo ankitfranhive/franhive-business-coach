@@ -14,9 +14,19 @@
 </head>
 <body>
 <div class="wrap">
+<?php
+    $reason = $reason ?? 'invalid';
+    $expiry_label = !empty($expiry_date) ? date('d-m-Y', strtotime($expiry_date)) : '';
+?>
 <?php if (($variant ?? 'user') === 'admin'): ?>
     <h1>Subscription inactive</h1>
-    <p>Your AMC/subscription expired<?php if (!empty($expiry_date)): ?> on <?= htmlspecialchars(date('d-m-Y', strtotime($expiry_date))); ?><?php endif; ?>. Please renew to continue using the CRM.</p>
+    <?php if ($reason === 'expired'): ?>
+        <p>Your AMC/subscription expired<?php if ($expiry_label): ?> on <?= htmlspecialchars($expiry_label); ?><?php endif; ?>. Please renew to continue using the CRM.</p>
+    <?php elseif ($reason === 'suspended'): ?>
+        <p>This subscription is suspended or cancelled. Please contact support to restore access.</p>
+    <?php else: ?>
+        <p>This subscription could not be verified<?php if ($expiry_label): ?> (expiry <?= htmlspecialchars($expiry_label); ?>)<?php endif; ?>. Save and sign the license again from the vendor panel, then refresh.</p>
+    <?php endif; ?>
     <?php if (!empty($renew_url)): ?>
         <p><a href="<?= htmlspecialchars($renew_url); ?>">Renew now</a></p>
     <?php endif; ?>

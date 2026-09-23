@@ -38,24 +38,22 @@ class LicenseEnforcer
         if ($ttl <= 0) {
             $ttl = 20;
         }
+        // Only cache an "ok" result. A blocked result must be re-checked so a
+        // vendor save (active + future expiry) unlocks the CRM on the next request.
         $cache_valid = is_array($cached)
+            && ($cached['state'] ?? '') === 'ok'
             && !empty($cached['until'])
             && (int)$cached['until'] > time()
             && (($cached['fingerprint'] ?? '') === $fingerprint);
         if ($cache_valid) {
-            if (($cached['state'] ?? '') === 'ok') {
-                return;
-            }
-            if (($cached['state'] ?? '') === 'blocked') {
-                $this->render_blocker($CI, $cached);
-                return;
-            }
+            return;
         }
 
         $result = $this->evaluate($CI);
         $CI->session->set_userdata('lic_enforcement_cache', array(
             'state' => $result['state'],
             'variant' => $result['variant'],
+            'reason' => $result['reason'],
             'expiry_date' => $result['expiry_date'],
             'fingerprint' => $fingerprint,
             'until' => time() + ($ttl * 60),
@@ -71,6 +69,7 @@ class LicenseEnforcer
         $out = array(
             'state' => 'ok',
             'variant' => $this->is_super_admin($CI) ? 'admin' : 'user',
+            'reason' => '',
             'expiry_date' => '',
         );
 
@@ -80,10 +79,11 @@ class LicenseEnforcer
             return $out;
         }
 
-        $out['expiry_date'] = (string)$row['expiry_date'];
+        $out['expiry_date'] = $CI->licenseverifier->normalize_date($row['expiry_date'] ?? '');
         $token_ok = $CI->licenseverifier->matches_row($row['signed_token'] ?? '', $row);
         if (!$token_ok) {
             $out['state'] = 'blocked';
+            $out['reason'] = 'invalid';
             return $out;
         }
 
@@ -91,6 +91,7 @@ class LicenseEnforcer
             || in_array($row['client_status'] ?? '', array('suspended', 'cancelled'), true)
         ) {
             $out['state'] = 'blocked';
+            $out['reason'] = 'suspended';
             return $out;
         }
 
@@ -98,14 +99,16 @@ class LicenseEnforcer
         if ($grace < 0) {
             $grace = 0;
         }
-        $end = strtotime($row['expiry_date'] . ' 23:59:59');
+        $end = strtotime($out['expiry_date'] . ' 23:59:59');
         if ($end === false) {
             $out['state'] = 'blocked';
+            $out['reason'] = 'invalid';
             return $out;
         }
         $end += ($grace * 86400);
         if (time() > $end) {
             $out['state'] = 'blocked';
+            $out['reason'] = 'expired';
         }
         return $out;
     }
@@ -138,6 +141,7 @@ class LicenseEnforcer
         $CI->load->config('license');
         $data = array(
             'variant' => ($result['variant'] ?? 'user') === 'admin' ? 'admin' : 'user',
+            'reason' => $result['reason'] ?? 'invalid',
             'expiry_date' => $result['expiry_date'] ?? '',
             'support_email' => (string)$CI->config->item('license_support_email'),
             'renew_url' => (string)$CI->config->item('license_renew_url'),

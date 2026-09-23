@@ -11,15 +11,7 @@ class LicenseVerifier
 
     public function __construct($secret = null)
     {
-        if ($secret === null || $secret === '') {
-            $CI =& get_instance();
-            $CI->config->load('license', true);
-            $secret = (string)$CI->config->item('license_signing_secret', 'license');
-            if ($secret === '') {
-                $secret = (string)$CI->config->item('license_signing_secret');
-            }
-        }
-        $this->secret = (string)$secret;
+        $this->secret = $this->resolve_secret($secret);
     }
 
     public function sign(array $payload)
@@ -60,16 +52,16 @@ class LicenseVerifier
 
     public function matches_row($token, array $row)
     {
-        $payload = $this->verify($token);
+        $payload = $this->verify(trim((string)$token));
         if ($payload === false) {
             return false;
         }
-        $code = (string)($row['client_code'] ?? '');
-        $expiry = (string)($row['expiry_date'] ?? '');
-        $status = (string)($row['status'] ?? '');
-        return hash_equals((string)$payload['client_code'], $code)
-            && hash_equals((string)$payload['expiry_date'], $expiry)
-            && hash_equals((string)$payload['status'], $status);
+        $code = strtolower(trim((string)($row['client_code'] ?? '')));
+        $expiry = $this->normalize_date($row['expiry_date'] ?? '');
+        $status = strtolower(trim((string)($row['status'] ?? '')));
+        return hash_equals(strtolower(trim((string)$payload['client_code'])), $code)
+            && hash_equals($this->normalize_date($payload['expiry_date']), $expiry)
+            && hash_equals(strtolower(trim((string)$payload['status'])), $status);
     }
 
     public function file_hash($absolute_path)
@@ -80,11 +72,60 @@ class LicenseVerifier
         return hash_file('sha256', $absolute_path);
     }
 
+    protected function resolve_secret($secret)
+    {
+        if (is_string($secret) && $secret !== '') {
+            return $secret;
+        }
+        $CI =& get_instance();
+        $CI->config->load('license', false);
+        $found = (string)$CI->config->item('license_signing_secret');
+        if ($found === '') {
+            $section = $CI->config->item('license');
+            if (is_array($section) && !empty($section['license_signing_secret'])) {
+                $found = (string)$section['license_signing_secret'];
+            }
+        }
+        if ($found === '' && defined('APPPATH')) {
+            $local = APPPATH . 'config/license_local.php';
+            if (is_file($local)) {
+                $config = array();
+                include $local;
+                if (!empty($config['license_signing_secret'])) {
+                    $found = (string)$config['license_signing_secret'];
+                }
+            }
+        }
+        if ($found === '') {
+            $env = getenv('LICENSE_SIGNING_SECRET');
+            if (is_string($env) && $env !== '') {
+                $found = $env;
+            }
+        }
+        return $found;
+    }
+
+    public function normalize_date($value)
+    {
+        $value = trim((string)$value);
+        if ($value === '') {
+            return '';
+        }
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $value, $m)) {
+            return $m[1] . '-' . $m[2] . '-' . $m[3];
+        }
+        if (preg_match('/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/', $value, $m)) {
+            return $m[3] . '-' . $m[2] . '-' . $m[1];
+        }
+        $ts = strtotime($value);
+        return $ts ? date('Y-m-d', $ts) : $value;
+    }
+
     protected function normalize_payload(array $payload)
     {
         return array(
             'client_code' => (string)($payload['client_code'] ?? ''),
-            'expiry_date' => (string)($payload['expiry_date'] ?? ''),
+            'expiry_date' => $this->normalize_date($payload['expiry_date'] ?? ''),
             'issued_at'   => (string)($payload['issued_at'] ?? date('c')),
             'status'      => (string)($payload['status'] ?? 'active'),
         );

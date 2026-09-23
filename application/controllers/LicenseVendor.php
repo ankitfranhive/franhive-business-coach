@@ -95,8 +95,8 @@ class LicenseVendor extends CI_Controller
         $row = array(
             'client_id' => $client_id,
             'plan_name' => trim((string)$this->input->post('plan_name')),
-            'start_date' => $this->input->post('start_date'),
-            'expiry_date' => $this->input->post('expiry_date'),
+            'start_date' => $this->licenseverifier->normalize_date($this->input->post('start_date')),
+            'expiry_date' => $this->licenseverifier->normalize_date($this->input->post('expiry_date')),
             'grace_period_days' => max(0, (int)$this->input->post('grace_period_days')),
             'status' => $status,
             'created_by' => (int)$this->vendor['id'],
