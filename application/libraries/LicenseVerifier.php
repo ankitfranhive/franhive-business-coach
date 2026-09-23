@@ -23,9 +23,22 @@ class LicenseVerifier
 
     public function verify($token)
     {
-        if ($this->secret === '' || !is_string($token) || $token === '') {
+        if (!is_string($token) || $token === '') {
             return false;
         }
+        $payload = $this->verify_with_secret($token, $this->secret);
+        if ($payload !== false) {
+            return $payload;
+        }
+        // Production signed tokens before license_local.php existed used an empty HMAC key.
+        if ($this->secret !== '') {
+            return $this->verify_with_secret($token, '');
+        }
+        return false;
+    }
+
+    protected function verify_with_secret($token, $secret)
+    {
         $parts = explode('.', $token);
         if (count($parts) !== 3 || $parts[0] !== 'lic1') {
             return false;
@@ -34,7 +47,7 @@ class LicenseVerifier
         if ($json === false || $json === '') {
             return false;
         }
-        $calc = hash_hmac('sha256', $json, $this->secret);
+        $calc = hash_hmac('sha256', $json, (string)$secret);
         if (!hash_equals($calc, $parts[2])) {
             return false;
         }
