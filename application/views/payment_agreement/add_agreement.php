@@ -1236,17 +1236,56 @@ function fs($arr, $key, $default = '')
     var clearBtn=document.getElementById('clear_signature');
     if(!canvas||!hiddenInput)return;
     var ctx=canvas.getContext('2d');
-    var drawing=false,hasSignature=false,lastX=0,lastY=0;
-    function resizeCanvas(){
+    var drawing=false,hasSignature=false,lastX=0,lastY=0,restoreTimer=null;
+    function applyStrokeStyle(){
+        ctx.lineWidth=2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111';
+    }
+    function restoreSignature(dataUrl, cssW, cssH){
+        if(!dataUrl)return;
+        var img=new Image();
+        img.onload=function(){
+            ctx.setTransform(1,0,0,1,0,0);
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.drawImage(img,0,0,cssW,cssH);
+            var ratio=Math.max(window.devicePixelRatio||1,1);
+            ctx.setTransform(ratio,0,0,ratio,0,0);
+            applyStrokeStyle();
+            hasSignature=true;
+            hiddenInput.value=dataUrl;
+        };
+        img.src=dataUrl;
+    }
+    function persistSignature(){
+        if(!hasSignature)return;
+        try{ hiddenInput.value=canvas.toDataURL('image/png'); }catch(e){}
+    }
+    function resizeCanvas(force){
         var ratio=Math.max(window.devicePixelRatio||1,1);
         var rect=canvas.getBoundingClientRect();
-        canvas.width=rect.width*ratio;canvas.height=rect.height*ratio;
-        ctx.setTransform(1,0,0,1,0,0);ctx.scale(ratio,ratio);
-        ctx.lineWidth=2;ctx.lineCap='round';ctx.strokeStyle='#111';
+        var nextW=Math.max(1,Math.round(rect.width*ratio));
+        var nextH=Math.max(1,Math.round(rect.height*ratio));
+        // Assigning canvas.width/height always clears the drawing. Skip if size is unchanged
+        // (mobile URL-bar show/hide fires resize while scrolling).
+        if(!force && canvas.width===nextW && canvas.height===nextH){
+            return;
+        }
+        var backup=hiddenInput.value;
+        if(hasSignature){
+            try{ backup=canvas.toDataURL('image/png')||backup; }catch(e){}
+        }
+        canvas.width=nextW;
+        canvas.height=nextH;
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.scale(ratio,ratio);
+        applyStrokeStyle();
+        if(backup){
+            restoreSignature(backup,rect.width,rect.height);
+        }
     }
     function getPosition(e){
         var rect=canvas.getBoundingClientRect(),clientX,clientY;
         if(e.touches&&e.touches.length>0){clientX=e.touches[0].clientX;clientY=e.touches[0].clientY;}
+        else if(e.changedTouches&&e.changedTouches.length>0){clientX=e.changedTouches[0].clientX;clientY=e.changedTouches[0].clientY;}
         else{clientX=e.clientX;clientY=e.clientY;}
         return{x:clientX-rect.left,y:clientY-rect.top};
     }
@@ -1257,8 +1296,23 @@ function fs($arr, $key, $default = '')
         ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(pos.x,pos.y);ctx.stroke();
         lastX=pos.x;lastY=pos.y;hasSignature=true;e.preventDefault();
     }
-    function stopDrawing(){drawing=false;}
-    function clearSignature(){ctx.clearRect(0,0,canvas.width,canvas.height);hasSignature=false;hiddenInput.value='';}
+    function stopDrawing(){
+        drawing=false;
+        persistSignature();
+    }
+    function clearSignature(){
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        var ratio=Math.max(window.devicePixelRatio||1,1);
+        ctx.setTransform(ratio,0,0,ratio,0,0);
+        applyStrokeStyle();
+        hasSignature=false;
+        hiddenInput.value='';
+    }
+    function onViewportChange(){
+        if(restoreTimer)clearTimeout(restoreTimer);
+        restoreTimer=setTimeout(function(){ resizeCanvas(false); },120);
+    }
 
     /* Exposed globally so the form's onsubmit="return beforeSubmit()" works */
     window.beforeSubmit = function(){
@@ -1433,14 +1487,19 @@ function fs($arr, $key, $default = '')
         return true;
     };
 
-    resizeCanvas();
-    window.addEventListener('resize',resizeCanvas);
+    resizeCanvas(true);
+    window.addEventListener('resize',onViewportChange);
+    window.addEventListener('orientationchange',onViewportChange);
+    if(window.visualViewport){
+        window.visualViewport.addEventListener('resize',onViewportChange);
+    }
     canvas.addEventListener('mousedown',startDrawing);
     canvas.addEventListener('mousemove',draw);
     window.addEventListener('mouseup',stopDrawing);
     canvas.addEventListener('touchstart',startDrawing,{passive:false});
     canvas.addEventListener('touchmove',draw,{passive:false});
     window.addEventListener('touchend',stopDrawing);
+    window.addEventListener('touchcancel',stopDrawing);
     if(clearBtn)clearBtn.addEventListener('click',clearSignature);
 })();
 </script>
