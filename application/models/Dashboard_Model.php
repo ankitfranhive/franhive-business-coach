@@ -200,12 +200,12 @@ class Dashboard_Model extends CI_Model
             '3' => 'Red flag',
         ];
         $out = ['New' => 0, 'Closed' => 0, 'Red flag' => 0, 'Other' => 0];
-        $rows = $this->db->query("
+        $rows = $this->query_rows("
             SELECT LEAD_STATUS, COUNT(*) AS cnt
             FROM ENTITY
             WHERE RECORD_STATUS = 0 AND IS_LEAD = 'Y'
             GROUP BY LEAD_STATUS
-        ")->result_array();
+        ");
         foreach ($rows as $row) {
             $key = (string)($row['LEAD_STATUS'] ?? '');
             $label = $map[$key] ?? 'Other';
@@ -226,12 +226,12 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('FD_TASKS')) {
             return $out;
         }
-        $rows = $this->db->query("
+        $rows = $this->query_rows("
             SELECT STATUS, COUNT(*) AS cnt
             FROM FD_TASKS
             WHERE RECORD_STATUS = 0
             GROUP BY STATUS
-        ")->result_array();
+        ");
         foreach ($rows as $row) {
             $key = (string)($row['STATUS'] ?? '');
             $label = $map[$key] ?? 'Other';
@@ -256,21 +256,41 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('CAMPAIGN')) {
             return $out;
         }
-        $rows = $this->db->query("
-            SELECT WORKFLOW_STATUS, COUNT(*) AS cnt
-            FROM CAMPAIGN
-            WHERE RECORD_STATUS = 0
-            GROUP BY WORKFLOW_STATUS
-        ")->result_array();
-        foreach ($rows as $row) {
-            $key = strtolower(trim((string)($row['WORKFLOW_STATUS'] ?? '')));
-            if ($key === '') {
-                $key = 'draft';
+        $where = $this->campaign_active_where();
+        if ($this->db->field_exists('WORKFLOW_STATUS', 'CAMPAIGN')) {
+            $rows = $this->query_rows("
+                SELECT WORKFLOW_STATUS, COUNT(*) AS cnt
+                FROM CAMPAIGN
+                {$where}
+                GROUP BY WORKFLOW_STATUS
+            ");
+            foreach ($rows as $row) {
+                $key = strtolower(trim((string)($row['WORKFLOW_STATUS'] ?? '')));
+                if ($key === '') {
+                    $key = 'draft';
+                }
+                if (!isset($out[$key])) {
+                    $out[$key] = 0;
+                }
+                $out[$key] += (int)$row['cnt'];
             }
-            if (!isset($out[$key])) {
-                $out[$key] = 0;
+            return $out;
+        }
+        if ($this->db->field_exists('STATUS', 'CAMPAIGN')) {
+            $rows = $this->query_rows("
+                SELECT STATUS, COUNT(*) AS cnt
+                FROM CAMPAIGN
+                {$where}
+                GROUP BY STATUS
+            ");
+            foreach ($rows as $row) {
+                $status = (string)($row['STATUS'] ?? '');
+                $key = ($status === '0') ? 'sent' : 'draft';
+                if (!isset($out[$key])) {
+                    $out[$key] = 0;
+                }
+                $out[$key] += (int)$row['cnt'];
             }
-            $out[$key] += (int)$row['cnt'];
         }
         return $out;
     }
@@ -281,11 +301,11 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('payment_agreement_requests')) {
             return $out;
         }
-        $rows = $this->db->query("
+        $rows = $this->query_rows("
             SELECT status, COUNT(*) AS cnt
             FROM payment_agreement_requests
             GROUP BY status
-        ")->result_array();
+        ");
         foreach ($rows as $row) {
             $key = strtolower((string)($row['status'] ?? ''));
             if (!isset($out[$key])) {
@@ -298,7 +318,7 @@ class Dashboard_Model extends CI_Model
 
     private function recent_leads($limit = 8)
     {
-        return $this->db->query("
+        return $this->query_rows("
             SELECT L.ENTITY_ID, L.NAME, L.EMAIL, L.LEAD_STATUS, L.CREATED_ON, L.CITY,
                    U.NAME AS OWNER_NAME, CD.OPTION_VALUE AS LEAD_SOURCE
             FROM ENTITY L
@@ -307,7 +327,7 @@ class Dashboard_Model extends CI_Model
             WHERE L.RECORD_STATUS = 0 AND L.IS_LEAD = 'Y'
             ORDER BY L.CREATED_ON DESC, L.ENTITY_ID DESC
             LIMIT " . (int)$limit
-        )->result_array();
+        );
     }
 
     private function recent_tasks($limit = 8)
@@ -315,14 +335,14 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('FD_TASKS')) {
             return [];
         }
-        return $this->db->query("
+        return $this->query_rows("
             SELECT LT.TASK_ID, LT.SUBJECT, LT.STATUS, LT.CREATED_ON, LT.START_DATE, U.NAME AS ASSIGNED_TO_USER
             FROM FD_TASKS LT
             LEFT JOIN USERS U ON LT.ASSIGN_TO = U.USER_ID
             WHERE LT.RECORD_STATUS = 0
             ORDER BY LT.CREATED_ON DESC
             LIMIT " . (int)$limit
-        )->result_array();
+        );
     }
 
     private function recent_eform_submissions($limit = 8)
@@ -337,7 +357,7 @@ class Dashboard_Model extends CI_Model
             LEFT JOIN ef_templates t ON t.id = s.template_id
             ORDER BY s.created_at DESC, s.id DESC
             LIMIT " . (int)$limit;
-        return $this->db->query($sql)->result_array();
+        return $this->query_rows($sql);
     }
 
     private function recent_payment_agreements($limit = 8)
@@ -345,12 +365,12 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('payment_agreement_requests')) {
             return [];
         }
-        return $this->db->query("
+        return $this->query_rows("
             SELECT id, client_name, client_email, status, sent_at, submitted_at, agreement_id, total_inc_gst
             FROM payment_agreement_requests
             ORDER BY COALESCE(submitted_at, sent_at) DESC, id DESC
             LIMIT " . (int)$limit
-        )->result_array();
+        );
     }
 
     private function recent_campaigns($limit = 6)
@@ -358,13 +378,32 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('CAMPAIGN')) {
             return [];
         }
-        return $this->db->query("
-            SELECT CAMPAIGN_ID, TITLE, MODULE_NAME, WORKFLOW_STATUS, TOTAL_RECIPIENTS, SENT_COUNT, CREATED_ON
+        $where = $this->campaign_active_where();
+        if ($this->db->field_exists('WORKFLOW_STATUS', 'CAMPAIGN')) {
+            $wf = 'WORKFLOW_STATUS';
+        } elseif ($this->db->field_exists('STATUS', 'CAMPAIGN')) {
+            $wf = "CASE WHEN STATUS = '0' THEN 'sent' ELSE 'draft' END AS WORKFLOW_STATUS";
+        } else {
+            $wf = "'draft' AS WORKFLOW_STATUS";
+        }
+        $extra = '';
+        if ($this->db->field_exists('TOTAL_RECIPIENTS', 'CAMPAIGN')) {
+            $extra .= ', TOTAL_RECIPIENTS';
+        } else {
+            $extra .= ', 0 AS TOTAL_RECIPIENTS';
+        }
+        if ($this->db->field_exists('SENT_COUNT', 'CAMPAIGN')) {
+            $extra .= ', SENT_COUNT';
+        } else {
+            $extra .= ', 0 AS SENT_COUNT';
+        }
+        return $this->query_rows("
+            SELECT CAMPAIGN_ID, TITLE, MODULE_NAME, {$wf}{$extra}, CREATED_ON
             FROM CAMPAIGN
-            WHERE RECORD_STATUS = 0
+            {$where}
             ORDER BY CAMPAIGN_ID DESC
             LIMIT " . (int)$limit
-        )->result_array();
+        );
     }
 
     private function recent_tests($limit = 8)
@@ -372,7 +411,7 @@ class Dashboard_Model extends CI_Model
         if (!$this->db->table_exists('TEST_USER_RESPONSE')) {
             return [];
         }
-        return $this->db->query("
+        return $this->query_rows("
             SELECT r.ID, r.MARKS_OBTAINED, COALESCE(r.TOTAL_MARKS, t.TOTAL_MARKS) AS TOTAL_MARKS,
                    r.SUBMITTED_AT, r.created_at, t.TEST_NAME, u.NAME
             FROM TEST_USER_RESPONSE r
@@ -381,7 +420,7 @@ class Dashboard_Model extends CI_Model
             WHERE IFNULL(r.IS_SUBMITTED, 0) = 1
             ORDER BY COALESCE(r.SUBMITTED_AT, r.created_at) DESC, r.ID DESC
             LIMIT " . (int)$limit
-        )->result_array();
+        );
     }
 
     private function table_count($table)
@@ -397,7 +436,33 @@ class Dashboard_Model extends CI_Model
         if ($table && !$this->db->table_exists($table)) {
             return 0;
         }
-        $row = $this->db->query($sql)->row_array();
+        $query = $this->db->query($sql);
+        if ($query === false) {
+            log_message('error', 'Dashboard count_sql failed: ' . $this->db->last_query());
+            return 0;
+        }
+        $row = $query->row_array();
         return (int)($row['cnt'] ?? 0);
+    }
+
+    private function query_rows($sql)
+    {
+        $query = $this->db->query($sql);
+        if ($query === false) {
+            log_message('error', 'Dashboard query failed: ' . $this->db->last_query());
+            return [];
+        }
+        return $query->result_array();
+    }
+
+    private function campaign_active_where()
+    {
+        if (!$this->db->table_exists('CAMPAIGN')) {
+            return '';
+        }
+        if ($this->db->field_exists('RECORD_STATUS', 'CAMPAIGN')) {
+            return 'WHERE RECORD_STATUS = 0';
+        }
+        return '';
     }
 }
