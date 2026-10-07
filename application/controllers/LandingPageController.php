@@ -920,17 +920,17 @@ class LandingPageController extends CI_Controller
             $subject = "🌟 Welcome Back to 5 Days Conscious Upgrade 🌟";
             $message_body = "
                 <p>Dear <strong>$name</strong>,</p>
-                <p>Welcome back to our community!</p>
-                <p><strong>Username:</strong> $email</p>
-                <p><strong>Password:</strong> $hashed_password</p>";
+                <p>Thank you for registering again. We have received your details and will be in touch shortly.</p>
+                <p>If you already have a CRM account, please sign in with your existing password or use Forgot Password on the login page if you need help.</p>";
         }
 
-        // Updated replacements (includes gift_id + $Name$ support)
+        // Existing users: never email login credentials (template may still contain merge tags).
         $message_body = str_replace(
             [
                 '{{name}}', '$Name$', '$NAME$',
                 '{{email}}', '$Email$', '$EMAIL$',
-                '{{password}}',
+                '{{password}}', '{{user_password}}',
+                '[Password]', '[User Password]', '$PASSWORD$',
                 '{{training_dates}}',
                 '{{training_time}}',
                 '{{training_link}}',
@@ -939,7 +939,7 @@ class LandingPageController extends CI_Controller
             [
                 $name, $name, $name,
                 $email, $email, $email,
-                $hashed_password,
+                '', '', '', '', '',
                 $training_dates,
                 $training_time,
                 $training_link,
@@ -947,6 +947,7 @@ class LandingPageController extends CI_Controller
             ],
             $message_body
         );
+        $message_body = $this->strip_login_credentials_from_email_body($message_body);
 
         $signature_html = '<br><br><div style="display:inline-block;">';
         $signature_html .= '<img src="https://eyd.franhive.com/uploads/headshot4.png" style="max-width:200px;max-height:100px;display:block;">';
@@ -1013,7 +1014,25 @@ class LandingPageController extends CI_Controller
     }
 }
 
-    
+    /**
+     * Remove username/password/login credential lines from HTML email bodies (returning registrants).
+     */
+    private function strip_login_credentials_from_email_body($html)
+    {
+        if ($html === '' || $html === null) {
+            return '';
+        }
+        $html = (string)$html;
+        $patterns = array(
+            '/<p[^>]*>\s*(?:<[^>]+>\s*)*(?:Username|User name|Login(?:\s+name)?|Password|Your password)\s*:.*?<\/p>/is',
+            '/<li[^>]*>\s*(?:<[^>]+>\s*)*(?:Username|User name|Login(?:\s+name)?|Password|Your password)\s*:.*?<\/li>/is',
+            '/<div[^>]*>\s*(?:<[^>]+>\s*)*(?:Username|User name|Login(?:\s+name)?|Password|Your password)\s*:.*?<\/div>/is',
+            '/<tr[^>]*>\s*<td[^>]*>\s*(?:<[^>]+>\s*)*(?:Username|User name|Password)\s*:.*?<\/tr>/is',
+        );
+        foreach ($patterns as $pattern) {
+            $html = preg_replace($pattern, '', $html);
+        }
+        return preg_replace("/(\r?\n\s*){3,}/", "\n\n", $html);
+    }
 
-    
 }
