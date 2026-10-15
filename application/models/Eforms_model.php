@@ -106,17 +106,78 @@ class Eforms_model extends CI_Model {
     }
 
     public function get_form_type_fields($form_type_id) {
-        return $this->db->order_by('sort_order','ASC')
+        return $this->db->order_by('sort_order', 'ASC')
+            ->order_by('id', 'ASC')
             ->get_where('ef_form_type_fields', ['form_type_id' => (int)$form_type_id])
             ->result_array();
     }
 
     public function replace_form_type_fields($form_type_id, $fields) {
+        usort($fields, function ($a, $b) {
+            $cmp = ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0));
+            return $cmp !== 0 ? $cmp : strcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+        });
         $this->db->where('form_type_id', (int)$form_type_id)->delete('ef_form_type_fields');
         foreach ($fields as $f) {
             $f['form_type_id'] = (int)$form_type_id;
             $this->db->insert('ef_form_type_fields', $f);
         }
+    }
+
+    public function sort_template_fields(array $fields) {
+        usort($fields, function ($a, $b) {
+            $cmp = ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0));
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+            return ((int)($a['id'] ?? 0)) <=> ((int)($b['id'] ?? 0));
+        });
+        return $fields;
+    }
+
+    /** @return array{0: array, 1: array} [top (sort_order &lt; 0), bottom (sort_order &gt;= 0)] */
+    public function split_fields_top_bottom(array $fields) {
+        $fields = $this->sort_template_fields($fields);
+        $top = [];
+        $bottom = [];
+        foreach ($fields as $f) {
+            if ((int)($f['sort_order'] ?? 0) < 0) {
+                $top[] = $f;
+            } else {
+                $bottom[] = $f;
+            }
+        }
+        return [$top, $bottom];
+    }
+
+    /**
+     * Multi-step groups that follow global sort_order: each step is a contiguous run of the same section.
+     */
+    public function build_form_field_steps(array $fields_in_order, array $field_sections_map, array $sec_map) {
+        $fields_in_order = $this->sort_template_fields($fields_in_order);
+        $steps = [];
+        foreach ($fields_in_order as $f) {
+            $ftype = $f['type'] ?? 'text';
+            $fname = (string)($f['name'] ?? '');
+            $is_display = in_array($ftype, ['image', 'video', 'section'], true);
+            $this_sec = (!$is_display && $fname !== '') ? (string)($field_sections_map[$fname] ?? '') : '';
+            $sec_name = ($this_sec !== '' && isset($sec_map[$this_sec])) ? (string)$sec_map[$this_sec] : '';
+
+            $lastIdx = count($steps) - 1;
+            if ($lastIdx < 0 || $steps[$lastIdx]['sec_id'] !== $this_sec) {
+                $steps[] = [
+                    'sec_id'   => $this_sec,
+                    'sec_name' => $sec_name,
+                    'fields'   => [$f],
+                ];
+            } else {
+                $steps[$lastIdx]['fields'][] = $f;
+                if ($sec_name !== '' && $steps[$lastIdx]['sec_name'] === '') {
+                    $steps[$lastIdx]['sec_name'] = $sec_name;
+                }
+            }
+        }
+        return $steps;
     }
 
     // ---------- Templates ----------
@@ -261,12 +322,26 @@ class Eforms_model extends CI_Model {
             $data_for_pdf[$label] = (string)($row['value_text'] ?? '');
         }
 
+        $overrides = is_array($overrides) ? $overrides : [];
+        $sec_map = [];
+        foreach ($overrides['sections'] ?? [] as $sec) {
+            if (!empty($sec['id'])) {
+                $sec_map[$sec['id']] = $sec['name'] ?? '';
+            }
+        }
+        $field_sections_map = $overrides['field_sections'] ?? [];
+        [$top_fields, $bottom_fields] = $this->split_fields_top_bottom((array)$fields);
+        $form_steps = $this->build_form_field_steps($bottom_fields, $field_sections_map, $sec_map);
+
         return $this->load->view('eforms/pdf/submission_pdf', [
             'template' => $template ?: [],
             'request' => $request ?: [],
             'data' => $data_for_pdf,
             'fields' => $fields ?: [],
-            'overrides' => $overrides ?: [],
+            'top_fields' => $top_fields,
+            'bottom_fields' => $bottom_fields,
+            'steps' => $form_steps,
+            'overrides' => $overrides,
             'values' => $values ?: [],
             'signature_path' => $signature_path,
             'include_audit' => !empty($include_audit),
@@ -619,6 +694,73 @@ class Eforms_model extends CI_Model {
 
     public function soft_delete_thank_you_page_template($id) {
         return $this->update_thank_you_page_template($id, ['is_active' => 0]);
+    }
+
+    /**
+     * Scale field config stored in options_json as {"min","max","min_label","max_label"}.
+     * Admin Options column format: min|max|min label|max label (pipe-separated).
+     */
+    public function encode_scale_options_json($optStr) {
+        $optStr = trim((string)$optStr);
+        if ($optStr === '') {
+            return null;
+        }
+        $parts = array_map('trim', explode('|', $optStr));
+        if (count($parts) < 2) {
+            return null;
+        }
+        $min = (int)$parts[0];
+        $max = (int)$parts[1];
+        if ($min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+        $span = $max - $min + 1;
+        if ($span < 2) {
+            return null;
+        }
+        if ($span > 25) {
+            $max = $min + 24;
+        }
+        $min_label = $parts[2] ?? '';
+        $max_label = $parts[3] ?? '';
+        return json_encode([
+            'min'       => $min,
+            'max'       => $max,
+            'min_label' => $min_label,
+            'max_label' => $max_label,
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    public function parse_scale_config($options_json) {
+        if ($options_json === null || $options_json === '') {
+            return null;
+        }
+        $decoded = is_array($options_json) ? $options_json : json_decode((string)$options_json, true);
+        if (!is_array($decoded) || !isset($decoded['min'], $decoded['max'])) {
+            return null;
+        }
+        if (array_key_exists(0, $decoded)) {
+            return null;
+        }
+        $min = (int)$decoded['min'];
+        $max = (int)$decoded['max'];
+        if ($min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+        return [
+            'min'       => $min,
+            'max'       => $max,
+            'min_label' => (string)($decoded['min_label'] ?? ''),
+            'max_label' => (string)($decoded['max_label'] ?? ''),
+        ];
+    }
+
+    public function scale_options_for_admin($options_json) {
+        $cfg = $this->parse_scale_config($options_json);
+        if (!$cfg) {
+            return '';
+        }
+        return $cfg['min'] . '|' . $cfg['max'] . '|' . $cfg['min_label'] . '|' . $cfg['max_label'];
     }
 }
 

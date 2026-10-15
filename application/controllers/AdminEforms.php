@@ -133,7 +133,7 @@ class AdminEforms extends CI_Controller {
             if ($flabel === '') $flabel = $fname;
     
             $ftype = $types[$i] ?? 'text';
-            $ftype = in_array($ftype, ['text','email','number','date','textarea','select','checkbox','radio','signature','file','image','video','section'])
+            $ftype = in_array($ftype, ['text','email','number','date','textarea','select','checkbox','radio','scale','signature','file','image','video','section'])
                 ? $ftype : 'text';
     
             $is_required = (isset($reqs[$i]) && ($reqs[$i] == '1' || $reqs[$i] === 1 || $reqs[$i] === 'on')) ? 1 : 0;
@@ -142,7 +142,9 @@ class AdminEforms extends CI_Controller {
     
             $options_json = null;
             $optStr = trim($options[$i] ?? '');
-            if ($optStr !== '' && in_array($ftype, ['select','radio','checkbox','image','video'])) {
+            if ($optStr !== '' && $ftype === 'scale') {
+                $options_json = $this->eforms->encode_scale_options_json($optStr);
+            } elseif ($optStr !== '' && in_array($ftype, ['select','radio','checkbox','image','video'])) {
                 if (in_array($ftype, ['image','video'])) {
                     // Store as single-item array to preserve URL (don't split on commas)
                     $options_json = json_encode([$optStr], JSON_UNESCAPED_UNICODE);
@@ -214,7 +216,7 @@ class AdminEforms extends CI_Controller {
             if ($flabel === '') $flabel = $fname;
     
             $ftype = $types[$i] ?? 'text';
-            $ftype = in_array($ftype, ['text','email','number','date','textarea','select','checkbox','radio','signature','file','image','video','section'])
+            $ftype = in_array($ftype, ['text','email','number','date','textarea','select','checkbox','radio','scale','signature','file','image','video','section'])
                 ? $ftype : 'text';
     
             $is_required = (isset($reqs[$i]) && ($reqs[$i] == '1' || $reqs[$i] === 1 || $reqs[$i] === 'on')) ? 1 : 0;
@@ -223,7 +225,9 @@ class AdminEforms extends CI_Controller {
     
             $options_json = null;
             $optStr = trim($options[$i] ?? '');
-            if ($optStr !== '' && in_array($ftype, ['select','radio','checkbox','image','video'])) {
+            if ($optStr !== '' && $ftype === 'scale') {
+                $options_json = $this->eforms->encode_scale_options_json($optStr);
+            } elseif ($optStr !== '' && in_array($ftype, ['select','radio','checkbox','image','video'])) {
                 if (in_array($ftype, ['image','video'])) {
                     // Store as single-item array to preserve URL (don't split on commas)
                     $options_json = json_encode([$optStr], JSON_UNESCAPED_UNICODE);

@@ -53,7 +53,8 @@
                         <p class="text-muted">
                             Use snake_case for Field Name (no spaces).<br>
                             For <strong>Image / Video</strong> types paste the URL in Options.<br>
-                            For <strong>Section Header</strong> the label becomes the section title — no Options needed.
+                            For <strong>Section Header</strong> the label becomes the section title — no Options needed.<br>
+                            For <strong>Scale</strong>: <code>min|max|min label|max label</code> (e.g. <code>1|10|Very Unhappy|Deeply Satisfied</code>).
                         </p>
                     </div>
                     <div class="pull-right">
@@ -79,9 +80,19 @@
                                 <?php foreach($fields as $f):
 
                                     $opts = '';
-                                    if (!empty($f['options_json'])) {
+                                    $isScale   = ($f['type'] === 'scale');
+                                    if ($isScale && !empty($f['options_json'])) {
+                                        $scaleDec = json_decode($f['options_json'], true);
+                                        if (is_array($scaleDec) && isset($scaleDec['min'], $scaleDec['max']) && !array_key_exists(0, $scaleDec)) {
+                                            $opts = (int)$scaleDec['min'] . '|' . (int)$scaleDec['max'] . '|'
+                                                . (string)($scaleDec['min_label'] ?? '') . '|'
+                                                . (string)($scaleDec['max_label'] ?? '');
+                                        }
+                                    } elseif (!empty($f['options_json'])) {
                                         $decoded = json_decode($f['options_json'], true);
-                                        if (is_array($decoded)) $opts = implode(', ', $decoded);
+                                        if (is_array($decoded) && array_key_exists(0, $decoded)) {
+                                            $opts = implode(', ', $decoded);
+                                        }
                                     }
                                     $isImage   = ($f['type'] === 'image');
                                     $isVideo   = ($f['type'] === 'video');
@@ -90,6 +101,7 @@
                                     if ($isImage)        $optPlaceholder = 'https://example.com/image.jpg';
                                     elseif ($isVideo)    $optPlaceholder = 'https://www.youtube.com/watch?v=...';
                                     elseif ($isSection)  $optPlaceholder = '(not needed)';
+                                    elseif ($isScale)    $optPlaceholder = '1|10|Very Unhappy|Deeply Satisfied';
                                     else                 $optPlaceholder = 'Option1,Option2';
                                 ?>
                                 <tr>
@@ -112,6 +124,7 @@
                                             <option value="textarea" <?= $f['type']=='textarea'?'selected':'' ?>>Textarea</option>
                                             <option value="select"   <?= $f['type']=='select'  ?'selected':'' ?>>Select</option>
                                             <option value="radio"    <?= $f['type']=='radio'   ?'selected':'' ?>>Radio</option>
+                                            <option value="scale"    <?= $f['type']=='scale'   ?'selected':'' ?>>Scale (1–N)</option>
                                             <option value="checkbox" <?= $f['type']=='checkbox'?'selected':'' ?>>Checkbox</option>
                                             <option value="image"    <?= $isImage              ?'selected':'' ?>>Image (URL)</option>
                                             <option value="video"    <?= $isVideo              ?'selected':'' ?>>Video (URL)</option>
@@ -181,6 +194,10 @@ function toggleOptionsPlaceholder(sel) {
         optInput.value       = '';
         optInput.readOnly    = true;
         optInput.style.background = '#f5f5f5';
+    } else if (sel.value === 'scale') {
+        optInput.placeholder = '1|10|Very Unhappy|Deeply Satisfied';
+        optInput.readOnly    = false;
+        optInput.style.background = '';
     } else {
         optInput.placeholder = 'Option1,Option2';
         optInput.readOnly    = false;
@@ -210,6 +227,7 @@ function addRow() {
                 <option value="textarea">Textarea</option>
                 <option value="select">Select</option>
                 <option value="radio">Radio</option>
+                <option value="scale">Scale (1–N)</option>
                 <option value="checkbox">Checkbox</option>
                 <option value="image">Image (URL)</option>
                 <option value="video">Video (URL)</option>

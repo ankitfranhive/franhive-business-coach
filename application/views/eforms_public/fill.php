@@ -10,17 +10,25 @@ $enable_signature = !isset($overrides['enable_signature'])
     || $overrides['enable_signature'] === 1
     || $overrides['enable_signature'] === true;
 
-// Split fields into top/bottom by sort_order
-$top_fields = [];
-$bottom_fields = [];
-foreach ($fields as $f) {
-    $so = (int)($f['sort_order'] ?? 0);
-    if ($so < 0) $top_fields[] = $f;
-    else $bottom_fields[] = $f;
+// Field order: controller passes top (sort_order < 0), bottom (>= 0), and steps; fallback if missing.
+if (!isset($top_fields) || !isset($bottom_fields)) {
+    $top_fields = [];
+    $bottom_fields = [];
+    foreach ($fields as $f) {
+        if ((int)($f['sort_order'] ?? 0) < 0) {
+            $top_fields[] = $f;
+        } else {
+            $bottom_fields[] = $f;
+        }
+    }
+    usort($top_fields, function ($a, $b) {
+        return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0));
+    });
+    usort($bottom_fields, function ($a, $b) {
+        return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0));
+    });
 }
-
-usort($top_fields, function($a,$b){ return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0)); });
-usort($bottom_fields, function($a,$b){ return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0)); });
+$form_steps = $form_steps ?? null;
 
 // Render input helper (Google-Forms style controls)
 function render_input($f, $fname, $val, $checkbox_errors = []) {
@@ -62,6 +70,45 @@ function render_input($f, $fname, $val, $checkbox_errors = []) {
                     </span>
                     <span class="opt-text">'.html_escape($op).'</span>
                   </label>';
+        }
+        echo '</div>';
+        return;
+    }
+
+    if ($type === 'scale') {
+        $cfg = null;
+        if (isset($options['min'], $options['max']) && !array_key_exists(0, $options)) {
+            $cfg = $options;
+        }
+        $min = (int)($cfg['min'] ?? 1);
+        $max = (int)($cfg['max'] ?? 10);
+        if ($min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+        if ($max - $min > 24) {
+            $max = $min + 24;
+        }
+        $min_label = (string)($cfg['min_label'] ?? '');
+        $max_label = (string)($cfg['max_label'] ?? '');
+
+        echo '<div class="scale-row">';
+        if ($min_label !== '') {
+            echo '<span class="scale-end-label">'.html_escape($min_label).'</span>';
+        }
+        echo '<div class="scale-points">';
+        for ($n = $min; $n <= $max; $n++) {
+            $checked = ((string)$val === (string)$n) ? 'checked' : '';
+            echo '<label class="scale-point">
+                    <span class="scale-num">'.(int)$n.'</span>
+                    <span class="opt-control radio-control">
+                      <input type="radio" name="'.html_escape($fname).'" value="'.(int)$n.'" '.$checked.$req_attr.'>
+                      <span class="opt-dot"></span>
+                    </span>
+                  </label>';
+        }
+        echo '</div>';
+        if ($max_label !== '') {
+            echo '<span class="scale-end-label">'.html_escape($max_label).'</span>';
         }
         echo '</div>';
         return;
@@ -161,6 +208,37 @@ function render_field_html_block($html) {
         return;
     }
     echo '<div class="card field-html-block"><div class="content">'.$html.'</div></div>';
+}
+
+function render_eform_public_field($f, $overrides, $prefill, $checkbox_errors, $field_html_before_map, $field_html_after_map) {
+    $fname    = $f['name'];
+    $ftype    = $f['type'] ?? 'text';
+    $label    = $overrides['labels'][$fname] ?? ($f['label'] ?? $fname);
+    $default  = $prefill[$fname] ?? '';
+    $required = ((int)($f['is_required'] ?? 0) === 1);
+
+    if ($ftype === 'checkbox') {
+        $val = $prefill[$fname] ?? '';
+    } else {
+        $val = set_value($fname, $default);
+    }
+
+    $card_error_class = (!empty($checkbox_errors[$fname])) ? ' has-error' : '';
+    $html_before = $field_html_before_map[$fname] ?? '';
+    $html_after  = $field_html_after_map[$fname] ?? '';
+
+    render_field_html_block($html_before);
+
+    if ($ftype === 'section') {
+        echo '<div class="card section-card"><h3 class="section-title">'.html_escape($label).'</h3></div>';
+    } else {
+        echo '<div class="card q-card'.$card_error_class.'">';
+        echo '<label class="q-label">'.html_escape($label).($required ? ' <span class="req">*</span>' : '').'</label>';
+        render_input($f, $fname, $val, $checkbox_errors);
+        echo '</div>';
+    }
+
+    render_field_html_block($html_after);
 }
 
 // Dynamic heading for title/footer
@@ -453,6 +531,45 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       align-items:center;
     }
     .opt-group.horizontal .opt-row{padding:6px 4px;}
+
+    .scale-row{
+      display:flex;
+      flex-wrap:nowrap;
+      align-items:flex-end;
+      gap:10px 14px;
+      margin-top:8px;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      padding-bottom:4px;
+    }
+    .scale-end-label{
+      font-size:13px;
+      color:var(--muted);
+      white-space:nowrap;
+      flex:0 0 auto;
+      max-width:140px;
+      line-height:1.3;
+      align-self:center;
+    }
+    .scale-points{
+      display:flex;
+      flex:1 1 auto;
+      justify-content:center;
+      align-items:flex-end;
+      gap:2px 6px;
+      flex-wrap:nowrap;
+      min-width:0;
+    }
+    .scale-point{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      cursor:pointer;
+      padding:2px;
+      flex:0 0 auto;
+    }
+    .scale-num{font-size:12px;color:var(--muted);line-height:1;}
     .opt-row{
       display:flex;
       align-items:center;
@@ -721,51 +838,41 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
         <?php if (function_exists('validation_errors')): ?>
           <?= validation_errors('<div class="err">','</div>'); ?>
         <?php endif; ?>
-
-        <?php if (!empty($template['body_html'])): ?>
-          <div class="content"><?= $template['body_html'] ?></div>
-        <?php endif; ?>
       </div>
     </div>
 
     <?php
-      // ── Build section lookup ──────────────────────────────
-      $sec_map            = [];
-      foreach ($overrides['sections'] ?? [] as $sec) {
-          $sec_map[$sec['id']] = $sec['name'];
-      }
-      $field_sections_map = $overrides['field_sections'] ?? [];
       $field_html_before_map = $overrides['field_html_before'] ?? [];
       $field_html_after_map  = $overrides['field_html_after'] ?? [];
 
-      // ── Group all fields into ordered steps ───────────────
-      // Each step = one section (or the "ungrouped" bucket).
-      // Fields with no section land in a shared bucket that
-      // is placed wherever they first appear in sort order.
-      $all_fields   = array_merge($top_fields, $bottom_fields);
-      $steps        = [];   // [ ['sec_id'=>'', 'sec_name'=>'', 'fields'=>[...]], ... ]
-      $sec_to_step  = [];   // sec_id => step index
-
-      foreach ($all_fields as $f) {
-          $ftype    = $f['type'] ?? 'text';
-          $fname    = $f['name'];
-          $is_display = in_array($ftype, ['image','video','section']);
-
-          // Determine which step this field belongs to
-          $this_sec = (!$is_display) ? ($field_sections_map[$fname] ?? '') : '';
-
-          if (!isset($sec_to_step[$this_sec])) {
-              $sec_to_step[$this_sec] = count($steps);
-              $steps[] = [
-                  'sec_id'   => $this_sec,
-                  'sec_name' => ($this_sec !== '' && isset($sec_map[$this_sec]))
-                                    ? $sec_map[$this_sec] : '',
-                  'fields'   => []
-              ];
+      if ($form_steps === null) {
+          $sec_map = [];
+          foreach ($overrides['sections'] ?? [] as $sec) {
+              $sec_map[$sec['id']] = $sec['name'];
           }
-          $steps[$sec_to_step[$this_sec]]['fields'][] = $f;
+          $field_sections_map = $overrides['field_sections'] ?? [];
+          // Legacy fallback: contiguous section steps on bottom fields only.
+          $form_steps = [];
+          $last_sec = null;
+          foreach ($bottom_fields as $f) {
+              $ftype = $f['type'] ?? 'text';
+              $fname = (string)($f['name'] ?? '');
+              $is_display = in_array($ftype, ['image', 'video', 'section'], true);
+              $this_sec = (!$is_display && $fname !== '') ? (string)($overrides['field_sections'][$fname] ?? '') : '';
+              if ($form_steps === [] || $last_sec !== $this_sec) {
+                  $form_steps[] = [
+                      'sec_id'   => $this_sec,
+                      'sec_name' => ($this_sec !== '' && isset($sec_map[$this_sec])) ? $sec_map[$this_sec] : '',
+                      'fields'   => [$f],
+                  ];
+                  $last_sec = $this_sec;
+              } else {
+                  $form_steps[count($form_steps) - 1]['fields'][] = $f;
+              }
+          }
       }
 
+      $steps = $form_steps;
       $total_steps  = count($steps);
       $use_steps    = ($total_steps > 1);
 
@@ -773,7 +880,7 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       $time_weights = [
           'text'      => 12, 'email'    => 12, 'number' => 10, 'date'     => 10,
           'textarea'  => 45, 'select'   =>  8, 'radio'  =>  8, 'checkbox' => 15,
-          'signature' => 25,
+          'scale'     =>  8, 'signature' => 25,
       ];
       $step_seconds = [];
       $total_seconds = 0;
@@ -813,6 +920,18 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
     ?>
 
     <form method="post" onsubmit="return beforeSubmit();" id="form-anchor">
+
+      <?php foreach ($top_fields as $f):
+        render_eform_public_field($f, $overrides, $prefill, $checkbox_errors, $field_html_before_map, $field_html_after_map);
+      endforeach; ?>
+
+      <?php if (!empty($template['body_html'])): ?>
+        <div class="card title-card">
+          <div class="title-body">
+            <div class="content"><?= $template['body_html'] ?></div>
+          </div>
+        </div>
+      <?php endif; ?>
 
       <?php if ($use_steps): ?>
       <!-- STEP PROGRESS BAR + TIME ESTIMATE -->
@@ -858,41 +977,8 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
         <?php endif; ?>
 
         <?php foreach ($step['fields'] as $f):
-          $fname    = $f['name'];
-          $ftype    = $f['type'] ?? 'text';
-          $label    = $overrides['labels'][$fname] ?? ($f['label'] ?? $fname);
-          $default  = $prefill[$fname] ?? '';
-          $required = ((int)($f['is_required'] ?? 0) === 1);
-
-          // Checkbox: always use $prefill (may be POST-repopulated array on failed validation).
-          // Other fields: use CI set_value() with $default as fallback.
-          if ($ftype === 'checkbox') {
-              $val = $prefill[$fname] ?? '';
-          } else {
-              $val = set_value($fname, $default);
-          }
-
-          // Mark card with has-error if server returned an error for this field
-          $card_error_class = (!empty($checkbox_errors[$fname])) ? ' has-error' : '';
-
-          $html_before = $field_html_before_map[$fname] ?? '';
-          $html_after  = $field_html_after_map[$fname] ?? '';
-        ?>
-          <?php render_field_html_block($html_before); ?>
-
-          <?php if ($ftype === 'section'): ?>
-            <div class="card section-card">
-              <h3 class="section-title"><?= html_escape($label) ?></h3>
-            </div>
-          <?php else: ?>
-            <div class="card q-card<?= $card_error_class ?>">
-              <label class="q-label"><?= html_escape($label) ?><?= $required ? ' <span class="req">*</span>' : '' ?></label>
-              <?php render_input($f, $fname, $val, $checkbox_errors); ?>
-            </div>
-          <?php endif; ?>
-
-          <?php render_field_html_block($html_after); ?>
-        <?php endforeach; ?>
+          render_eform_public_field($f, $overrides, $prefill, $checkbox_errors, $field_html_before_map, $field_html_after_map);
+        endforeach; ?>
 
         <?php if ($use_steps): ?>
           <!-- Per-step Next / Previous -->

@@ -1,0 +1,2821 @@
+{
+    "missing_tables": [
+        "CALENDAR_EVENTS",
+        "LANDINGPAGE_CONTACTS_DATA",
+        "LEAD_EMAIL_LOGS",
+        "TEST_SERIES_QUESTION_OPTIONS",
+        "ef_form_type_fields",
+        "ef_form_types",
+        "ef_requests",
+        "ef_submission_values",
+        "ef_submissions",
+        "ef_templates",
+        "franhive_data",
+        "module_fh",
+        "orders",
+        "password_resets",
+        "payment_agreement_form_settings",
+        "payment_agreement_requests",
+        "permission_fh"
+    ],
+    "extra_tables_demo_only": [
+        "APP_ROUTES",
+        "ENTITY_TEMP",
+        "USER_LESSON_MAPPING",
+        "call_logs"
+    ],
+    "missing_columns": [
+        "CAMPAIGN.WORKFLOW_STATUS",
+        "CAMPAIGN.TOTAL_RECIPIENTS",
+        "CAMPAIGN.SENT_COUNT",
+        "CAMPAIGN.LAST_ACTIVITY_AT",
+        "CAMPAIGN.TIMEZONE",
+        "CAMPAIGN_TEMPLATES_MAPPING.SEND_STATUS",
+        "CAMPAIGN_TEMPLATES_MAPPING.SENT_AT",
+        "CAMPAIGN_TEMPLATES_MAPPING.SEND_AT",
+        "CAMPAIGN_TEMPLATES_MAPPING.TIMEZONE",
+        "CAMPAIGN_TEMPLATE_USER_MAPPING.CONTACT_SOURCE",
+        "COURSES.REGISTRARTION_LINK",
+        "ENROLL_AGREEMENT_DATA.request_id",
+        "ENROLL_AGREEMENT_DATA.client_id",
+        "ENROLL_AGREEMENT_DATA.business_name",
+        "ENROLL_AGREEMENT_DATA.postal_address",
+        "ENROLL_AGREEMENT_DATA.city_suburb",
+        "ENROLL_AGREEMENT_DATA.postcode",
+        "ENROLL_AGREEMENT_DATA.country",
+        "ENROLL_AGREEMENT_DATA.contact_number_mobile",
+        "ENROLL_AGREEMENT_DATA.contact_number_work",
+        "ENROLL_AGREEMENT_DATA.emergency_contact_number",
+        "ENROLL_AGREEMENT_DATA.course_name",
+        "ENROLL_AGREEMENT_DATA.training_date_text",
+        "ENROLL_AGREEMENT_DATA.location_name",
+        "ENROLL_AGREEMENT_DATA.notes",
+        "ENROLL_AGREEMENT_DATA.total_inc_gst",
+        "ENROLL_AGREEMENT_DATA.deposit_paid_on",
+        "ENROLL_AGREEMENT_DATA.balance_amount",
+        "ENROLL_AGREEMENT_DATA.holds_certification",
+        "ENROLL_AGREEMENT_DATA.certification_details",
+        "ENROLL_AGREEMENT_DATA.certification_attachment",
+        "ENROLL_AGREEMENT_DATA.agree_terms_4",
+        "ENROLL_AGREEMENT_DATA.agree_terms_5",
+        "ENROLL_AGREEMENT_DATA.agree_terms_6",
+        "ENROLL_AGREEMENT_DATA.stripe_customer_id",
+        "ENROLL_AGREEMENT_DATA.stripe_payment_method_id",
+        "ENROLL_AGREEMENT_DATA.card_brand",
+        "ENROLL_AGREEMENT_DATA.card_last4",
+        "ENROLL_AGREEMENT_DATA.card_expiry_month",
+        "ENROLL_AGREEMENT_DATA.card_expiry_year",
+        "ENROLL_AGREEMENT_DATA.signature_image",
+        "ENROLL_AGREEMENT_DATA.other_course_name",
+        "ENROLL_AGREEMENT_DATA.ip_address",
+        "ENROLL_AGREEMENT_DATA.user_agent",
+        "ENROLL_AGREEMENT_DATA.client_timezone",
+        "ENROLL_AGREEMENT_DATA.client_time_iso",
+        "ENROLL_AGREEMENT_DATA.screen_resolution",
+        "ENROLL_AGREEMENT_DATA.payment_arrangement_json",
+        "ENTITY.LEAD_SENDING_ORDER",
+        "ENTITY.CLIENT_SENDING_ORDER",
+        "LANDING_PAGES.PAYMENT_TEMPLATE",
+        "LANDING_PAGES.TESTIMONIALS_IMAGES",
+        "LANDING_PAGES.PRICE_FIRST_TRAINING",
+        "LANDING_PAGES.PRICE_SECOND_TRAINING",
+        "LANDING_PAGES.EMAIL_TEMPLATE",
+        "LESSONS.THUMBNAIL_IMAGE",
+        "LESSONS.LESSON_VIDEO_LINK",
+        "LESSONS.LESSON_FOR_COURSE",
+        "TEMPLATES.MERGE_TAGS",
+        "TEST_QUESTION_MAPPING.MAP_STATUS",
+        "TEST_SERIES.TEST_TYPE",
+        "TEST_SERIES.TEST_INSTRUCTIONS",
+        "TEST_SERIES_QUESTIONS.option_1",
+        "TEST_SERIES_QUESTIONS.is_correct_1",
+        "TEST_SERIES_QUESTIONS.option_2",
+        "TEST_SERIES_QUESTIONS.is_correct_2",
+        "TEST_SERIES_QUESTIONS.option_3",
+        "TEST_SERIES_QUESTIONS.is_correct_3",
+        "TEST_SERIES_QUESTIONS.option_4",
+        "TEST_SERIES_QUESTIONS.is_correct_4"
+    ],
+    "different_columns": [
+        {
+            "table": "ACTIVITY_LOGS",
+            "column": "ACTIVITY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "AGREEMENT_DETAILS",
+            "column": "ENTITY_DATA_FROM_COMPANY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "AGREEMENT_DETAILS",
+            "column": "ENTITY_DATA_FROM_LEAD",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "AGREEMENT_DETAILS_REMARKS",
+            "column": "REMARKS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "CAMPAIGN_EMAIL_LOGS",
+            "column": "BODY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "CAMPAIGN_EMAIL_LOGS",
+            "column": "ATTACHMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "COURSES",
+            "column": "OBJECTIVE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "COURSES",
+            "column": "THUMNAIL_IMAGE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "DELETED_LOGS",
+            "column": "DATA_JSON",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "email_address",
+            "eyd": {
+                "type": "varchar(150)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_0900_ai_ci"
+            },
+            "demo": {
+                "type": "varchar(100)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "latin1_swedish_ci"
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "deposit_amount",
+            "eyd": {
+                "type": "decimal(10,2)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "varchar(50)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "latin1_swedish_ci"
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "deposit_paid_via",
+            "eyd": {
+                "type": "varchar(100)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_0900_ai_ci"
+            },
+            "demo": {
+                "type": "varchar(50)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "latin1_swedish_ci"
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "agree_terms_1",
+            "eyd": {
+                "type": "tinyint(1)",
+                "nullable": "NO",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "tinyint(1)",
+                "nullable": "YES",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "agree_terms_2",
+            "eyd": {
+                "type": "tinyint(1)",
+                "nullable": "NO",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "tinyint(1)",
+                "nullable": "YES",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "agree_terms_3",
+            "eyd": {
+                "type": "tinyint(1)",
+                "nullable": "NO",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "tinyint(1)",
+                "nullable": "YES",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "payment_option",
+            "eyd": {
+                "type": "varchar(100)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_0900_ai_ci"
+            },
+            "demo": {
+                "type": "varchar(50)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "latin1_swedish_ci"
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "name_on_card",
+            "eyd": {
+                "type": "varchar(150)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_0900_ai_ci"
+            },
+            "demo": {
+                "type": "varchar(100)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "latin1_swedish_ci"
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "signature_date",
+            "eyd": {
+                "type": "datetime",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "date",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "ENROLL_AGREEMENT_DATA",
+            "column": "created_at",
+            "eyd": {
+                "type": "timestamp",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "timestamp",
+                "nullable": "NO",
+                "default": "CURRENT_TIMESTAMP",
+                "extra": "DEFAULT_GENERATED",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "ENTITY",
+            "column": "COURSE_ID",
+            "eyd": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            },
+            "demo": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_AGREEMENTS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_AGREEMENTS",
+            "column": "STREET_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CALLS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT1",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT2",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT3",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT4",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT5",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT6",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CONTRACT_SIGNING",
+            "column": "UPLOADED_DOCUMENT7",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CUSTOMER_COMPLAINTS",
+            "column": "SUMMARY_OF_INCIDENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CUSTOMER_COMPLAINTS",
+            "column": "ACTION_TAKEN",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CUSTOMER_COMPLAINTS",
+            "column": "DOCUMENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_CUSTOMER_COMPLAINTS",
+            "column": "STREET_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_DEFAULT_TERMINATION",
+            "column": "DOCUMENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_DEFAULT_TERMINATION",
+            "column": "ADDRESS_1",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_DEFAULT_TERMINATION",
+            "column": "ADDRESS_2",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_DEFAULT_TERMINATION",
+            "column": "CA_ADDRESS_1",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_DEFAULT_TERMINATION",
+            "column": "CA_ADDRESS_2",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_DOCUMENTS",
+            "column": "FILE_NAME",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_EVENT",
+            "column": "SUMMARY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_GUARANTOR",
+            "column": "STREET_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_INSURANCE",
+            "column": "OTHER_1_COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_INSURANCE",
+            "column": "OTHER_2_COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_INSURANCE",
+            "column": "DOCUMENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_INSURANCE",
+            "column": "ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_INSURANCE",
+            "column": "AGENCY_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_LEGAL_VIOLATION",
+            "column": "SUMMARY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_LEGAL_VIOLATION",
+            "column": "ACTION_TAKEN",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_LENDERS",
+            "column": "ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_LENDERS",
+            "column": "DOCUMENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_MARKETING",
+            "column": "ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_MARKETING",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_MYSTERY_REVIEW",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_MYSTERY_REVIEW",
+            "column": "P_COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_MYSTERY_REVIEW",
+            "column": "S_COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_MYSTERY_REVIEW",
+            "column": "A_COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_REAL_ESTATE",
+            "column": "OPTION_TERMYEARS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_REAL_ESTATE",
+            "column": "GENERAL_CONTRACTOR_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_REAL_ESTATE",
+            "column": "L_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_REAL_ESTATE",
+            "column": "S_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_REAL_ESTATE",
+            "column": "T_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_RENEWAL",
+            "column": "MISSING_DOCS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_RENEWAL",
+            "column": "NOTES",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_TERRITORY",
+            "column": "DISPUTES_IF_ANY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_TERRITORY",
+            "column": "NOTES",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_TERRITORY",
+            "column": "ZIP_OWNED_EXCLUSIVELY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_TERRITORY",
+            "column": "ZIP_FOR_LOCATOR",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "FD_TERRITORY",
+            "column": "NATURAL_HAZARDS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "KICKOFF_CALLS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "KICKOFF_TASKS",
+            "column": "TASK_DESC",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "KNOWLEDGE_CENTER_COMMENTS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_TYPE",
+            "eyd": {
+                "type": "int",
+                "nullable": "NO",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "tinyint",
+                "nullable": "YES",
+                "default": "1",
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "SHARE_IMAGE",
+            "eyd": {
+                "type": "varchar(500)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_NAME",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "BANNER_IMAGE",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "longtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_MAIN_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "longtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_LEFT_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_RIGHT_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_THANKS_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_FEE",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_VIP_FEE",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_VIP_EXPERIENCE_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "LANDING_PAGE_VIP_EXPERIENCE_CONTENT_STEPS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "BANNER_IMAGE_HEIGHT",
+            "eyd": {
+                "type": "int",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "int",
+                "nullable": "YES",
+                "default": "50",
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "BANNER_IMAGE_WIDTH",
+            "eyd": {
+                "type": "int",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "int",
+                "nullable": "YES",
+                "default": "50",
+                "extra": "",
+                "key": "",
+                "collation": null
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "TESTIMONIALS_VIDEOS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "COACH_PHOTO",
+            "eyd": {
+                "type": "varchar(500)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "COACH_BIO_SHORT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "COACH_BIO_LONG",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "WHATSAPP_TEXT",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "varchar(500)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES",
+            "column": "VIP_CARD_TEXT",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "varchar(500)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LANDING_PAGES_VIDEOS",
+            "column": "VIDEO_TEXT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_AGENTS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_CALLS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "HEAR_ABOUT_US",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "EMP_ADDRESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "OTHER_INCOME",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "OPENING_ON",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "RESP_FOR_BUSINESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "SPOUSE_FEEL_BUSINESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "OTHER_FACTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "PERSONAL_PERSONALITY_STYLE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "LEADS_BACKGROUNDBUSINESS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "GOALS_AND_ASPIRATIONS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "FRANCHISE_CONS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "TIME_FRAME_CHOICE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "FRANCHISE_PROS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_PERSONAL_PROFILE",
+            "column": "OTHER_INFORMATION",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LEAD_TASKS",
+            "column": "TASK_DESC",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LESSONS",
+            "column": "CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LESSONS",
+            "column": "ATTACHMENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "LESSONS",
+            "column": "OBJECTIVE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "NOTIFICATION_EMAIL_CONTENT",
+            "column": "MAIL_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "SEND_MAIL_LOGS",
+            "column": "BODY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "SEND_MAIL_LOGS",
+            "column": "ATTACHMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "SEND_MAIL_LOGS",
+            "column": "ACTIVITY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "STORIES",
+            "column": "CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "SUPPORT_COMMENTS",
+            "column": "COMMENTS",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "TEMPLATES",
+            "column": "TEMPLATE_NAME",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "varchar(255)",
+                "nullable": "NO",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            }
+        },
+        {
+            "table": "TEMPLATES",
+            "column": "TEMPLATE_SUBJECT",
+            "eyd": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "longtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            }
+        },
+        {
+            "table": "TEMPLATES",
+            "column": "TEMPLATE_BODY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "longtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            }
+        },
+        {
+            "table": "TEMPLATES",
+            "column": "TEMPLATE_SIGN",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "varchar(255)",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            }
+        },
+        {
+            "table": "TICKETS",
+            "column": "SUBJECT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "TICKETS",
+            "column": "DESCRIPTION",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "TICKETS",
+            "column": "ATTACHMENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "USERS",
+            "column": "ADDRESS_LINE_1",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "USERS",
+            "column": "ADDRESS_LINE_2",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "USERS",
+            "column": "PROFILE_PICTURE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "USERS",
+            "column": "CLIENT_TYPE_ID",
+            "eyd": {
+                "type": "int",
+                "nullable": "YES",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": null
+            },
+            "demo": {
+                "type": "varchar(45)",
+                "nullable": "YES",
+                "default": "0",
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "USER_SIGNS",
+            "column": "SIGN",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "VIEWS",
+            "column": "QUERY",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "WEBPAGE_URL",
+            "column": "URL_TEXT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "WEB_FORMS",
+            "column": "WEB_FORM_CONTENT",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        },
+        {
+            "table": "WEB_FORMS",
+            "column": "WEB_FORM_FILE",
+            "eyd": {
+                "type": "mediumtext",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb4_unicode_ci"
+            },
+            "demo": {
+                "type": "text",
+                "nullable": "YES",
+                "default": null,
+                "extra": "",
+                "key": "",
+                "collation": "utf8mb3_general_ci"
+            }
+        }
+    ]
+}

@@ -43,7 +43,7 @@
 
         <hr>
         <h4 class="text-blue h4">Fields</h4>
-        <p class="text-muted">For the <strong>Image</strong> type, paste the image URL into the Options column instead of an uploader.</p>
+        <p class="text-muted">For the <strong>Image</strong> type, paste the image URL into the Options column. For <strong>Scale</strong>, use <code>min|max|min label|max label</code> (e.g. <code>1|10|Very Unhappy|Deeply Satisfied</code>).</p>
 
         <div class="table-responsive">
         <table class="table table-bordered" id="fields_tbl">
@@ -73,6 +73,8 @@ function toggleOptionsPlaceholder(sel) {
         optInput.placeholder = 'https://example.com/image.jpg';
     } else if (sel.value === 'video') {
         optInput.placeholder = 'https://www.youtube.com/watch?v=... or Vimeo URL';
+    } else if (sel.value === 'scale') {
+        optInput.placeholder = '1|10|Very Unhappy|Deeply Satisfied';
     } else {
         optInput.placeholder = 'Yes,No OR Option1,Option2';
     }
@@ -93,6 +95,7 @@ function addRow(){
         <option value="textarea">Textarea</option>
         <option value="select">Select</option>
         <option value="radio">Radio</option>
+        <option value="scale">Scale (1–N)</option>
         <option value="checkbox">Checkbox</option>
         <option value="image">Image (URL)</option>
         <option value="video">Video (URL)</option>

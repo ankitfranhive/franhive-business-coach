@@ -132,33 +132,45 @@ foreach ($overrides['sections'] ?? [] as $sec) {
 }
 $field_sections_map = $overrides['field_sections'] ?? [];
 
-$top_fields = [];
-$bottom_fields = [];
-foreach ($fields as $f) {
-  $so = (int)($f['sort_order'] ?? 0);
-  if ($so < 0) $top_fields[] = $f;
-  else $bottom_fields[] = $f;
+if (!isset($top_fields) || !isset($bottom_fields)) {
+  $top_fields = [];
+  $bottom_fields = [];
+  foreach ($fields as $f) {
+    $so = (int)($f['sort_order'] ?? 0);
+    if ($so < 0) {
+      $top_fields[] = $f;
+    } else {
+      $bottom_fields[] = $f;
+    }
+  }
+  usort($top_fields, function ($a, $b) {
+    return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0));
+  });
+  usort($bottom_fields, function ($a, $b) {
+    return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0));
+  });
 }
-usort($top_fields, function ($a, $b) { return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0)); });
-usort($bottom_fields, function ($a, $b) { return ((int)($a['sort_order'] ?? 0)) <=> ((int)($b['sort_order'] ?? 0)); });
 $all_fields = array_merge($top_fields, $bottom_fields);
 
-$steps = [];
-$sec_to_step = [];
-foreach ($all_fields as $f) {
-  $ftype = $f['type'] ?? 'text';
-  $fname = $f['name'] ?? '';
-  $is_display = in_array($ftype, ['image', 'video', 'section'], true);
-  $this_sec = (!$is_display) ? ($field_sections_map[$fname] ?? '') : '';
-  if (!isset($sec_to_step[$this_sec])) {
-    $sec_to_step[$this_sec] = count($steps);
-    $steps[] = [
-      'sec_id'   => $this_sec,
-      'sec_name' => ($this_sec !== '' && isset($sec_map[$this_sec])) ? $sec_map[$this_sec] : '',
-      'fields'   => [],
-    ];
+if (!isset($steps) || !is_array($steps)) {
+  $steps = [];
+  $last_sec = null;
+  foreach ($bottom_fields as $f) {
+    $ftype = $f['type'] ?? 'text';
+    $fname = (string)($f['name'] ?? '');
+    $is_display = in_array($ftype, ['image', 'video', 'section'], true);
+    $this_sec = (!$is_display && $fname !== '') ? (string)($field_sections_map[$fname] ?? '') : '';
+    if ($steps === [] || $last_sec !== $this_sec) {
+      $steps[] = [
+        'sec_id'   => $this_sec,
+        'sec_name' => ($this_sec !== '' && isset($sec_map[$this_sec])) ? $sec_map[$this_sec] : '',
+        'fields'   => [$f],
+      ];
+      $last_sec = $this_sec;
+    } else {
+      $steps[count($steps) - 1]['fields'][] = $f;
+    }
   }
-  $steps[$sec_to_step[$this_sec]]['fields'][] = $f;
 }
 
 $orphan_values = [];
@@ -284,6 +296,47 @@ if (!empty($signature_path)) {
   <h1><?= h($heading) ?></h1>
   <?php if (!empty($subheading)): ?>
     <p class="sub"><?= h($subheading) ?></p>
+  <?php endif; ?>
+
+  <?php if (!empty($top_fields)): ?>
+    <?php foreach ($top_fields as $f):
+      $fname = (string)($f['name'] ?? '');
+      $ftype = $f['type'] ?? 'text';
+      $label = $overrides['labels'][$fname] ?? ($f['label'] ?? $fname);
+      $html_before = $field_html_before_map[$fname] ?? '';
+      $html_after  = $field_html_after_map[$fname] ?? '';
+      $filled = $values_by_name[$fname] ?? '';
+    ?>
+      <?php if (trim((string)$html_before) !== ''): ?>
+        <div class="field-html"><?= pdf_rich_html($html_before) ?></div>
+      <?php endif; ?>
+      <?php if ($ftype === 'section'): ?>
+        <div class="section-title"><?= h($label) ?></div>
+      <?php elseif ($ftype === 'image'):
+        $src = pdf_field_media_src($f);
+      ?>
+        <?php if ($src !== ''): ?>
+          <div class="media-field"><img src="<?= h($src) ?>" alt="<?= h($label) ?>"></div>
+        <?php endif; ?>
+      <?php elseif ($ftype === 'video'):
+        $src = pdf_field_media_src($f);
+      ?>
+        <?php if ($src !== ''): ?>
+          <div class="q-card">
+            <div class="q-label"><?= h($label) ?></div>
+            <div class="q-value"><a href="<?= h($src) ?>"><?= h($src) ?></a></div>
+          </div>
+        <?php endif; ?>
+      <?php else: ?>
+        <div class="q-card">
+          <div class="q-label"><?= h($label) ?></div>
+          <div class="q-value"><?= $filled !== '' ? nl2br(h($filled)) : '&nbsp;' ?></div>
+        </div>
+      <?php endif; ?>
+      <?php if (trim((string)$html_after) !== ''): ?>
+        <div class="field-html"><?= pdf_rich_html($html_after) ?></div>
+      <?php endif; ?>
+    <?php endforeach; ?>
   <?php endif; ?>
 
   <?php if (trim((string)$body_html) !== ''): ?>

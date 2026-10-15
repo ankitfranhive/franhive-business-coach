@@ -205,6 +205,16 @@ class Eforms extends CI_Controller {
             } elseif (($posted === '1' || $posted === 'on') && empty($options)) {
               $posted = 'I accept and agree';
             }
+          } elseif (($f['type'] ?? '') === 'scale') {
+            $cfg = $this->eform->parse_scale_config($f['options_json'] ?? '');
+            if ($cfg !== null && $posted !== null && $posted !== '') {
+              $n = (int)$posted;
+              if ($n >= $cfg['min'] && $n <= $cfg['max']) {
+                $posted = (string)$n;
+              } else {
+                $posted = '';
+              }
+            }
           } elseif (is_array($posted)) {
             $posted = implode(', ', $posted);
           }
@@ -305,9 +315,22 @@ class Eforms extends CI_Controller {
     }
 
     // GET view (also shown on failed validation)
+    $sec_map = [];
+    foreach ($overrides['sections'] ?? [] as $sec) {
+      if (!empty($sec['id'])) {
+        $sec_map[$sec['id']] = $sec['name'] ?? '';
+      }
+    }
+    $field_sections_map = $overrides['field_sections'] ?? [];
+    [$top_fields, $bottom_fields] = $this->eform->split_fields_top_bottom($fields);
+    $form_steps = $this->eform->build_form_field_steps($bottom_fields, $field_sections_map, $sec_map);
+
     $this->load->view('eforms_public/fill', [
       'template'        => $tpl,
       'fields'          => $fields,
+      'top_fields'      => $top_fields,
+      'bottom_fields'   => $bottom_fields,
+      'form_steps'      => $form_steps,
       'overrides'       => $overrides,
       'prefill'         => $prefill,
       'agree_text'      => $tpl['agree_text'] ?? ($overrides['texts']['agree_checkbox_text'] ?? 'I have read and agree.'),
