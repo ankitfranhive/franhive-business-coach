@@ -86,6 +86,7 @@ $route['test'] = 'admin/getAllTests';
 $route['test-reports'] = 'admin/getAllTestsReports';
 
 $route['admin-test-report/(:num)/(:num)'] = 'admin/adminTestReport/$1/$2';
+$route['admin-test-report-pdf/(:num)'] = 'admin/downloadTestReportPdf/$1';
 
 
 $route['my-test-report-pdf/(:num)'] = 'welcome/downloadReportPdf/$1';

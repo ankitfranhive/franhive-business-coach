@@ -96,7 +96,7 @@ $show_brs_extras = isset($show_brs_extras) ? (bool)$show_brs_extras : false;
     </span>
 
     <a class="btn btn-sm btn-outline-primary"
-       href="<?= base_url('my-test-report-pdf/' . $response_id) ?>">
+       href="<?= base_url('admin-test-report-pdf/' . $response_id) ?>">
         Download Report PDF
     </a>
 

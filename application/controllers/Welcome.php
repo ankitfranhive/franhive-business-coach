@@ -192,30 +192,25 @@ public function downloadReportPdf($response_id)
         return;
     }
 
-    // ✅ Only Type 4 / 5
     $testType = (int)$row['TEST_TYPE'];
-    if (!in_array($testType, [4, 5], true)) {
+    $this->load->helper('test_report_pdf');
+
+    $respId = (int)($row['ID'] ?? $row['id'] ?? $response_id);
+    $testId = (int)($row['TEST_ID'] ?? $row['test_id'] ?? 0);
+    $filename = 'test_report_' . $testId . '_response_' . $respId . '.pdf';
+
+    if ($testType === 1) {
+        $data = test_report_disc_pdf_data($row);
+        $html = $this->load->view('mcq_test_report_pdf', $data, true);
+    } elseif (in_array($testType, [4, 5], true)) {
+        $data = test_report_brs_pdf_data($this, $row);
+        $html = $this->load->view('test_report_brs_pdf', $data, true);
+    } else {
         show_error('This report type is not supported here.', 400);
         return;
     }
 
-    $data = $this->_buildReportDataForPdf($row);
-
-    $html = $this->load->view('test_report_brs_pdf', $data, true);
-
-    $dompdf = new \Dompdf\Dompdf();
-    if (method_exists($dompdf, 'set_option')) {
-        $dompdf->set_option('isRemoteEnabled', true);
-        $dompdf->set_option('isHtml5ParserEnabled', true);
-    }
-
-    $dompdf->loadHtml($html);
-    $dompdf->setPaper('A4', 'portrait');
-    $dompdf->render();
-
-    $filename = 'test_report_' . $row['TEST_ID'] . '_response_' . $row['ID'] . '.pdf';
-    $dompdf->stream($filename, ["Attachment" => true]);
-    exit;
+    test_report_stream_pdf($html, $filename);
 }
 
 

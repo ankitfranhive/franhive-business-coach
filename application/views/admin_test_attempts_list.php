@@ -97,7 +97,7 @@
                                         <?php endif; ?>
 
                                         <!-- ✅ PDF per attempt -->
-                                        <a href="<?= base_url('my-test-report-pdf/' . $responseId) ?>"
+                                        <a href="<?= base_url('admin-test-report-pdf/' . $responseId) ?>"
                                            class="btn btn-outline-primary btn-sm" style="margin-left:6px;">
                                             PDF
                                         </a>

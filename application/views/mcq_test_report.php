@@ -43,6 +43,12 @@
                 : base_url('submit-test-eval/' . $response_id);
             ?>
             <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                <?php if (!empty($response_id)): ?>
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="<?= base_url('admin-test-report-pdf/' . $response_id) ?>">
+                        Download Report PDF
+                    </a>
+                <?php endif; ?>
                 <span class="badge <?= $is_eval ? 'badge-success' : 'badge-warning' ?>" style="font-size:13px;padding:8px 12px;">
                     <?= $is_eval ? 'Evaluated' : 'Not evaluated — user cannot see results yet' ?>
                 </span>

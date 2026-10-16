@@ -951,6 +951,38 @@ if ($testType === 5) {
 
     
 
+    /** Download PDF for test types 1, 4, 5 (admin; any user's attempt). */
+    public function downloadTestReportPdf($response_id)
+    {
+        $this->load->model('User_test_model');
+        $this->load->helper('test_report_pdf');
+
+        $response_id = (int)$response_id;
+        $row = $this->User_test_model->get_test_report_row_by_response_id_admin($response_id);
+        if (empty($row)) {
+            show_404();
+        }
+
+        $row = $this->AdminConsoleModel->normalize_test_user_response_row($row);
+        $testType = (int)($row['TEST_TYPE'] ?? 0);
+        $respId = (int)($row['ID'] ?? $response_id);
+        $testId = (int)($row['TEST_ID'] ?? $row['test_id'] ?? 0);
+        $filename = 'test_report_' . $testId . '_response_' . $respId . '.pdf';
+
+        if ($testType === 1) {
+            $data = test_report_disc_pdf_data($row);
+            $html = $this->load->view('mcq_test_report_pdf', $data, true);
+        } elseif (in_array($testType, [4, 5], true)) {
+            $data = test_report_brs_pdf_data($this, $row);
+            $html = $this->load->view('test_report_brs_pdf', $data, true);
+        } else {
+            show_error('PDF download is not available for this test type.', 400);
+            return;
+        }
+
+        test_report_stream_pdf($html, $filename);
+    }
+
     /** Mark auto-scored attempts (BRS / scale tests) as evaluated from admin report. */
     public function submitTestEval($response_id)
     {

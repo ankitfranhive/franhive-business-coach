@@ -397,16 +397,40 @@ public function get_my_tests_reports($user_id)
             u.NAME,
             u.PROFILE_PICTURE
         FROM TEST_USER_RESPONSE tur
-        INNER JOIN TEST_SERIES ts ON ts.TEST_ID = tur.TEST_ID
-        INNER JOIN USERS u ON u.USER_ID = tur.USER_ID
-        WHERE tur.ID = ?
-          AND tur.USER_ID = ?
+        INNER JOIN TEST_SERIES ts ON ts.TEST_ID = tur.test_id
+        INNER JOIN USERS u ON u.USER_ID = tur.user_id
+        WHERE tur.id = ?
+          AND tur.user_id = ?
         LIMIT 1
     ";
 
-    $q = $this->db->query($qry, [$response_id, $user_id]);
-    return $q->row_array(); // ✅ single row
+    $q = $this->db->query($qry, [(int)$response_id, (int)$user_id]);
+    return $q->row_array();
 }
+
+    /** Admin PDF / reports: any user's response by id (no session user filter). */
+    public function get_test_report_row_by_response_id_admin($response_id)
+    {
+        $qry = "
+        SELECT 
+            tur.*,
+            ts.TEST_NAME,
+            ts.TEST_START_DATE,
+            ts.END_DATE,
+            ts.TEST_TYPE,
+            ts.TOTAL_QUESTIONS,
+            u.EMAIL,
+            u.NAME,
+            u.PROFILE_PICTURE
+        FROM TEST_USER_RESPONSE tur
+        INNER JOIN TEST_SERIES ts ON ts.TEST_ID = tur.test_id
+        INNER JOIN USERS u ON u.USER_ID = tur.user_id
+        WHERE tur.id = ?
+        LIMIT 1
+    ";
+        $q = $this->db->query($qry, [(int)$response_id]);
+        return $q->row_array();
+    }
 
 
 
