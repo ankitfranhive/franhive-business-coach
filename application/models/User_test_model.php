@@ -440,13 +440,21 @@ public function get_my_tests_reports($user_id)
 
 public function mark_evaluated($response_id)
 {
-    $this->db->where('ID', $response_id);
- 
-    return $this->db->update('TEST_USER_RESPONSE', [
-        'IS_EVAL'       => 1,
-        'EVALUATED_AT'  => date('Y-m-d H:i:s'),
-        'updated_at'    => date('Y-m-d H:i:s'),
-    ]);
+    $response_id = (int)$response_id;
+    if ($response_id <= 0) {
+        return false;
+    }
+    $this->db->where('id', $response_id);
+
+    $payload = ['is_eval' => 1];
+    if ($this->db->field_exists('evaluated_at', 'TEST_USER_RESPONSE')) {
+        $payload['evaluated_at'] = date('Y-m-d H:i:s');
+    }
+    if ($this->db->field_exists('updated_at', 'TEST_USER_RESPONSE')) {
+        $payload['updated_at'] = date('Y-m-d H:i:s');
+    }
+
+    return $this->db->update('TEST_USER_RESPONSE', $payload);
 }
 
 }

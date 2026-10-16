@@ -605,6 +605,13 @@ public function update_question()
     $test_id = $this->uri->segment(2);
     $data['user_data'] = $this->AdminConsoleModel->getTestResponses($test_id);
 
+    $response_id = (int)$test_id;
+    if (!empty($data['user_data'])) {
+        $response_id = (int)($data['user_data']['ID'] ?? $data['user_data']['id'] ?? $response_id);
+    }
+    $data['response_id'] = $response_id;
+    $data['eval_submit_url'] = base_url('submit-test-eval/' . $response_id);
+
     if (empty($data['user_data']) || !isset($data['user_data']['TEST_TYPE'])) {
         $data['user_response'] = $data['user_data'];
         $this->load->view('test_eval', $data);
@@ -943,6 +950,22 @@ if ($testType === 5) {
 }
 
     
+
+    /** Mark auto-scored attempts (BRS / scale tests) as evaluated from admin report. */
+    public function submitTestEval($response_id)
+    {
+        $this->load->model('User_test_model');
+        $response_id = (int)$response_id;
+        $ok = $this->User_test_model->mark_evaluated($response_id);
+
+        if ($ok) {
+            $this->session->set_flashdata('success', 'Test marked as evaluated.');
+        } else {
+            $this->session->set_flashdata('error', 'Could not mark as evaluated.');
+        }
+
+        redirect('eval/' . $response_id);
+    }
 
     public function saveUserTestEval()
     {

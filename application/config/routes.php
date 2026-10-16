@@ -115,6 +115,8 @@ $route['test-allocation'] = 'admin/testAllocation';
 
 $route['eval/(:any)'] = 'admin/testEval';
 
+$route['submit-test-eval/(:num)'] = 'admin/submitTestEval/$1';
+
 $route['save-user-eval'] = 'admin/saveUserTestEval';
 
 $route['test-allocation/(:any)'] = 'admin/getAllTestsAllocation';

@@ -76,24 +76,38 @@ $show_brs_extras = isset($show_brs_extras) ? (bool)$show_brs_extras : false;
             <div class="page-header">
                 <h4>Test Report</h4>
             </div>
-            <?php $response_id = isset($response_id) ? (int)$response_id : (int)($user_data['ID'] ?? 0); ?>
+            <?php if ($this->session->flashdata('success')): ?>
+                <div class="alert alert-success"><?= html_escape($this->session->flashdata('success')) ?></div>
+            <?php endif; ?>
+            <?php if ($this->session->flashdata('error')): ?>
+                <div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')) ?></div>
+            <?php endif; ?>
+            <?php
+            $response_id = isset($response_id) ? (int)$response_id : (int)($user_data['ID'] ?? $user_data['id'] ?? 0);
+            $is_eval = (int)($user_data['IS_EVAL'] ?? $user_data['is_eval'] ?? 0);
+            $eval_submit_url = !empty($eval_submit_url)
+                ? $eval_submit_url
+                : base_url('my-test-submit-eval/' . $response_id);
+            ?>
 
-<div style="display:flex; justify-content:flex-end; gap:10px; margin-bottom:15px;">
+<div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+    <span class="badge <?= $is_eval ? 'badge-success' : 'badge-warning' ?>" style="font-size:13px;padding:8px 12px;">
+        <?= $is_eval ? 'Evaluated' : 'Not evaluated' ?>
+    </span>
+
     <a class="btn btn-sm btn-outline-primary"
        href="<?= base_url('my-test-report-pdf/' . $response_id) ?>">
         Download Report PDF
     </a>
 
-    <?php if (!empty($response_id) && (int)($user_data['IS_EVAL'] ?? 0) == 0): ?>
+    <?php if (!empty($response_id) && $is_eval === 0): ?>
         <a class="btn btn-sm btn-outline-success"
-           href="<?= base_url('my-test-submit-eval/' . $response_id) ?>"
-           onclick="return confirm('Submit evaluation for this test? This will mark it as evaluated.');">
+           href="<?= html_escape($eval_submit_url) ?>"
+           onclick="return confirm('Submit evaluation for this test? This will mark it as evaluated and release results to the user.');">
             Submit Evaluation
         </a>
-    <?php endif; ?>
-
-    <?php if ((int)($user_data['IS_EVAL'] ?? 0) == 1): ?>
-        <button class="btn btn-sm btn-success" disabled>Evaluated</button>
+    <?php elseif ($is_eval === 1): ?>
+        <button class="btn btn-sm btn-success" type="button" disabled>Evaluated</button>
     <?php endif; ?>
 </div>
 

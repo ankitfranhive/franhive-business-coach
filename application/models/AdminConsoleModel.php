@@ -374,6 +374,32 @@ class AdminConsoleModel extends CI_Model
 
 
 
+    /**
+     * Map lowercase TEST_USER_RESPONSE columns to legacy uppercase keys used in views.
+     */
+    public function normalize_test_user_response_row($row)
+    {
+        if (empty($row) || !is_array($row)) {
+            return $row;
+        }
+        $pairs = [
+            'id'             => 'ID',
+            'user_id'        => 'USER_ID',
+            'test_id'        => 'TEST_ID',
+            'user_response'  => 'USER_RESPONSE',
+            'is_submitted'   => 'IS_SUBMITTED',
+            'is_eval'        => 'IS_EVAL',
+            'marks_obtained' => 'MARKS_OBTAINED',
+            'total_marks'    => 'TOTAL_MARKS',
+        ];
+        foreach ($pairs as $lower => $upper) {
+            if (!array_key_exists($upper, $row) && array_key_exists($lower, $row)) {
+                $row[$upper] = $row[$lower];
+            }
+        }
+        return $row;
+    }
+
     public function getTestResponses($test_id)
     {
         $query = "SELECT 
@@ -397,8 +423,9 @@ class AdminConsoleModel extends CI_Model
             log_message('error', 'Database error: ' . $this->db->error()['message']); // Log error
             return false;
         }
-    
-        return $query->row_array();
+
+        $row = $query->row_array();
+        return $this->normalize_test_user_response_row($row);
     }
     
 
@@ -419,8 +446,29 @@ class AdminConsoleModel extends CI_Model
 
     public function update_user_test_eval($data)
     {
+        $id = (int)($data['ID'] ?? $data['id'] ?? 0);
+        if ($id <= 0) {
+            return false;
+        }
+        unset($data['ID'], $data['id']);
+        if (isset($data['IS_EVAL'])) {
+            $data['is_eval'] = $data['IS_EVAL'];
+            unset($data['IS_EVAL']);
+        }
+        if (isset($data['MARKS_OBTAINED'])) {
+            $data['marks_obtained'] = $data['MARKS_OBTAINED'];
+            unset($data['MARKS_OBTAINED']);
+        }
+        if (isset($data['TOTAL_MARKS'])) {
+            $data['total_marks'] = $data['TOTAL_MARKS'];
+            unset($data['TOTAL_MARKS']);
+        }
+        if (isset($data['MARKS_DATA'])) {
+            $data['marks_data'] = $data['MARKS_DATA'];
+            unset($data['MARKS_DATA']);
+        }
 
-        $this->db->where('ID', $data['ID']);
+        $this->db->where('id', $id);
         $update_eval_data = $this->db->update('TEST_USER_RESPONSE', $data);
 
         if ($update_eval_data) {
