@@ -26,7 +26,7 @@
     <div id="instructionPage" class="test-container">
         <h2 class="mb-3"><?php echo $test_details['TEST_NAME']; ?></h2>
         <p class="lead bg-white p-3 border rounded shadow-sm"><?php echo nl2br($test_details['TEST_INSTRUCTIONS']); ?></p>
-        <button class="btn btn-primary" id="startTestBtn">Start Test</button>
+        <button class="btn btn-primary" id="startTestBtn">Take the Test</button>
     </div>
 
     <div id="questionPage" style="display:none;">

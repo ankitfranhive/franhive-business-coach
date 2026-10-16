@@ -481,13 +481,15 @@ class AdminConsoleModel extends CI_Model
 
     public function remove_user_test_mapping($mapping_id, $is_removed)
     {
-        // Assuming $mapping_id is the ID of the mapping you want to remove
+        $is_removed = (int)$is_removed;
+        $data = [
+            'IS_REMOVED' => $is_removed,
+        ];
+        if ($this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
+            $data['ALLOW_REATTEMPT'] = ($is_removed === 0) ? 1 : 0;
+        }
 
-        $data = array(
-            'is_removed' => $is_removed // Assuming 'is_removed' is the column you want to update
-        );
-
-        $this->db->where('MAPPING_ID', $mapping_id);
+        $this->db->where('MAPPING_ID', (int)$mapping_id);
         $this->db->update('TEST_USER_ALLOCATION', $data);
 
         // Check if the update was successful

@@ -27,6 +27,12 @@ class Welcome extends CI_Controller {
     public function myTestDashboard()
 {
     $test_id = (int)$this->uri->segment(2);
+    $user_id = (int)$this->session->userdata('user')['USER_ID'];
+
+    if (!$this->User_test_model->user_has_active_allocation($user_id, $test_id)) {
+        show_error('This test is not assigned to you or has been removed. Ask your coach to re-assign the test.', 403);
+        return;
+    }
 
     $data['test_details']   = $this->User_test_model->getTestDetails($test_id);
     $data['test_questions'] = $this->User_test_model->getTestQuestions($test_id);
@@ -116,7 +122,11 @@ class Welcome extends CI_Controller {
             $is_submitted
         );
 
-        if ($save_responses) return true;
+        if ($save_responses) {
+            return true;
+        }
+        $this->output->set_status_header(403);
+        echo json_encode(['error' => 'Test not assigned or removed']);
     }
 
     public function myTestReports() {

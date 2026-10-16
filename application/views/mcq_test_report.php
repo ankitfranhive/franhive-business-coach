@@ -46,20 +46,17 @@
                 <?php if (!empty($response_id)): ?>
                     <a class="btn btn-sm btn-outline-primary"
                        href="<?= base_url('admin-test-report-pdf/' . $response_id) ?>">
-                        Download Report PDF
+                        Download as PDF
                     </a>
                 <?php endif; ?>
-                <span class="badge <?= $is_eval ? 'badge-success' : 'badge-warning' ?>" style="font-size:13px;padding:8px 12px;">
-                    <?= $is_eval ? 'Evaluated' : 'Not evaluated — user cannot see results yet' ?>
-                </span>
                 <?php if (!empty($response_id) && $is_eval === 0): ?>
                     <a class="btn btn-sm btn-success"
                        href="<?= html_escape($eval_submit_url) ?>"
-                       onclick="return confirm('Release this report to the user? They will see results under My Tests / My Reports.');">
-                        Release results to user
+                       onclick="return confirm('Mark as evaluated and release results to the student?');">
+                        Evaluated
                     </a>
                 <?php elseif ($is_eval === 1): ?>
-                    <button class="btn btn-sm btn-success" type="button" disabled>Released</button>
+                    <button class="btn btn-sm btn-success" type="button" disabled>Evaluated</button>
                 <?php endif; ?>
             </div>
 

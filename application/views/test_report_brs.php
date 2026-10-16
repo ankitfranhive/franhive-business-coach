@@ -91,20 +91,16 @@ $show_brs_extras = isset($show_brs_extras) ? (bool)$show_brs_extras : false;
             ?>
 
 <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-    <span class="badge <?= $is_eval ? 'badge-success' : 'badge-warning' ?>" style="font-size:13px;padding:8px 12px;">
-        <?= $is_eval ? 'Evaluated' : 'Not evaluated' ?>
-    </span>
-
     <a class="btn btn-sm btn-outline-primary"
        href="<?= base_url('admin-test-report-pdf/' . $response_id) ?>">
-        Download Report PDF
+        Download as PDF
     </a>
 
     <?php if (!empty($response_id) && $is_eval === 0): ?>
-        <a class="btn btn-sm btn-outline-success"
+        <a class="btn btn-sm btn-success"
            href="<?= html_escape($eval_submit_url) ?>"
-           onclick="return confirm('Submit evaluation for this test? This will mark it as evaluated and release results to the user.');">
-            Submit Evaluation
+           onclick="return confirm('Mark as evaluated and release results to the student?');">
+            Evaluated
         </a>
     <?php elseif ($is_eval === 1): ?>
         <button class="btn btn-sm btn-success" type="button" disabled>Evaluated</button>

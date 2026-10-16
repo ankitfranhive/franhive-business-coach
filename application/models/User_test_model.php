@@ -31,6 +31,9 @@ class User_test_model extends CI_Model {
     public function get_my_tests()
     {
         $user_id = (int)$this->session->userdata('user')['USER_ID'];
+        $reattemptSelect = $this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')
+            ? 'COALESCE(tua.ALLOW_REATTEMPT, 0) AS ALLOW_REATTEMPT'
+            : '0 AS ALLOW_REATTEMPT';
     
         $qry = "
             SELECT 
@@ -41,6 +44,7 @@ class User_test_model extends CI_Model {
                 ts.TEST_NAME,
                 ts.TEST_START_DATE,
                 ts.TEST_TYPE,
+                {$reattemptSelect},
     
                 -- ✅ latest attempt id
                 tur_latest.ID AS RESPONSE_ID,
@@ -78,12 +82,34 @@ class User_test_model extends CI_Model {
                 ON tur_cnt.TEST_ID = tua.TEST_ID AND tur_cnt.USER_ID = ?
     
             WHERE tua.USER_ID = ?
+              AND COALESCE(tua.IS_REMOVED, 0) = 0
               AND ts.IS_DEL = 0
             ORDER BY tua.TEST_ID DESC
         ";
     
         $query = $this->db->query($qry, [$user_id, $user_id, $user_id, $user_id]);
         return $query->result_array();
+    }
+
+    /** True when test is assigned to user and not soft-removed (admin "Remove Test"). */
+    public function user_has_active_allocation($user_id, $test_id)
+    {
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($user_id <= 0 || $test_id <= 0) {
+            return false;
+        }
+        $row = $this->db->select('IS_REMOVED')
+            ->from('TEST_USER_ALLOCATION')
+            ->where('USER_ID', $user_id)
+            ->where('TEST_ID', $test_id)
+            ->limit(1)
+            ->get()
+            ->row_array();
+        if (empty($row)) {
+            return false;
+        }
+        return (int)($row['IS_REMOVED'] ?? $row['is_removed'] ?? 0) === 0;
     }
     
 
@@ -106,15 +132,22 @@ class User_test_model extends CI_Model {
             LEFT JOIN 
                 TEST_SERIES 
                 ON TEST_SERIES.TEST_ID = TEST_USER_ALLOCATION.TEST_ID 
-            LEFT JOIN 
-                TEST_USER_RESPONSE 
-                ON TEST_USER_RESPONSE.TEST_ID = TEST_USER_ALLOCATION.TEST_ID AND TEST_USER_RESPONSE.USER_ID = ".$user_id." 
+            LEFT JOIN TEST_USER_RESPONSE
+                ON TEST_USER_RESPONSE.ID = (
+                    SELECT tur2.ID
+                    FROM TEST_USER_RESPONSE tur2
+                    WHERE tur2.TEST_ID = TEST_USER_ALLOCATION.TEST_ID
+                      AND tur2.USER_ID = ?
+                    ORDER BY tur2.ID DESC
+                    LIMIT 1
+                )
             WHERE 
                 TEST_USER_ALLOCATION.USER_ID = ? AND TEST_USER_ALLOCATION.TEST_ID = ?
+                AND COALESCE(TEST_USER_ALLOCATION.IS_REMOVED, 0) = 0
                 AND TEST_SERIES.IS_DEL = 0
         ";
 
-        $query = $this->db->query($qry, array($user_id, $test_id));
+        $query = $this->db->query($qry, array($user_id, $user_id, $test_id));
         return $query->result_array();
     }
 
@@ -225,17 +258,36 @@ public function buildLegacyOptionsFromQuestionRow($qRow)
     // }
 
 
+    public function clear_allocation_reattempt_flag($user_id, $test_id)
+    {
+        if (!$this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
+            return;
+        }
+        $this->db->where('USER_ID', (int)$user_id)
+            ->where('TEST_ID', (int)$test_id)
+            ->update('TEST_USER_ALLOCATION', ['ALLOW_REATTEMPT' => 0]);
+    }
+
     public function saveUserResponse($user_id, $test_id, $user_response, $is_submitted)
 {
+    if (!$this->user_has_active_allocation($user_id, $test_id)) {
+        return false;
+    }
+
     $data = [
         'user_id' => $user_id,
         'test_id' => $test_id,
         'user_response' => $user_response,
-        'is_submitted'  => $is_submitted
+        'is_submitted'  => $is_submitted,
+        'is_eval'       => 0,
     ];
 
     $this->db->insert('TEST_USER_RESPONSE', $data);
-    return $this->db->affected_rows() > 0;
+    $ok = $this->db->affected_rows() > 0;
+    if ($ok) {
+        $this->clear_allocation_reattempt_flag($user_id, $test_id);
+    }
+    return $ok;
 }
 
 
@@ -291,6 +343,7 @@ public function get_my_tests_reports($user_id)
             ON tur_cnt.TEST_ID = ts.TEST_ID AND tur_cnt.USER_ID = ?
 
         WHERE tua.USER_ID = ?
+          AND COALESCE(tua.IS_REMOVED, 0) = 0
           AND ts.IS_DEL = 0
         ORDER BY tur_latest.ID DESC, ts.TEST_ID DESC
     ";
