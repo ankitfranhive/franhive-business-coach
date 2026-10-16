@@ -28,6 +28,35 @@
             <div class="page-header">
                 <h4>User Test Response</h4>
             </div>
+            <?php if ($this->session->flashdata('success')): ?>
+                <div class="alert alert-success"><?= html_escape($this->session->flashdata('success')) ?></div>
+            <?php endif; ?>
+            <?php if ($this->session->flashdata('error')): ?>
+                <div class="alert alert-danger"><?= html_escape($this->session->flashdata('error')) ?></div>
+            <?php endif; ?>
+
+            <?php
+            $response_id = isset($response_id) ? (int)$response_id : (int)($user_data['ID'] ?? $user_data['id'] ?? 0);
+            $is_eval = (int)($user_data['IS_EVAL'] ?? $user_data['is_eval'] ?? 0);
+            $eval_submit_url = !empty($eval_submit_url)
+                ? $eval_submit_url
+                : base_url('submit-test-eval/' . $response_id);
+            ?>
+            <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                <span class="badge <?= $is_eval ? 'badge-success' : 'badge-warning' ?>" style="font-size:13px;padding:8px 12px;">
+                    <?= $is_eval ? 'Evaluated' : 'Not evaluated — user cannot see results yet' ?>
+                </span>
+                <?php if (!empty($response_id) && $is_eval === 0): ?>
+                    <a class="btn btn-sm btn-success"
+                       href="<?= html_escape($eval_submit_url) ?>"
+                       onclick="return confirm('Release this report to the user? They will see results under My Tests / My Reports.');">
+                        Release results to user
+                    </a>
+                <?php elseif ($is_eval === 1): ?>
+                    <button class="btn btn-sm btn-success" type="button" disabled>Released</button>
+                <?php endif; ?>
+            </div>
+
             <div class="user-details">
                 <img src="<?= $user_data['PROFILE_PICTURE'] ?: 'default-user.png' ?>" class="user-photo" alt="User Photo">
                 <h3><?= $user_data['NAME'] ?></h3>
