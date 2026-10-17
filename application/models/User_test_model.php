@@ -30,7 +30,22 @@ class User_test_model extends CI_Model {
 
     public function reattempt_grant_table_ready()
     {
+        $this->load->helper('test_reattempt');
+        ensure_test_user_reattempt_grant_table($this->db);
         return $this->db->table_exists('TEST_USER_REATTEMPT_GRANT');
+    }
+
+    public function user_has_reattempt_grant($user_id, $test_id)
+    {
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($user_id <= 0 || $test_id <= 0 || !$this->reattempt_grant_table_ready()) {
+            return false;
+        }
+        $n = (int) $this->db->where('user_id', $user_id)
+            ->where('test_id', $test_id)
+            ->count_all_results('TEST_USER_REATTEMPT_GRANT');
+        return $n > 0;
     }
 
     public function grant_test_reattempt($user_id, $test_id)
@@ -63,7 +78,7 @@ class User_test_model extends CI_Model {
     {
         $row['IS_EVAL'] = (int)($row['IS_EVAL'] ?? $row['is_eval'] ?? 0);
         $row['IS_SUBMITTED'] = (int)($row['IS_SUBMITTED'] ?? $row['is_submitted'] ?? 0);
-        $row['ALLOW_REATTEMPT'] = (int)($row['ALLOW_REATTEMPT'] ?? 0);
+        $row['ALLOW_REATTEMPT'] = (int)($row['ALLOW_REATTEMPT'] ?? $row['allow_reattempt'] ?? 0);
         $row['HAS_REATTEMPT_GRANT'] = (int)($row['HAS_REATTEMPT_GRANT'] ?? 0);
         return $row;
     }
@@ -71,21 +86,35 @@ class User_test_model extends CI_Model {
     public function get_my_tests()
     {
         $user_id = (int)$this->session->userdata('user')['USER_ID'];
-        $reattemptSelect = $this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')
-            ? 'COALESCE(tua.ALLOW_REATTEMPT, 0) AS ALLOW_REATTEMPT'
-            : '0 AS ALLOW_REATTEMPT';
+        $this->load->helper('test_reattempt');
+
+        $allocUser = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['USER_ID', 'user_id'], 'USER_ID');
+        $allocTest = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['TEST_ID', 'test_id'], 'TEST_ID');
+        $removedCol = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['IS_REMOVED', 'is_removed'], 'IS_REMOVED');
+
+        if ($this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
+            $reattemptSelect = 'COALESCE(tua.ALLOW_REATTEMPT, 0) AS ALLOW_REATTEMPT';
+        } elseif ($this->db->field_exists('allow_reattempt', 'TEST_USER_ALLOCATION')) {
+            $reattemptSelect = 'COALESCE(tua.allow_reattempt, 0) AS ALLOW_REATTEMPT';
+        } else {
+            $reattemptSelect = '0 AS ALLOW_REATTEMPT';
+        }
+
+        $respPk = test_db_column($this->db, 'TEST_USER_RESPONSE', ['id', 'ID'], 'id');
+        $respTest = test_db_column($this->db, 'TEST_USER_RESPONSE', ['test_id', 'TEST_ID'], 'test_id');
+        $respUser = test_db_column($this->db, 'TEST_USER_RESPONSE', ['user_id', 'USER_ID'], 'user_id');
 
         $grantJoin = '';
         $grantSelect = '0 AS HAS_REATTEMPT_GRANT';
         if ($this->reattempt_grant_table_ready()) {
-            $grantJoin = 'LEFT JOIN TEST_USER_REATTEMPT_GRANT tg
-                ON tg.user_id = tua.USER_ID AND tg.test_id = tua.TEST_ID';
+            $grantJoin = "LEFT JOIN TEST_USER_REATTEMPT_GRANT tg
+                ON tg.user_id = tua.{$allocUser} AND tg.test_id = tua.{$allocTest}";
             $grantSelect = 'CASE WHEN tg.id IS NOT NULL THEN 1 ELSE 0 END AS HAS_REATTEMPT_GRANT';
         }
     
         $qry = "
             SELECT 
-                tua.TEST_ID,
+                tua.{$allocTest} AS TEST_ID,
                 tua.MAPPING_ID,
                 ts.TOTAL_QUESTIONS,
                 ts.END_DATE,
@@ -95,7 +124,7 @@ class User_test_model extends CI_Model {
                 {$reattemptSelect},
                 {$grantSelect},
     
-                tur_latest.id AS RESPONSE_ID,
+                tur_latest.{$respPk} AS RESPONSE_ID,
                 COALESCE(tur_latest.is_eval, tur_latest.IS_EVAL, 0) AS IS_EVAL,
                 COALESCE(tur_latest.is_submitted, tur_latest.IS_SUBMITTED, 0) AS IS_SUBMITTED,
                 COALESCE(tur_latest.user_response, tur_latest.USER_RESPONSE) AS USER_RESPONSE,
@@ -104,37 +133,42 @@ class User_test_model extends CI_Model {
     
             FROM TEST_USER_ALLOCATION tua
             INNER JOIN TEST_SERIES ts 
-                ON ts.TEST_ID = tua.TEST_ID
+                ON ts.TEST_ID = tua.{$allocTest}
             {$grantJoin}
     
             LEFT JOIN TEST_USER_RESPONSE tur_latest
-                ON tur_latest.id = (
-                    SELECT tur2.id
+                ON tur_latest.{$respPk} = (
+                    SELECT tur2.{$respPk}
                     FROM TEST_USER_RESPONSE tur2
-                    WHERE tur2.test_id = tua.TEST_ID
-                      AND tur2.user_id = ?
-                    ORDER BY tur2.id DESC
+                    WHERE tur2.{$respTest} = tua.{$allocTest}
+                      AND tur2.{$respUser} = ?
+                    ORDER BY tur2.{$respPk} DESC
                     LIMIT 1
                 )
     
             LEFT JOIN (
-                SELECT test_id AS TEST_ID, user_id AS USER_ID, COUNT(*) AS ATTEMPTS
+                SELECT {$respTest} AS TEST_ID, {$respUser} AS USER_ID, COUNT(*) AS ATTEMPTS
                 FROM TEST_USER_RESPONSE
-                WHERE user_id = ?
-                GROUP BY test_id, user_id
+                WHERE {$respUser} = ?
+                GROUP BY {$respTest}, {$respUser}
             ) tur_cnt
-                ON tur_cnt.TEST_ID = tua.TEST_ID AND tur_cnt.USER_ID = tua.USER_ID
+                ON tur_cnt.TEST_ID = tua.{$allocTest} AND tur_cnt.USER_ID = tua.{$allocUser}
     
-            WHERE tua.USER_ID = ?
-              AND COALESCE(tua.IS_REMOVED, 0) = 0
+            WHERE tua.{$allocUser} = ?
+              AND COALESCE(tua.{$removedCol}, 0) = 0
               AND ts.IS_DEL = 0
-            ORDER BY tua.TEST_ID DESC
+            ORDER BY tua.{$allocTest} DESC
         ";
     
         $query = $this->db->query($qry, [$user_id, $user_id, $user_id]);
         $rows = $query ? $query->result_array() : [];
         foreach ($rows as $i => $row) {
-            $rows[$i] = $this->normalize_my_test_row($row);
+            $row = $this->normalize_my_test_row($row);
+            if ((int)$row['HAS_REATTEMPT_GRANT'] !== 1
+                && $this->user_has_reattempt_grant($user_id, (int)$row['TEST_ID'])) {
+                $row['HAS_REATTEMPT_GRANT'] = 1;
+            }
+            $rows[$i] = $row;
         }
         return $rows;
     }

@@ -72,12 +72,14 @@
                                     <td><?= $tests->TOTAL_MARKS ?></td>
                                     <td><?= $tests->TEST_START_DATE ?></td>
                                     <td>
-                                        <?php if ($tests->USER_ID != null && $tests->IS_REMOVED != 1) { ?>
+                                        <?php
+                                        $alloc_is_removed = (int)($tests->IS_REMOVED ?? $tests->is_removed ?? 0);
+                                        if ($tests->USER_ID != null && $alloc_is_removed !== 1) { ?>
 
                                             <button class="btn btn-danger remove-test-user" data-is-removed="1" data-mapping-id="<?= $tests->MAPPING_ID ?>">Remove Test</button>
                                             <span class="tooltip" id="tooltip_<?= $tests->MAPPING_ID ?>">Test Removed!</span>
 
-                                        <?php } elseif ($tests->USER_ID != null) { ?>
+                                        <?php } elseif ($tests->USER_ID != null && $alloc_is_removed === 1) { ?>
 
                                             <button class="btn btn-warning remove-test-user" data-is-removed="0" data-mapping-id="<?= $tests->MAPPING_ID ?>">Re Assigned Test</button>
                                             <span class="tooltip" id="tooltip_<?= $tests->MAPPING_ID ?>">Test Reassigned!</span>

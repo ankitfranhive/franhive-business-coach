@@ -481,6 +481,9 @@ class AdminConsoleModel extends CI_Model
 
     public function grant_test_reattempt_for_user($user_id, $test_id)
     {
+        $this->load->helper('test_reattempt');
+        ensure_test_user_reattempt_grant_table($this->db);
+
         $user_id = (int)$user_id;
         $test_id = (int)$test_id;
         if ($user_id <= 0 || $test_id <= 0 || !$this->db->table_exists('TEST_USER_REATTEMPT_GRANT')) {
@@ -508,36 +511,40 @@ class AdminConsoleModel extends CI_Model
 
     public function remove_user_test_mapping($mapping_id, $is_removed)
     {
+        $this->load->helper('test_reattempt');
+        ensure_test_user_reattempt_grant_table($this->db);
+
         $is_removed = (int)$is_removed;
-        $data = [
-            'IS_REMOVED' => $is_removed,
-        ];
+        $mapping_id = (int)$mapping_id;
+        $removedCol = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['IS_REMOVED', 'is_removed'], 'IS_REMOVED');
+        $mapIdCol = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['MAPPING_ID', 'mapping_id'], 'MAPPING_ID');
+
+        $data = [$removedCol => $is_removed];
         if ($this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
             $data['ALLOW_REATTEMPT'] = ($is_removed === 0) ? 1 : 0;
+        } elseif ($this->db->field_exists('allow_reattempt', 'TEST_USER_ALLOCATION')) {
+            $data['allow_reattempt'] = ($is_removed === 0) ? 1 : 0;
         }
 
-        $this->db->where('MAPPING_ID', (int)$mapping_id);
+        $map = $this->db->get_where('TEST_USER_ALLOCATION', [$mapIdCol => $mapping_id])->row_array();
+        if (empty($map)) {
+            return false;
+        }
+
+        $this->db->where($mapIdCol, $mapping_id);
         $this->db->update('TEST_USER_ALLOCATION', $data);
 
-        $affected_rows = $this->db->affected_rows();
-
-        if ($affected_rows > 0) {
-            $map = $this->db->get_where('TEST_USER_ALLOCATION', ['MAPPING_ID' => (int)$mapping_id])->row_array();
-            if (!empty($map)) {
-                $uid = (int)($map['USER_ID'] ?? $map['user_id'] ?? 0);
-                $tid = (int)($map['TEST_ID'] ?? $map['test_id'] ?? 0);
-                if ($uid > 0 && $tid > 0) {
-                    if ($is_removed === 0) {
-                        $this->grant_test_reattempt_for_user($uid, $tid);
-                    } else {
-                        $this->clear_test_reattempt_grant_for_user($uid, $tid);
-                    }
-                }
+        $uid = (int)($map['USER_ID'] ?? $map['user_id'] ?? 0);
+        $tid = (int)($map['TEST_ID'] ?? $map['test_id'] ?? 0);
+        if ($uid > 0 && $tid > 0) {
+            if ($is_removed === 0) {
+                $this->grant_test_reattempt_for_user($uid, $tid);
+            } else {
+                $this->clear_test_reattempt_grant_for_user($uid, $tid);
             }
-            return true;
         }
 
-        return false;
+        return true;
     }
 
 
