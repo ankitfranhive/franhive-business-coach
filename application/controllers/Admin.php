@@ -496,9 +496,7 @@ public function update_question()
         $start_date = $this->input->post('start_date');
         $end_date = $this->input->post('end_date');
         $test_type = $this->input->post('test_type');
-        $test_instructions = $this->input->post('test_instructions');
-
-
+        $test_instructions = $this->input->post('test_instructions', false);
 
         // Save the data to the database using your model
         $data = array(
@@ -526,10 +524,7 @@ public function update_question()
         $start_date = $this->input->post('start_date');
         $end_date = $this->input->post('end_date');
         $test_type = $this->input->post('test_type');
-        $test_instructions = $this->input->post('test_instructions');
-
-
-
+        $test_instructions = $this->input->post('test_instructions', false);
 
         // Save the data to the database using your model
         $data = array(
@@ -541,9 +536,6 @@ public function update_question()
             'TEST_TYPE' => $test_type,
             'TEST_INSTRUCTIONS' => $test_instructions
         );
-        // echo "<pre>";
-        // print_r( $data);
-        // die;
         $test_id =  $this->input->post('test_id');
         $this->AdminConsoleModel->update_test_details($data, $test_id);
 

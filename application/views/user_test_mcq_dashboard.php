@@ -18,14 +18,44 @@
         #timer { font-size: 20px; font-weight: bold; color: #28a745; background: #e9ffe9; padding: 10px 20px; border-radius: 10px; display: inline-block; box-shadow: 0px 0px 5px rgba(0,255,0,0.3); }
         input[type='checkbox']:disabled { opacity: 0.5; }
         .option-container .form-check-label { color: #000 !important; }
+        .test-instructions-wrap {
+            text-align: left;
+            background: #fff;
+            padding: 1.25rem 1.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            margin-bottom: 1.5rem;
+            max-height: 55vh;
+            overflow-y: auto;
+        }
+        .test-instructions-content { font-size: 1.05rem; line-height: 1.65; color: #212529; }
+        .test-instructions-content p { margin-bottom: 0.75rem; }
+        .test-instructions-content ul, .test-instructions-content ol { margin-bottom: 0.75rem; padding-left: 1.5rem; }
+        .test-instructions-content h1, .test-instructions-content h2, .test-instructions-content h3,
+        .test-instructions-content h4 { margin-top: 1rem; margin-bottom: 0.5rem; font-weight: 600; }
+        .test-instructions-content a { color: #0d6efd; text-decoration: underline; }
+        .test-instructions-content table { width: 100%; margin-bottom: 1rem; border-collapse: collapse; }
+        .test-instructions-content table td, .test-instructions-content table th {
+            border: 1px solid #dee2e6; padding: 0.5rem;
+        }
+        .test-instructions-content img { max-width: 100%; height: auto; border-radius: 4px; }
     </style>
 </head>
 
 <body>
 <div class="container mt-5 text-center">
     <div id="instructionPage" class="test-container">
-        <h2 class="mb-3"><?php echo $test_details['TEST_NAME']; ?></h2>
-        <p class="lead bg-white p-3 border rounded shadow-sm"><?php echo nl2br($test_details['TEST_INSTRUCTIONS']); ?></p>
+        <h2 class="mb-3 text-center"><?php echo html_escape($test_details['TEST_NAME']); ?></h2>
+        <?php if (trim((string)($test_details['TEST_INSTRUCTIONS'] ?? '')) !== ''): ?>
+        <div class="test-instructions-wrap">
+            <?php
+            $this->load->view('partials/test_instructions_display', [
+                'instructions' => $test_details['TEST_INSTRUCTIONS'] ?? '',
+            ]);
+            ?>
+        </div>
+        <?php endif; ?>
         <button class="btn btn-primary" id="startTestBtn">Take the Test</button>
     </div>
 
