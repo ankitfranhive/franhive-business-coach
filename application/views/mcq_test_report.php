@@ -85,18 +85,18 @@
                 <tbody>
                     <tr>
                         <td><strong>MOST</strong></td>
-                        <td><?= $most_likely_counts['option_1'] ?></td>
-                        <td><?= $most_likely_counts['option_2'] ?></td>
-                        <td><?= $most_likely_counts['option_3'] ?></td>
-                        <td><?= $most_likely_counts['option_4'] ?></td>
+                        <td><?= (int)($most_likely_counts['option_1'] ?? 0) ?></td>
+                        <td><?= (int)($most_likely_counts['option_2'] ?? 0) ?></td>
+                        <td><?= (int)($most_likely_counts['option_3'] ?? 0) ?></td>
+                        <td><?= (int)($most_likely_counts['option_4'] ?? 0) ?></td>
                         <td><?= array_sum($most_likely_counts) ?></td>
                     </tr>
                     <tr>
                         <td><strong>LEAST</strong></td>
-                        <td><?= $least_likely_counts['option_1'] ?></td>
-                        <td><?= $least_likely_counts['option_2'] ?></td>
-                        <td><?= $least_likely_counts['option_3'] ?></td>
-                        <td><?= $least_likely_counts['option_4'] ?></td>
+                        <td><?= (int)($least_likely_counts['option_1'] ?? 0) ?></td>
+                        <td><?= (int)($least_likely_counts['option_2'] ?? 0) ?></td>
+                        <td><?= (int)($least_likely_counts['option_3'] ?? 0) ?></td>
+                        <td><?= (int)($least_likely_counts['option_4'] ?? 0) ?></td>
                         <td><?= array_sum($least_likely_counts) ?></td>
                     </tr>
                 </tbody>
@@ -115,14 +115,14 @@
                 <tbody>
                     <?php 
                     $total_time_spent = 0; 
-                    foreach ($responses as $index => $response): 
-                        $total_time_spent += $response['time_spent']; 
+                    foreach ($responses as $index => $response):
+                        $total_time_spent += (int)($response['time_spent'] ?? 0);
                     ?>
                     <tr>
                         <td><?= $index + 1 ?></td>
-                        <td><?= strtoupper(str_replace('_', ' ', $response['most_likely'])) ?></td>
-                        <td><?= strtoupper(str_replace('_', ' ', $response['least_likely'])) ?></td>
-                        <td><?= $response['time_spent'] ?> sec</td>
+                        <td><?= strtoupper(str_replace('_', ' ', (string)($response['most_likely'] ?? ''))) ?></td>
+                        <td><?= strtoupper(str_replace('_', ' ', (string)($response['least_likely'] ?? ''))) ?></td>
+                        <td><?= (int)($response['time_spent'] ?? 0) ?> sec</td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

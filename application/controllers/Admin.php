@@ -628,28 +628,14 @@ public function update_question()
     // TYPE 1 Test (Most/Least) (same as before)
     // =========================
     if ($testType === 1) {
+        $this->load->helper('test_report_pdf');
+        $disc = test_report_disc_pdf_data($data['user_data']);
 
-        $most_likely_counts = [];
-        $least_likely_counts = [];
+        $most_likely_counts = $disc['most_likely_counts'];
+        $least_likely_counts = $disc['least_likely_counts'];
+        $responses = $disc['responses'];
 
-        if (!empty($responses) && is_array($responses)) {
-            foreach ($responses as $response) {
-                if (!empty($response['most_likely'])) {
-                    $k = $response['most_likely'];
-                    if (!isset($most_likely_counts[$k])) $most_likely_counts[$k] = 0;
-                    $most_likely_counts[$k]++;
-                }
-                if (!empty($response['least_likely'])) {
-                    $k = $response['least_likely'];
-                    if (!isset($least_likely_counts[$k])) $least_likely_counts[$k] = 0;
-                    $least_likely_counts[$k]++;
-                }
-            }
-        }
-
-        $allKeys = array_values(array_unique(array_merge(array_keys($most_likely_counts), array_keys($least_likely_counts))));
-        sort($allKeys);
-
+        $allKeys = ['option_1', 'option_2', 'option_3', 'option_4'];
         $mostVals = [];
         $leastVals = [];
         foreach ($allKeys as $k) {
