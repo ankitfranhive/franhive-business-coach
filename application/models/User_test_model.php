@@ -28,12 +28,60 @@ class User_test_model extends CI_Model {
         return $query->result();
     }
 
+    public function reattempt_grant_table_ready()
+    {
+        return $this->db->table_exists('TEST_USER_REATTEMPT_GRANT');
+    }
+
+    public function grant_test_reattempt($user_id, $test_id)
+    {
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($user_id <= 0 || $test_id <= 0 || !$this->reattempt_grant_table_ready()) {
+            return false;
+        }
+        $now = date('Y-m-d H:i:s');
+        $sql = "INSERT INTO TEST_USER_REATTEMPT_GRANT (user_id, test_id, granted_at)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE granted_at = VALUES(granted_at)";
+        return $this->db->query($sql, [$user_id, $test_id, $now]);
+    }
+
+    public function clear_test_reattempt_grant($user_id, $test_id)
+    {
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($user_id <= 0 || $test_id <= 0 || !$this->reattempt_grant_table_ready()) {
+            return false;
+        }
+        $this->db->where('user_id', $user_id)->where('test_id', $test_id)
+            ->delete('TEST_USER_REATTEMPT_GRANT');
+        return true;
+    }
+
+    protected function normalize_my_test_row(array $row)
+    {
+        $row['IS_EVAL'] = (int)($row['IS_EVAL'] ?? $row['is_eval'] ?? 0);
+        $row['IS_SUBMITTED'] = (int)($row['IS_SUBMITTED'] ?? $row['is_submitted'] ?? 0);
+        $row['ALLOW_REATTEMPT'] = (int)($row['ALLOW_REATTEMPT'] ?? 0);
+        $row['HAS_REATTEMPT_GRANT'] = (int)($row['HAS_REATTEMPT_GRANT'] ?? 0);
+        return $row;
+    }
+
     public function get_my_tests()
     {
         $user_id = (int)$this->session->userdata('user')['USER_ID'];
         $reattemptSelect = $this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')
             ? 'COALESCE(tua.ALLOW_REATTEMPT, 0) AS ALLOW_REATTEMPT'
             : '0 AS ALLOW_REATTEMPT';
+
+        $grantJoin = '';
+        $grantSelect = '0 AS HAS_REATTEMPT_GRANT';
+        if ($this->reattempt_grant_table_ready()) {
+            $grantJoin = 'LEFT JOIN TEST_USER_REATTEMPT_GRANT tg
+                ON tg.user_id = tua.USER_ID AND tg.test_id = tua.TEST_ID';
+            $grantSelect = 'CASE WHEN tg.id IS NOT NULL THEN 1 ELSE 0 END AS HAS_REATTEMPT_GRANT';
+        }
     
         $qry = "
             SELECT 
@@ -45,41 +93,37 @@ class User_test_model extends CI_Model {
                 ts.TEST_START_DATE,
                 ts.TEST_TYPE,
                 {$reattemptSelect},
+                {$grantSelect},
     
-                -- ✅ latest attempt id
-                tur_latest.ID AS RESPONSE_ID,
+                tur_latest.id AS RESPONSE_ID,
+                COALESCE(tur_latest.is_eval, tur_latest.IS_EVAL, 0) AS IS_EVAL,
+                COALESCE(tur_latest.is_submitted, tur_latest.IS_SUBMITTED, 0) AS IS_SUBMITTED,
+                COALESCE(tur_latest.user_response, tur_latest.USER_RESPONSE) AS USER_RESPONSE,
     
-                -- ✅ latest attempt flags
-                tur_latest.IS_EVAL,
-                tur_latest.IS_SUBMITTED,
-                tur_latest.USER_RESPONSE,
-    
-                -- ✅ attempts count
                 COALESCE(tur_cnt.ATTEMPTS, 0) AS ATTEMPTS
     
             FROM TEST_USER_ALLOCATION tua
             INNER JOIN TEST_SERIES ts 
                 ON ts.TEST_ID = tua.TEST_ID
+            {$grantJoin}
     
-            -- ✅ latest attempt per test for this user
             LEFT JOIN TEST_USER_RESPONSE tur_latest
-                ON tur_latest.ID = (
-                    SELECT tur2.ID
+                ON tur_latest.id = (
+                    SELECT tur2.id
                     FROM TEST_USER_RESPONSE tur2
-                    WHERE tur2.TEST_ID = tua.TEST_ID
-                      AND tur2.USER_ID = ?
-                    ORDER BY tur2.ID DESC
+                    WHERE tur2.test_id = tua.TEST_ID
+                      AND tur2.user_id = ?
+                    ORDER BY tur2.id DESC
                     LIMIT 1
                 )
     
-            -- ✅ attempts count per test
             LEFT JOIN (
-                SELECT TEST_ID, USER_ID, COUNT(*) AS ATTEMPTS
+                SELECT test_id AS TEST_ID, user_id AS USER_ID, COUNT(*) AS ATTEMPTS
                 FROM TEST_USER_RESPONSE
-                WHERE USER_ID = ?
-                GROUP BY TEST_ID, USER_ID
+                WHERE user_id = ?
+                GROUP BY test_id, user_id
             ) tur_cnt
-                ON tur_cnt.TEST_ID = tua.TEST_ID AND tur_cnt.USER_ID = ?
+                ON tur_cnt.TEST_ID = tua.TEST_ID AND tur_cnt.USER_ID = tua.USER_ID
     
             WHERE tua.USER_ID = ?
               AND COALESCE(tua.IS_REMOVED, 0) = 0
@@ -87,8 +131,12 @@ class User_test_model extends CI_Model {
             ORDER BY tua.TEST_ID DESC
         ";
     
-        $query = $this->db->query($qry, [$user_id, $user_id, $user_id, $user_id]);
-        return $query->result_array();
+        $query = $this->db->query($qry, [$user_id, $user_id, $user_id]);
+        $rows = $query ? $query->result_array() : [];
+        foreach ($rows as $i => $row) {
+            $rows[$i] = $this->normalize_my_test_row($row);
+        }
+        return $rows;
     }
 
     /** True when test is assigned to user and not soft-removed (admin "Remove Test"). */
@@ -260,12 +308,14 @@ public function buildLegacyOptionsFromQuestionRow($qRow)
 
     public function clear_allocation_reattempt_flag($user_id, $test_id)
     {
-        if (!$this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
-            return;
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
+            $this->db->where('USER_ID', $user_id)
+                ->where('TEST_ID', $test_id)
+                ->update('TEST_USER_ALLOCATION', ['ALLOW_REATTEMPT' => 0]);
         }
-        $this->db->where('USER_ID', (int)$user_id)
-            ->where('TEST_ID', (int)$test_id)
-            ->update('TEST_USER_ALLOCATION', ['ALLOW_REATTEMPT' => 0]);
+        $this->clear_test_reattempt_grant($user_id, $test_id);
     }
 
     public function saveUserResponse($user_id, $test_id, $user_response, $is_submitted)

@@ -50,28 +50,33 @@
 											$is_eval = (int)($value['IS_EVAL'] ?? $value['is_eval'] ?? 0);
 											$is_sub = (int)($value['IS_SUBMITTED'] ?? $value['is_submitted'] ?? 0);
 											$test_id = (int)$value['TEST_ID'];
-											$allow_reattempt = (int)($value['ALLOW_REATTEMPT'] ?? 0) === 1;
+											$can_reattempt = ((int)($value['ALLOW_REATTEMPT'] ?? 0) === 1)
+												|| ((int)($value['HAS_REATTEMPT_GRANT'] ?? 0) === 1);
 
 											$result_url = in_array($test_type, [4, 5], true)
 												? base_url('my-test-report/' . $test_id)
 												: base_url('my-reports');
 											$btn = 'margin:4px;';
 
-											if ($is_eval === 1) {
-												echo '<a href="' . html_escape($result_url) . '" class="btn btn-outline-primary" style="' . $btn . '">See Result</a>';
-												if ($allow_reattempt && $in_window) {
-													echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-success" style="' . $btn . '">Reattempt Test</a>';
+											if ($can_reattempt && $in_window) {
+												echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-success" style="' . $btn . '">Reattempt Test</a>';
+												if ($is_eval === 1) {
+													echo '<a href="' . html_escape($result_url) . '" class="btn btn-outline-primary" style="' . $btn . '">See Result</a>';
+												} elseif ($is_sub === 1) {
+													echo '<span class="btn btn-outline-secondary" style="' . $btn . 'opacity:0.85;">Not Evaluated (previous attempt)</span>';
 												}
+											} elseif ($is_eval === 1) {
+												echo '<a href="' . html_escape($result_url) . '" class="btn btn-outline-primary" style="' . $btn . '">See Result</a>';
 											} elseif ($is_sub === 1) {
-												echo '<span class="btn btn-outline-secondary disabled" style="' . $btn . 'pointer-events:none;">Not Evaluated</span>';
+												echo '<span class="btn btn-outline-secondary" style="' . $btn . '">Not Evaluated</span>';
 											} elseif ($value['USER_RESPONSE'] != null && $is_sub !== 1) {
 												echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-warning" style="' . $btn . '">Resume</a>';
 											} elseif ($in_window) {
 												echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-success" style="' . $btn . '">Take the Test</a>';
 											} elseif ($current_date > $end_date) {
-												echo '<span class="btn btn-outline-danger disabled" style="' . $btn . '">Expired</span>';
+												echo '<span class="btn btn-outline-danger" style="' . $btn . '">Expired</span>';
 											} else {
-												echo '<span class="btn btn-outline-primary disabled" style="' . $btn . '">Upcoming</span>';
+												echo '<span class="btn btn-outline-primary" style="' . $btn . '">Upcoming</span>';
 											}
 											?>
 

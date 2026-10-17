@@ -479,6 +479,33 @@ class AdminConsoleModel extends CI_Model
     }
 
 
+    public function grant_test_reattempt_for_user($user_id, $test_id)
+    {
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($user_id <= 0 || $test_id <= 0 || !$this->db->table_exists('TEST_USER_REATTEMPT_GRANT')) {
+            return false;
+        }
+        $now = date('Y-m-d H:i:s');
+        return $this->db->query(
+            'INSERT INTO TEST_USER_REATTEMPT_GRANT (user_id, test_id, granted_at) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE granted_at = VALUES(granted_at)',
+            [$user_id, $test_id, $now]
+        );
+    }
+
+    public function clear_test_reattempt_grant_for_user($user_id, $test_id)
+    {
+        $user_id = (int)$user_id;
+        $test_id = (int)$test_id;
+        if ($user_id <= 0 || $test_id <= 0 || !$this->db->table_exists('TEST_USER_REATTEMPT_GRANT')) {
+            return false;
+        }
+        $this->db->where('user_id', $user_id)->where('test_id', $test_id)
+            ->delete('TEST_USER_REATTEMPT_GRANT');
+        return true;
+    }
+
     public function remove_user_test_mapping($mapping_id, $is_removed)
     {
         $is_removed = (int)$is_removed;
@@ -492,14 +519,25 @@ class AdminConsoleModel extends CI_Model
         $this->db->where('MAPPING_ID', (int)$mapping_id);
         $this->db->update('TEST_USER_ALLOCATION', $data);
 
-        // Check if the update was successful
         $affected_rows = $this->db->affected_rows();
 
         if ($affected_rows > 0) {
+            $map = $this->db->get_where('TEST_USER_ALLOCATION', ['MAPPING_ID' => (int)$mapping_id])->row_array();
+            if (!empty($map)) {
+                $uid = (int)($map['USER_ID'] ?? $map['user_id'] ?? 0);
+                $tid = (int)($map['TEST_ID'] ?? $map['test_id'] ?? 0);
+                if ($uid > 0 && $tid > 0) {
+                    if ($is_removed === 0) {
+                        $this->grant_test_reattempt_for_user($uid, $tid);
+                    } else {
+                        $this->clear_test_reattempt_grant_for_user($uid, $tid);
+                    }
+                }
+            }
             return true;
-        } else {
-            return false;
         }
+
+        return false;
     }
 
 
