@@ -191,12 +191,13 @@
 
         <div class="cal-card mb-30">
             <div class="cal-header">
-                <h4>Holidays & Festivals</h4>
+                <h4>Portal Calendar</h4>
                 <div class="cal-subtitle">
-                    Indian Festivals, Global Holidays, and Australian Holidays — filtered and color coded
+                    Holidays, team events, tasks, client birthdays, and agreement end dates
                 </div>
 
                 <div class="cal-controls">
+                    <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#portalEntryModal">Add entry</button>
                     <!-- Filters -->
                     <div class="cal-filters">
                         <label class="filter-pill">
@@ -212,6 +213,18 @@
                         <label class="filter-pill">
                             <input type="checkbox" id="catAu" checked>
                             <span>Australian Holidays</span>
+                        </label>
+                        <label class="filter-pill">
+                            <input type="checkbox" id="catPortal" checked>
+                            <span>Notes / Tasks / Events</span>
+                        </label>
+                        <label class="filter-pill">
+                            <input type="checkbox" id="catBirthday" checked>
+                            <span>Birthdays</span>
+                        </label>
+                        <label class="filter-pill">
+                            <input type="checkbox" id="catAgreement" checked>
+                            <span>Agreement end</span>
                         </label>
                     </div>
 
@@ -239,6 +252,76 @@
     </div>
 </div>
 
+<div class="modal fade" id="portalEntryModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form id="portalEntryForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add calendar entry</h5>
+                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Type</label>
+                            <select name="entry_type" class="form-control" required>
+                                <option value="NOTE">Note</option>
+                                <option value="TASK">Task</option>
+                                <option value="EVENT" selected>Event</option>
+                                <option value="BIRTHDAY">Birthday (manual)</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-8">
+                            <label>Title</label>
+                            <input type="text" name="title" class="form-control" required maxlength="255">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Details</label>
+                        <textarea name="body" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Owner</label>
+                            <select name="owner_user_id" class="form-control">
+                                <option value="">Me</option>
+                                <?php if (!empty($portal_users)): foreach ($portal_users as $u):
+                                    $uid = is_object($u) ? (int)$u->USER_ID : (int)($u['USER_ID'] ?? 0);
+                                    $uname = is_object($u) ? ($u->NAME ?? 'User') : ($u['NAME'] ?? 'User');
+                                ?>
+                                    <option value="<?= $uid ?>"><?= html_escape($uname) ?></option>
+                                <?php endforeach; endif; ?>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Start date</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>End date</label>
+                            <input type="date" name="end_date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Deadline</label>
+                            <input type="date" name="deadline_date" class="form-control">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Remind (days before)</label>
+                            <input type="number" name="remind_days_before" class="form-control" value="1" min="0" max="30">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <?php $this->load->view('includes/footer'); ?>
 
 <script src="<?= base_url('vendors/scripts/popper.min.js') ?>"></script>
@@ -254,6 +337,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cat === 'INDIA_FESTIVAL') return document.getElementById('catIndia').checked;
         if (cat === 'GLOBAL_HOLIDAY') return document.getElementById('catGlobal').checked;
         if (cat === 'AU_HOLIDAY')     return document.getElementById('catAu').checked;
+        if (cat === 'PORTAL_BIRTHDAY') return document.getElementById('catBirthday').checked;
+        if (cat === 'PORTAL_AGREEMENT_END') return document.getElementById('catAgreement').checked;
+        if (cat && cat.indexOf('PORTAL_') === 0) return document.getElementById('catPortal').checked;
         return true;
     }
 
@@ -318,13 +404,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Re-filter events when toggles change
-    ['catIndia','catGlobal','catAu'].forEach(function(id) {
+    ['catIndia','catGlobal','catAu','catPortal','catBirthday','catAgreement'].forEach(function(id) {
         var el = document.getElementById(id);
+        if (!el) return;
         el.addEventListener('change', function() {
             calendar.refetchEvents();
             setTimeout(markEventDays, 250);
         });
     });
+
+    var entryForm = document.getElementById('portalEntryForm');
+    if (entryForm) {
+        entryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var fd = new FormData(entryForm);
+            fetch("<?= base_url('calendar/save-entry') ?>", { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function() {
+                    $('#portalEntryModal').modal('hide');
+                    entryForm.reset();
+                    calendar.refetchEvents();
+                });
+        });
+    }
 });
 </script>
 

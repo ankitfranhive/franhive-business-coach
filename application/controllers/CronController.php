@@ -8,6 +8,7 @@ class CronController extends CI_Controller {
         $this->load->library('email');
         $this->load->model('Campaign_Model');
         $this->load->helper('campaign');
+        $this->load->helper('campaign_email_tracking');
     }
 
     public function my_cron_job() {
@@ -59,31 +60,45 @@ class CronController extends CI_Controller {
                         echo "Email not found for User ID: " . ($user_detail['ENTITY_ID'] ?? '') . "<br>";
                         continue;
                     }
+                    if ($this->Campaign_Model->is_email_unsubscribed($user_detail['email_id'])) {
+                        echo "Skipped unsubscribed: " . $user_detail['email_id'] . "<br>";
+                        continue;
+                    }
 
-                    $personalized_subject = campaign_fill_merge_tags($template_data['TEMPLATE_SUBJECT'], $user_detail);
-                    $personalized_body = campaign_fill_merge_tags($template_data['TEMPLATE_BODY'], $user_detail);
-                    $personalized_sign = campaign_fill_merge_tags($template_data['TEMPLATE_SIGN'], $user_detail);
+                    $tracking_token = campaign_generate_tracking_token();
+                    $personalized_subject = campaign_fill_merge_tags($template_data['TEMPLATE_SUBJECT'], $user_detail, $tracking_token);
+                    $personalized_body = campaign_fill_merge_tags($template_data['TEMPLATE_BODY'], $user_detail, $tracking_token);
+                    $personalized_sign = campaign_fill_merge_tags($template_data['TEMPLATE_SIGN'], $user_detail, $tracking_token);
                     $personalized_body .= "<br><br>" . $personalized_sign;
+                    $tracked_body = campaign_email_prepare_outgoing_html($personalized_body, $tracking_token);
 
                     $from_name = $val['MANAGER_NAME'] ?: 'EYD NLP Team';
                     $this->email->clear(true);
                     $this->email->from("nlp@empoweryourdestiny.com.au", $from_name);
                     $this->email->to($user_detail['email_id']);
                     $this->email->subject($personalized_subject);
-                    $this->email->message($personalized_body);
+                    $this->email->message($tracked_body);
+
+                    $log_payload = [
+                        'CAMPAIGN_ID' => $campaign_id,
+                        'TEMPLATE_ID' => $mapping['TEMPLATE_ID'],
+                        'FOREIGN_ID' => $user_detail['ENTITY_ID'],
+                        'TO_EMAIL' => $user_detail['email_id'],
+                        'SUBJECT' => $personalized_subject,
+                        'BODY' => $tracked_body,
+                        'SEND_DATE' => date('Y-m-d H:i:s'),
+                        'TRACKING_TOKEN' => $tracking_token,
+                        'DELIVERY_STATUS' => 'failed',
+                        'OPEN_COUNT' => 0,
+                        'CLICK_COUNT' => 0,
+                    ];
 
                     if ($this->email->send()) {
-                        $this->Campaign_Model->log_campaign_email([
-                            'CAMPAIGN_ID' => $campaign_id,
-                            'TEMPLATE_ID' => $mapping['TEMPLATE_ID'],
-                            'FOREIGN_ID' => $user_detail['ENTITY_ID'],
-                            'TO_EMAIL' => $user_detail['email_id'],
-                            'SUBJECT' => $personalized_subject,
-                            'BODY' => $personalized_body,
-                            'SEND_DATE' => date('Y-m-d H:i:s'),
-                        ]);
+                        $log_payload['DELIVERY_STATUS'] = 'sent';
+                        $this->Campaign_Model->log_campaign_email($log_payload);
                         echo "Email sent to " . $user_detail['email_id'] . " for Campaign ID: {$campaign_id}<br>";
                     } else {
+                        $this->Campaign_Model->log_campaign_email($log_payload);
                         echo "Failed to send email to " . $user_detail['email_id'] . " for Campaign ID: {$campaign_id}<br>";
                     }
                 }

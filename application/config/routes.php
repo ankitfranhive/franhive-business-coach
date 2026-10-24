@@ -302,6 +302,13 @@ $route['client-tasks'] = 'CalenderController/getClientTaskData';
 
 $route['calendar'] = 'CalenderController/index';
 $route['calendar/events'] = 'CalenderController/events';
+$route['calendar/save-entry'] = 'CalenderController/savePortalEntry';
+$route['calendar/delete-entry/(:num)'] = 'CalenderController/deletePortalEntry/$1';
+$route['calendar/notification-read/(:num)'] = 'CalenderController/markNotificationRead/$1';
+
+$route['email/open/(:any)'] = 'EmailTrackingController/open/$1';
+$route['email/click/(:any)'] = 'EmailTrackingController/click/$1';
+$route['email/unsubscribe/(:any)'] = 'EmailTrackingController/unsubscribe/$1';
 
 
 

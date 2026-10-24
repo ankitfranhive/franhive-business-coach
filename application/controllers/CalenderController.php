@@ -25,42 +25,12 @@ class CalenderController extends CI_Controller
 
     public function getHolidayCalender()
     {
-        $userid = $this->session->userdata('user')['USER_ID'];
-        $user_role = $this->User_Model->getUserRoles($userid);
-
-        $data = $this->LeadTaskModel->get_task_list($userid, $user_role);
-        $eventData['event_list'] = $this->convertToFullCalendarEvents($data);
-
-        // print_r($eventData);
-        // die;
-
-        $this->load->view('calender/calendar_view');
-
-        // $this->load->view('calender/lead_tasks_view', $eventData);
+        redirect('calendar');
     }
 
     public function getClientTaskData()
     {
-        $userid = $this->session->userdata('user')['USER_ID'];
-        $user_role = $this->User_Model->getUserRoles($userid);
-
-        // $data = $this->LeadTaskModel->get_task_list($userid, $user_role);
-        // $eventData['event_list'] = $this->convertToFullCalendarEvents($data);
-        $events = [];
-
-        // Get the current date
-        $currentDate = new DateTime();
-
-        // Event 1: All Day Event
-        $events[] = [
-            'title' => 'All Day Test Event',
-            'start' => $currentDate->format('Y-m-d')
-        ];
-        $eventData['event_list'] = $events;
-        // print_r(json_encode($eventData['event_list']));
-        // die;
-
-        $this->load->view('calender/client_tasks_view', $eventData);
+        redirect('calendar');
     }
 
 
@@ -227,8 +197,9 @@ class CalenderController extends CI_Controller
 
 
     public function index() {
-        // Just load the page. Events will load via AJAX.
-        $this->load->view('calender/calendar_view');
+        $this->Calendar_model->sync_entry_reminder_notifications();
+        $data['portal_users'] = $this->AdminConsoleModel->get_all_users();
+        $this->load->view('calender/calendar_view', $data);
     }
 
     // FullCalendar can load events via JSON feed
@@ -238,15 +209,54 @@ class CalenderController extends CI_Controller
             $year = (int)date('Y');
         }
 
-        // 1) Ensure AU holidays exist in DB for this year (cached)
         $this->Calendar_model->sync_au_holidays_from_nager($year);
 
-        // 2) Return all active events for the year
-        $events = $this->Calendar_model->get_events_for_year($year);
+        $events = array_merge(
+            $this->Calendar_model->get_events_for_year($year),
+            $this->Calendar_model->get_portal_entries_for_year($year),
+            $this->Calendar_model->get_system_calendar_events_for_year($year)
+        );
 
-        // Return JSON
         $this->output
             ->set_content_type('application/json')
             ->set_output(json_encode($events));
+    }
+
+    public function savePortalEntry()
+    {
+        $user = $this->session->userdata('user');
+        $uid = (int)($user['USER_ID'] ?? 0);
+        $id = (int)$this->input->post('id');
+        $entry = [
+            'entry_type' => strtoupper(trim((string)$this->input->post('entry_type'))),
+            'title' => trim((string)$this->input->post('title')),
+            'body' => trim((string)$this->input->post('body')),
+            'owner_user_id' => (int)$this->input->post('owner_user_id') ?: $uid,
+            'start_date' => $this->input->post('start_date'),
+            'end_date' => $this->input->post('end_date'),
+            'deadline_date' => $this->input->post('deadline_date'),
+            'remind_days_before' => (int)$this->input->post('remind_days_before'),
+            'created_by' => $uid,
+        ];
+        if ($entry['title'] === '' || empty($entry['start_date'])) {
+            $this->output->set_status_header(400)->set_output(json_encode(['ok' => false]));
+            return;
+        }
+        $saved = $this->Calendar_model->save_portal_entry($entry, $id > 0 ? $id : null);
+        $this->output->set_content_type('application/json')->set_output(json_encode(['ok' => true, 'id' => $saved]));
+    }
+
+    public function deletePortalEntry($id)
+    {
+        $this->Calendar_model->delete_portal_entry((int)$id);
+        $this->output->set_content_type('application/json')->set_output(json_encode(['ok' => true]));
+    }
+
+    public function markNotificationRead($id)
+    {
+        $uid = (int)$this->session->userdata('user')['USER_ID'];
+        $this->load->model('Portal_notification_model');
+        $this->Portal_notification_model->mark_read((int)$id, $uid);
+        redirect($_SERVER['HTTP_REFERER'] ?? base_url('calendar'));
     }
 }

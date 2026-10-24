@@ -276,39 +276,38 @@ function show_if($paths) { return uri_is($paths) ? 'show' : ''; }
             <span class="notification-wrapper">
                 <i class="dw dw-notification" style="font-size:20px;"></i>
                 <!-- Use custom class, NOT notification-active -->
-                <span class="notification-count">2</span>
+                <?php
+                $portal_notification_unread = 0;
+                $portal_notifications = [];
+                if ($this->session->userdata('user') && !empty($this->session->userdata('user')['USER_ID'])) {
+                    $CI = get_instance();
+                    $CI->load->model('Calendar_model');
+                    $CI->load->model('Portal_notification_model');
+                    $CI->Calendar_model->sync_entry_reminder_notifications();
+                    $_uid = (int)$CI->session->userdata('user')['USER_ID'];
+                    $portal_notification_unread = $CI->Portal_notification_model->count_unread($_uid);
+                    $portal_notifications = $CI->Portal_notification_model->get_unread_for_user($_uid, 12);
+                }
+                ?>
+                <span class="notification-count" style="<?= $portal_notification_unread > 0 ? '' : 'display:none;' ?>"><?= (int)$portal_notification_unread ?></span>
             </span>
         </a>
 
         <div class="dropdown-menu dropdown-menu-right" style="min-width: 320px;">
             <div class="notification-list" style="max-height: 350px; overflow-y: auto;">
-
-                <!-- Notification 1 -->
-                <a class="dropdown-item d-flex align-items-start" href="javascript:void(0);">
+                <?php if (empty($portal_notifications)): ?>
+                <div class="dropdown-item text-muted">No new reminders.</div>
+                <?php else: foreach ($portal_notifications as $pn): ?>
+                <a class="dropdown-item d-flex align-items-start" href="<?= html_escape(base_url('calendar/notification-read/' . (int)$pn['id'])) ?>">
                     <div class="notification-icon mr-2">
                         <i class="dw dw-bell1"></i>
                     </div>
                     <div class="notification-content">
-                        <h6 class="notification-title mb-1">My Tasks</h6>
-                        <p class="mb-0">
-                            Please check your My Task section to get informations about tasks.
-                        </p>
+                        <h6 class="notification-title mb-1"><?= html_escape($pn['title'] ?? 'Reminder') ?></h6>
+                        <p class="mb-0"><?= html_escape($pn['message'] ?? '') ?></p>
                     </div>
                 </a>
-
-                <!-- Notification 2 -->
-                <a class="dropdown-item d-flex align-items-start" href="javascript:void(0);">
-                    <div class="notification-icon mr-2">
-                        <i class="dw dw-bell1"></i>
-                    </div>
-                    <div class="notification-content">
-                        <h6 class="notification-title mb-1">My Training</h6>
-                        <p class="mb-0">
-                            We have set My Course and My Report under My Training sections.
-                        </p>
-                    </div>
-                </a>
-
+                <?php endforeach; endif; ?>
             </div>
         </div>
     </div>

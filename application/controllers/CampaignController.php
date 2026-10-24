@@ -41,6 +41,7 @@ class CampaignController extends CI_Controller
         $data['recent_campaigns'] = $this->Campaign_Model->get_recent_campaigns(12);
         $data['in_progress_campaigns'] = $this->Campaign_Model->get_campaigns_by_workflow('in_progress', 8);
         $data['scheduled_campaigns'] = $this->Campaign_Model->get_campaigns_by_workflow('scheduled', 8);
+        $data['email_analytics'] = $this->Campaign_Model->get_email_analytics_summary();
         $this->load->view('campaign/campaign_dashboard', $data);
     }
 

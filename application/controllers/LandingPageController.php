@@ -485,11 +485,46 @@ class LandingPageController extends CI_Controller
     if ($type === 2) {
         $data['SHARE_IMAGE'] = $share_image ?: null;
 
-        // For update: prefer posted text fields (to match create), but keep old if empty
-        $data['TESTIMONIALS_IMAGES'] =
-            trim((string)$this->input->post('TESTIMONIALS_IMAGES')) !== ''
-                ? trim((string)$this->input->post('TESTIMONIALS_IMAGES'))
-                : (isset($old['TESTIMONIALS_IMAGES']) ? $old['TESTIMONIALS_IMAGES'] : null);
+        $testimonial_paths = [];
+        if (!empty($_FILES['TESTIMONIALS_IMAGES']['name'][0])) {
+            $count = count($_FILES['TESTIMONIALS_IMAGES']['name']);
+            $maxImages = 20;
+            for ($i = 0; $i < $count && count($testimonial_paths) < $maxImages; $i++) {
+                if (empty($_FILES['TESTIMONIALS_IMAGES']['name'][$i])) {
+                    continue;
+                }
+                $_FILES['testimonial_upload_slot'] = [
+                    'name' => $_FILES['TESTIMONIALS_IMAGES']['name'][$i],
+                    'type' => $_FILES['TESTIMONIALS_IMAGES']['type'][$i],
+                    'tmp_name' => $_FILES['TESTIMONIALS_IMAGES']['tmp_name'][$i],
+                    'error' => $_FILES['TESTIMONIALS_IMAGES']['error'][$i],
+                    'size' => $_FILES['TESTIMONIALS_IMAGES']['size'][$i],
+                ];
+                $url = $uploadImage('testimonial_upload_slot');
+                if ($url !== '') {
+                    $testimonial_paths[] = str_replace(base_url(), '', $url);
+                }
+            }
+            unset($_FILES['testimonial_upload_slot']);
+        }
+        $existingImages = [];
+        if (!empty($old['TESTIMONIALS_IMAGES'])) {
+            foreach (explode(',', $old['TESTIMONIALS_IMAGES']) as $img) {
+                $img = trim($img);
+                if ($img !== '') {
+                    $existingImages[] = $img;
+                }
+            }
+        }
+        if (!empty($testimonial_paths)) {
+            $merged = array_slice(array_merge($existingImages, $testimonial_paths), 0, 20);
+            $data['TESTIMONIALS_IMAGES'] = implode(',', $merged);
+        } else {
+            $data['TESTIMONIALS_IMAGES'] =
+                trim((string)$this->input->post('TESTIMONIALS_IMAGES')) !== ''
+                    ? trim((string)$this->input->post('TESTIMONIALS_IMAGES'))
+                    : (isset($old['TESTIMONIALS_IMAGES']) ? $old['TESTIMONIALS_IMAGES'] : null);
+        }
 
         $data['TESTIMONIALS_VIDEOS'] =
             trim((string)$this->input->post('TESTIMONIALS_VIDEOS')) !== ''

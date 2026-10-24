@@ -1,0 +1,2 @@
+-- Optional reference: email + calendar features auto-create via PHP ensure_schema on first use.
+-- Campaign email tracking columns, CAMPAIGN_EMAIL_UNSUBSCRIBES, PORTAL_CALENDAR_ENTRIES, PORTAL_USER_NOTIFICATIONS.

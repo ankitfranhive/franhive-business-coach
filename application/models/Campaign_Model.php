@@ -35,6 +35,14 @@ class Campaign_Model extends CI_Model
                 'TEAMS_LINK' => "ALTER TABLE `ENTITY` ADD COLUMN `TEAMS_LINK` TEXT NULL",
                 'TEAMS_PASSWORD' => "ALTER TABLE `ENTITY` ADD COLUMN `TEAMS_PASSWORD` VARCHAR(255) NULL DEFAULT NULL",
             ],
+            'CAMPAIGN_EMAIL_LOGS' => [
+                'TRACKING_TOKEN' => "ALTER TABLE CAMPAIGN_EMAIL_LOGS ADD COLUMN TRACKING_TOKEN VARCHAR(64) NULL",
+                'DELIVERY_STATUS' => "ALTER TABLE CAMPAIGN_EMAIL_LOGS ADD COLUMN DELIVERY_STATUS VARCHAR(20) NULL DEFAULT 'sent'",
+                'OPEN_COUNT' => "ALTER TABLE CAMPAIGN_EMAIL_LOGS ADD COLUMN OPEN_COUNT INT UNSIGNED NOT NULL DEFAULT 0",
+                'FIRST_OPENED_AT' => "ALTER TABLE CAMPAIGN_EMAIL_LOGS ADD COLUMN FIRST_OPENED_AT DATETIME NULL",
+                'CLICK_COUNT' => "ALTER TABLE CAMPAIGN_EMAIL_LOGS ADD COLUMN CLICK_COUNT INT UNSIGNED NOT NULL DEFAULT 0",
+                'FIRST_CLICKED_AT' => "ALTER TABLE CAMPAIGN_EMAIL_LOGS ADD COLUMN FIRST_CLICKED_AT DATETIME NULL",
+            ],
         ];
         foreach ($needed as $table => $cols) {
             foreach ($cols as $column => $sql) {
@@ -42,6 +50,18 @@ class Campaign_Model extends CI_Model
                     $this->db->query($sql);
                 }
             }
+        }
+        if (!$this->db->table_exists('CAMPAIGN_EMAIL_UNSUBSCRIBES')) {
+            $this->db->query("CREATE TABLE IF NOT EXISTS CAMPAIGN_EMAIL_UNSUBSCRIBES (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                email VARCHAR(255) NOT NULL,
+                foreign_id INT UNSIGNED NULL,
+                campaign_id INT UNSIGNED NULL,
+                unsubscribed_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_email (email),
+                KEY idx_foreign (foreign_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
     }
 
@@ -505,5 +525,112 @@ class Campaign_Model extends CI_Model
             ORDER BY C.CAMPAIGN_ID DESC
             LIMIT " . (int)$limit;
         return $this->db->query($sql, [$now, $now])->result_array();
+    }
+
+    public function is_email_unsubscribed($email)
+    {
+        $email = strtolower(trim((string)$email));
+        if ($email === '' || !$this->db->table_exists('CAMPAIGN_EMAIL_UNSUBSCRIBES')) {
+            return false;
+        }
+        $n = (int)$this->db->where('email', $email)->count_all_results('CAMPAIGN_EMAIL_UNSUBSCRIBES');
+        return $n > 0;
+    }
+
+    public function get_log_by_tracking_token($token)
+    {
+        $token = trim((string)$token);
+        if ($token === '') {
+            return null;
+        }
+        return $this->db->get_where('CAMPAIGN_EMAIL_LOGS', ['TRACKING_TOKEN' => $token])->row_array();
+    }
+
+    public function record_email_open($token)
+    {
+        $row = $this->get_log_by_tracking_token($token);
+        if (empty($row)) {
+            return false;
+        }
+        $now = date('Y-m-d H:i:s');
+        $data = [
+            'OPEN_COUNT' => (int)($row['OPEN_COUNT'] ?? 0) + 1,
+        ];
+        if (empty($row['FIRST_OPENED_AT'])) {
+            $data['FIRST_OPENED_AT'] = $now;
+        }
+        $this->db->where('ID', (int)$row['ID']);
+        return $this->db->update('CAMPAIGN_EMAIL_LOGS', $data);
+    }
+
+    public function record_email_click($token, $url)
+    {
+        $row = $this->get_log_by_tracking_token($token);
+        if (empty($row)) {
+            return false;
+        }
+        $now = date('Y-m-d H:i:s');
+        $data = [
+            'CLICK_COUNT' => (int)($row['CLICK_COUNT'] ?? 0) + 1,
+        ];
+        if (empty($row['FIRST_CLICKED_AT'])) {
+            $data['FIRST_CLICKED_AT'] = $now;
+        }
+        $this->db->where('ID', (int)$row['ID']);
+        return $this->db->update('CAMPAIGN_EMAIL_LOGS', $data);
+    }
+
+    public function record_unsubscribe(array $log_row)
+    {
+        $email = strtolower(trim((string)($log_row['TO_EMAIL'] ?? '')));
+        if ($email === '') {
+            return false;
+        }
+        $now = date('Y-m-d H:i:s');
+        $sql = 'INSERT INTO CAMPAIGN_EMAIL_UNSUBSCRIBES (email, foreign_id, campaign_id, unsubscribed_at)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE unsubscribed_at = VALUES(unsubscribed_at)';
+        return $this->db->query($sql, [
+            $email,
+            (int)($log_row['FOREIGN_ID'] ?? 0) ?: null,
+            (int)($log_row['CAMPAIGN_ID'] ?? 0) ?: null,
+            $now,
+        ]);
+    }
+
+    public function get_email_analytics_summary()
+    {
+        $empty = [
+            'total_sent' => 0, 'opened' => 0, 'clicked' => 0, 'bounced' => 0, 'unsubscribes' => 0,
+            'open_rate' => 0, 'click_rate' => 0, 'bounce_rate' => 0,
+        ];
+        if (!$this->db->table_exists('CAMPAIGN_EMAIL_LOGS')) {
+            return $empty;
+        }
+        $stats = $this->db->query("
+            SELECT
+                SUM(CASE WHEN COALESCE(DELIVERY_STATUS, 'sent') = 'sent' THEN 1 ELSE 0 END) AS total_sent,
+                SUM(CASE WHEN COALESCE(OPEN_COUNT, 0) > 0 THEN 1 ELSE 0 END) AS opened,
+                SUM(CASE WHEN COALESCE(CLICK_COUNT, 0) > 0 THEN 1 ELSE 0 END) AS clicked,
+                SUM(CASE WHEN DELIVERY_STATUS = 'failed' THEN 1 ELSE 0 END) AS bounced
+            FROM CAMPAIGN_EMAIL_LOGS
+        ")->row_array();
+        $sent = (int)($stats['total_sent'] ?? 0);
+        $opened = (int)($stats['opened'] ?? 0);
+        $clicked = (int)($stats['clicked'] ?? 0);
+        $bounced = (int)($stats['bounced'] ?? 0);
+        $unsubs = $this->db->table_exists('CAMPAIGN_EMAIL_UNSUBSCRIBES')
+            ? (int)$this->db->count_all_results('CAMPAIGN_EMAIL_UNSUBSCRIBES') : 0;
+        $base = max($sent, 1);
+        return [
+            'total_sent' => $sent,
+            'opened' => $opened,
+            'clicked' => $clicked,
+            'bounced' => $bounced,
+            'unsubscribes' => $unsubs,
+            'open_rate' => round(($opened / $base) * 100, 1),
+            'click_rate' => round(($clicked / $base) * 100, 1),
+            'bounce_rate' => round(($bounced / $base) * 100, 1),
+        ];
     }
 }

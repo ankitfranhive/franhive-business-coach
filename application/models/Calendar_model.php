@@ -3,6 +3,218 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Calendar_model extends CI_Model {
 
+    public function __construct()
+    {
+        parent::__construct();
+        $this->ensure_portal_calendar_schema();
+    }
+
+    public function ensure_portal_calendar_schema()
+    {
+        if ($this->db->table_exists('PORTAL_CALENDAR_ENTRIES')) {
+            return true;
+        }
+        return (bool)$this->db->query("CREATE TABLE IF NOT EXISTS PORTAL_CALENDAR_ENTRIES (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            entry_type VARCHAR(32) NOT NULL DEFAULT 'EVENT',
+            title VARCHAR(255) NOT NULL,
+            body TEXT NULL,
+            owner_user_id INT UNSIGNED NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NULL,
+            deadline_date DATE NULL,
+            client_entity_id INT UNSIGNED NULL,
+            remind_days_before INT UNSIGNED NOT NULL DEFAULT 1,
+            last_reminder_sent DATE NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_by INT UNSIGNED NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY idx_dates (start_date, end_date),
+            KEY idx_owner (owner_user_id),
+            KEY idx_type (entry_type)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
+
+    public function save_portal_entry(array $data, $id = null)
+    {
+        $this->ensure_portal_calendar_schema();
+        $row = [
+            'entry_type' => $data['entry_type'] ?? 'EVENT',
+            'title' => $data['title'] ?? '',
+            'body' => $data['body'] ?? null,
+            'owner_user_id' => !empty($data['owner_user_id']) ? (int)$data['owner_user_id'] : null,
+            'start_date' => $data['start_date'],
+            'end_date' => !empty($data['end_date']) ? $data['end_date'] : null,
+            'deadline_date' => !empty($data['deadline_date']) ? $data['deadline_date'] : null,
+            'client_entity_id' => !empty($data['client_entity_id']) ? (int)$data['client_entity_id'] : null,
+            'remind_days_before' => (int)($data['remind_days_before'] ?? 1),
+            'is_active' => 1,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+        if ($id) {
+            $this->db->where('id', (int)$id)->update('PORTAL_CALENDAR_ENTRIES', $row);
+            return (int)$id;
+        }
+        $row['created_by'] = !empty($data['created_by']) ? (int)$data['created_by'] : null;
+        $row['created_at'] = date('Y-m-d H:i:s');
+        $this->db->insert('PORTAL_CALENDAR_ENTRIES', $row);
+        return (int)$this->db->insert_id();
+    }
+
+    public function delete_portal_entry($id)
+    {
+        $this->db->where('id', (int)$id)->update('PORTAL_CALENDAR_ENTRIES', [
+            'is_active' => 0,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function get_portal_entries_for_year(int $year): array
+    {
+        if (!$this->db->table_exists('PORTAL_CALENDAR_ENTRIES')) {
+            return [];
+        }
+        $start = $year . '-01-01';
+        $end = $year . '-12-31';
+        $rows = $this->db->query(
+            "SELECT * FROM PORTAL_CALENDAR_ENTRIES
+             WHERE is_active = 1
+               AND (
+                    (start_date >= ? AND start_date <= ?)
+                 OR (deadline_date >= ? AND deadline_date <= ?)
+               )",
+            [$start, $end, $start, $end]
+        )->result_array();
+
+        $colors = [
+            'NOTE' => '#9b59b6',
+            'TASK' => '#e67e22',
+            'EVENT' => '#3498db',
+            'BIRTHDAY' => '#e91e63',
+            'AGREEMENT_END' => '#c0392b',
+        ];
+        $out = [];
+        foreach ($rows as $r) {
+            $type = strtoupper($r['entry_type'] ?? 'EVENT');
+            $color = $colors[$type] ?? '#7f8c8d';
+            $startDate = $r['start_date'];
+            $endDate = !empty($r['end_date']) ? $r['end_date'] : $startDate;
+            $out[] = [
+                'id' => 'p' . $r['id'],
+                'title' => $r['title'],
+                'start' => $startDate,
+                'end' => $endDate,
+                'allDay' => true,
+                'color' => $color,
+                'extendedProps' => [
+                    'category' => 'PORTAL_' . $type,
+                    'entry_type' => $type,
+                    'portal_id' => (int)$r['id'],
+                    'owner_user_id' => (int)($r['owner_user_id'] ?? 0),
+                    'description' => $r['body'] ?? '',
+                ],
+            ];
+        }
+        return $out;
+    }
+
+    public function get_system_calendar_events_for_year(int $year): array
+    {
+        $out = [];
+        if ($this->db->table_exists('ENTITY') && $this->db->field_exists('BIRTH_DATE', 'ENTITY')) {
+            $this->db->select('ENTITY_ID, NAME, BIRTH_DATE')->from('ENTITY');
+            $this->db->where('BIRTH_DATE IS NOT NULL', null, false);
+            $this->db->where('BIRTH_DATE !=', '0000-00-00');
+            if ($this->db->field_exists('RECORD_STATUS', 'ENTITY')) {
+                $this->db->where('RECORD_STATUS', 0);
+            }
+            $rows = $this->db->get()->result_array();
+            foreach ($rows as $r) {
+                $bd = $r['BIRTH_DATE'];
+                if (!$bd) {
+                    continue;
+                }
+                $md = date('m-d', strtotime($bd));
+                $eventDate = $year . '-' . $md;
+                $out[] = [
+                    'id' => 'b' . $r['ENTITY_ID'],
+                    'title' => 'Birthday: ' . $r['NAME'],
+                    'start' => $eventDate,
+                    'allDay' => true,
+                    'color' => '#e91e63',
+                    'extendedProps' => ['category' => 'PORTAL_BIRTHDAY', 'entry_type' => 'BIRTHDAY'],
+                ];
+            }
+        }
+        if ($this->db->table_exists('payment_agreement_requests')
+            && $this->db->field_exists('selected_course_end_date', 'payment_agreement_requests')) {
+            $start = $year . '-01-01';
+            $end = $year . '-12-31';
+            $rows = $this->db->select('id, client_name, selected_course_end_date')
+                ->from('payment_agreement_requests')
+                ->where('selected_course_end_date >=', $start)
+                ->where('selected_course_end_date <=', $end)
+                ->get()->result_array();
+            foreach ($rows as $r) {
+                if (empty($r['selected_course_end_date'])) {
+                    continue;
+                }
+                $label = !empty($r['client_name']) ? $r['client_name'] : 'Client';
+                $out[] = [
+                    'id' => 'ae' . $r['id'],
+                    'title' => 'Agreement end: ' . $label,
+                    'start' => $r['selected_course_end_date'],
+                    'allDay' => true,
+                    'color' => '#c0392b',
+                    'extendedProps' => ['category' => 'PORTAL_AGREEMENT_END', 'entry_type' => 'AGREEMENT_END'],
+                ];
+            }
+        }
+        return $out;
+    }
+
+    public function sync_entry_reminder_notifications()
+    {
+        if (!$this->db->table_exists('PORTAL_CALENDAR_ENTRIES')) {
+            return;
+        }
+        $this->load->model('Portal_notification_model');
+        $today = date('Y-m-d');
+        $rows = $this->db->from('PORTAL_CALENDAR_ENTRIES')
+            ->where('is_active', 1)
+            ->where('owner_user_id IS NOT NULL', null, false)
+            ->get()->result_array();
+        foreach ($rows as $r) {
+            $uid = (int)$r['owner_user_id'];
+            if ($uid <= 0) {
+                continue;
+            }
+            $target = !empty($r['deadline_date']) ? $r['deadline_date'] : $r['start_date'];
+            $days = max(0, (int)($r['remind_days_before'] ?? 1));
+            $remindOn = date('Y-m-d', strtotime($target . ' -' . $days . ' days'));
+            if ($remindOn !== $today) {
+                continue;
+            }
+            if (!empty($r['last_reminder_sent']) && $r['last_reminder_sent'] === $today) {
+                continue;
+            }
+            $this->Portal_notification_model->create_notification(
+                $uid,
+                'Calendar reminder',
+                $r['title'] . ' — due ' . $target,
+                site_url('calendar'),
+                'portal_calendar',
+                (int)$r['id']
+            );
+            $this->db->where('id', (int)$r['id'])->update('PORTAL_CALENDAR_ENTRIES', [
+                'last_reminder_sent' => $today,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
+
     public function get_events_for_year(int $year): array
     {
         $start = $year . '-01-01';

@@ -35,6 +35,8 @@ function campaign_merge_tags()
         '$CITY$' => 'City (caps)',
         '$TEAMS_LINK$' => 'Teams meeting link (caps)',
         '$TEAMS_PASSWORD$' => 'Teams password (caps)',
+        '{{unsubscribe_link}}' => 'Unsubscribe URL (auto-added if omitted)',
+        '{{UNSUBSCRIBE_LINK}}' => 'Unsubscribe URL (caps)',
     ];
 }
 
@@ -84,10 +86,21 @@ function campaign_merge_tag_replacements($entity)
     return $map;
 }
 
-function campaign_fill_merge_tags($text, $entity)
+function campaign_fill_merge_tags($text, $entity, $tracking_token = null)
 {
     $map = campaign_merge_tag_replacements($entity);
-    return str_replace(array_keys($map), array_values($map), (string)$text);
+    $text = str_replace(array_keys($map), array_values($map), (string)$text);
+    if ($tracking_token !== null && $tracking_token !== '') {
+        $CI = get_instance();
+        $CI->load->helper('campaign_email_tracking');
+        $unsub = campaign_unsubscribe_url($tracking_token);
+        $text = str_replace(
+            ['{{unsubscribe_link}}', '{{UNSUBSCRIBE_LINK}}', '$UNSUBSCRIBE_LINK$'],
+            $unsub,
+            $text
+        );
+    }
+    return $text;
 }
 
 function campaign_status_meta($status)

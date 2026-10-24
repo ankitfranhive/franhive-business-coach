@@ -16,6 +16,38 @@
 			</div>
 		</div>
 
+		<?php $ea = $email_analytics ?? []; ?>
+		<div class="row pb-10">
+			<div class="col-md-3 col-sm-6 mb-20">
+				<div class="card-box pd-20 cm-status-card" style="background:#265ed7;">
+					<p>Open rate</p>
+					<h3><?= html_escape((string)($ea['open_rate'] ?? 0)) ?>%</h3>
+					<small><?= (int)($ea['opened'] ?? 0) ?> / <?= (int)($ea['total_sent'] ?? 0) ?> opened</small>
+				</div>
+			</div>
+			<div class="col-md-3 col-sm-6 mb-20">
+				<div class="card-box pd-20 cm-status-card" style="background:#17a2b8;">
+					<p>Click rate</p>
+					<h3><?= html_escape((string)($ea['click_rate'] ?? 0)) ?>%</h3>
+					<small><?= (int)($ea['clicked'] ?? 0) ?> clicked a link</small>
+				</div>
+			</div>
+			<div class="col-md-3 col-sm-6 mb-20">
+				<div class="card-box pd-20 cm-status-card" style="background:#e74c3c;">
+					<p>Bounce rate</p>
+					<h3><?= html_escape((string)($ea['bounce_rate'] ?? 0)) ?>%</h3>
+					<small><?= (int)($ea['bounced'] ?? 0) ?> failed sends</small>
+				</div>
+			</div>
+			<div class="col-md-3 col-sm-6 mb-20">
+				<div class="card-box pd-20 cm-status-card" style="background:#6c757d;">
+					<p>Unsubscribes</p>
+					<h3><?= (int)($ea['unsubscribes'] ?? 0) ?></h3>
+					<small>All-time opt-outs</small>
+				</div>
+			</div>
+		</div>
+
 		<div class="row pb-10">
 			<?php
 			$cards = [
