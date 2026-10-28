@@ -573,39 +573,33 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
     }
     .scale-num{font-size:12px;color:var(--muted);line-height:1;}
 
-    /* Scale: stack labels above/below the 0–10 row on narrow screens (no overlap) */
+    /* Scale on mobile: 0–10 row first, min + max labels on one line below */
     @media (max-width: 768px){
       .scale-row{
-        flex-direction:column;
-        align-items:stretch;
-        gap:8px;
-      }
-      .scale-end-label{
-        max-width:none;
-        white-space:normal;
-        align-self:stretch;
-        font-size:12px;
-        line-height:1.35;
-      }
-      .scale-end-min{
-        order:1;
-        text-align:left;
-        padding-right:8px;
-      }
-      .scale-end-max{
-        order:3;
-        text-align:right;
-        padding-left:8px;
+        flex-wrap:wrap;
+        align-items:flex-end;
+        gap:4px 8px;
       }
       .scale-points{
-        order:2;
-        flex:none;
+        order:1;
+        flex:1 1 100%;
         width:100%;
         justify-content:space-between;
         gap:2px 4px;
         overflow-x:auto;
         scrollbar-width:thin;
       }
+      .scale-end-label{
+        order:2;
+        flex:1 1 calc(50% - 6px);
+        max-width:calc(50% - 6px);
+        white-space:normal;
+        font-size:12px;
+        line-height:1.35;
+        margin-top:4px;
+      }
+      .scale-end-min{text-align:left;}
+      .scale-end-max{text-align:right;}
       .scale-point{
         min-width:24px;
         gap:3px;
