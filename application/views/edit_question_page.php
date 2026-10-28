@@ -99,7 +99,7 @@
         <label class="col-sm-12 col-md-2 col-form-label">Option <?= $pos ?></label>
 
         <div class="col-sm-6 col-md-6">
-          <input class="form-control" type="text" name="option_text[]" value="<?= htmlspecialchars($text) ?>" required>
+          <input class="form-control option-text-input" type="text" name="option_text[]" value="<?= htmlspecialchars($text) ?>">
         </div>
 
         <div class="col-sm-2 col-md-2">
@@ -162,27 +162,45 @@
 
 
 <script>
-let optionCount = document.querySelectorAll("#options-wrapper .option-row").length;
+let optionCount = document.querySelectorAll('#options-wrapper .option-row').length;
+const minOptions = 2;
 const maxOptions = 10;
 
-function addOption(text = "", marks = "") {
-  if (optionCount >= maxOptions) return alert("Maximum 10 options allowed.");
+function getOptionRows() {
+  return document.querySelectorAll('#options-wrapper .option-row');
+}
 
-  optionCount++;
-  const pos = optionCount;
+function reindexOptions() {
+  const rows = getOptionRows();
+  rows.forEach(function (row, idx) {
+    const pos = idx + 1;
+    row.id = 'opt-' + pos;
+    const label = row.querySelector('label.col-form-label');
+    if (label) label.textContent = 'Option ' + pos;
+    const cb = row.querySelector('input[name="is_correct[]"]');
+    if (cb) cb.value = String(pos);
+    const rmBtn = row.querySelector('button.btn-danger');
+    if (rmBtn) rmBtn.setAttribute('onclick', 'removeOption(' + pos + ')');
+  });
+  optionCount = rows.length;
+}
 
+function addOption(text = '', marks = '') {
+  if (getOptionRows().length >= maxOptions) {
+    alert('Maximum 10 options allowed.');
+    return;
+  }
+  const pos = getOptionRows().length + 1;
+  const safeText = String(text).replace(/"/g, '&quot;');
   const html = `
     <div class="form-group row option-row" id="opt-${pos}">
       <label class="col-sm-12 col-md-2 col-form-label">Option ${pos}</label>
-
       <div class="col-sm-6 col-md-6">
-        <input class="form-control" type="text" name="option_text[]" value="${text}" required>
+        <input class="form-control option-text-input" type="text" name="option_text[]" value="${safeText}">
       </div>
-
       <div class="col-sm-2 col-md-2">
         <input class="form-control" type="number" name="option_marks[]" value="${marks}" step="0.01" min="0">
       </div>
-
       <div class="col-sm-2 col-md-2 d-flex align-items-center">
         <label class="m-0">
           <input type="checkbox" name="is_correct[]" value="${pos}">
@@ -192,33 +210,56 @@ function addOption(text = "", marks = "") {
       </div>
     </div>
   `;
-  document.getElementById("options-wrapper").insertAdjacentHTML("beforeend", html);
+  document.getElementById('options-wrapper').insertAdjacentHTML('beforeend', html);
+  reindexOptions();
 }
 
 function removeOption(pos) {
-  const el = document.getElementById("opt-" + pos);
+  if (getOptionRows().length <= minOptions) {
+    alert('At least ' + minOptions + ' options are required.');
+    return;
+  }
+  const el = document.getElementById('opt-' + pos);
   if (el) el.remove();
-  // we do not reindex here; controller uses position-based mapping by array order
+  reindexOptions();
 }
 
-(function() {
+(function () {
   var select = document.getElementById('question_type');
   var optionsSection = document.getElementById('options_section');
 
   function toggleOptions() {
     var qType = (select && select.value) ? String(select.value).trim() : '';
     optionsSection.style.display = (qType === '1') ? 'block' : 'none';
-
-    // If user switches to MCQ and there are no options, create 4 by default
-    if (qType === '1' && document.querySelectorAll("#options-wrapper .option-row").length === 0) {
-      addOption(); addOption(); addOption(); addOption();
+    if (qType === '1' && getOptionRows().length === 0) {
+      addOption();
+      addOption();
     }
   }
 
   if (select && optionsSection) {
     select.addEventListener('change', toggleOptions);
     toggleOptions();
-    document.addEventListener('DOMContentLoaded', toggleOptions);
+    reindexOptions();
+  }
+
+  var form = document.querySelector('form[action*="update_question"]');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      if (String(select.value) !== '1') return;
+      const filled = Array.from(document.querySelectorAll('#options-wrapper .option-text-input'))
+        .map(function (el) { return el.value.trim(); })
+        .filter(function (v) { return v !== ''; });
+      if (filled.length < minOptions) {
+        e.preventDefault();
+        alert('Please provide at least ' + minOptions + ' options with text.');
+        return;
+      }
+      if (!form.querySelector('#options-wrapper input[name="is_correct[]"]:checked')) {
+        e.preventDefault();
+        alert('Please select at least one correct option.');
+      }
+    });
   }
 })();
 </script>

@@ -103,26 +103,46 @@
 
 <script>
 let optionCount = 0;
+const minOptions = 2;
 const maxOptions = 10;
 
-function addOption(text = "", marks = "") {
-  if (optionCount >= maxOptions) return alert("Maximum 10 options allowed.");
+function getOptionRows() {
+  return document.querySelectorAll('#options-wrapper .option-row');
+}
 
-  optionCount++;
-  const pos = optionCount; // 1-based position, used for checkbox value
+function reindexOptions() {
+  const rows = getOptionRows();
+  rows.forEach(function (row, idx) {
+    const pos = idx + 1;
+    row.id = 'opt-' + pos;
+    const label = row.querySelector('label.col-form-label');
+    if (label) label.textContent = 'Option ' + pos;
+    const textInput = row.querySelector('input[name="option_text[]"]');
+    if (textInput) textInput.placeholder = 'Enter option ' + pos;
+    const cb = row.querySelector('input[name="is_correct[]"]');
+    if (cb) cb.value = String(pos);
+    const rmBtn = row.querySelector('button.btn-danger');
+    if (rmBtn) rmBtn.setAttribute('onclick', 'removeOption(' + pos + ')');
+  });
+  optionCount = rows.length;
+}
 
+function addOption(text = '', marks = '') {
+  if (getOptionRows().length >= maxOptions) {
+    alert('Maximum 10 options allowed.');
+    return;
+  }
+  const pos = getOptionRows().length + 1;
+  const safeText = String(text).replace(/"/g, '&quot;');
   const html = `
     <div class="form-group row option-row" id="opt-${pos}">
       <label class="col-sm-12 col-md-2 col-form-label">Option ${pos}</label>
-
       <div class="col-sm-6 col-md-6">
-        <input class="form-control" type="text" name="option_text[]" placeholder="Enter option ${pos}" value="${text}" required>
+        <input class="form-control option-text-input" type="text" name="option_text[]" placeholder="Enter option ${pos}" value="${safeText}">
       </div>
-
       <div class="col-sm-2 col-md-2">
         <input class="form-control" type="number" name="option_marks[]" placeholder="Marks" value="${marks}" step="0.01" min="0">
       </div>
-
       <div class="col-sm-2 col-md-2 d-flex align-items-center">
         <label class="m-0">
           <input type="checkbox" name="is_correct[]" value="${pos}">
@@ -132,27 +152,55 @@ function addOption(text = "", marks = "") {
       </div>
     </div>
   `;
-  document.getElementById("options-wrapper").insertAdjacentHTML("beforeend", html);
+  document.getElementById('options-wrapper').insertAdjacentHTML('beforeend', html);
+  reindexOptions();
 }
 
 function removeOption(pos) {
-  const el = document.getElementById("opt-" + pos);
+  if (getOptionRows().length <= minOptions) {
+    alert('At least ' + minOptions + ' options are required.');
+    return;
+  }
+  const el = document.getElementById('opt-' + pos);
   if (el) el.remove();
+  reindexOptions();
 }
 
 function toggleOptions() {
-  const mcqOptions = document.getElementById("mcq-options");
-  const mcqRadio = document.getElementById("mcq");
-
+  const mcqOptions = document.getElementById('mcq-options');
+  const mcqRadio = document.getElementById('mcq');
   if (mcqRadio.checked) {
-    mcqOptions.style.display = "block";
-    if (document.querySelectorAll("#options-wrapper .option-row").length === 0) {
-      addOption(); addOption(); addOption(); addOption(); // default 4
+    mcqOptions.style.display = 'block';
+    if (getOptionRows().length === 0) {
+      addOption();
+      addOption();
     }
   } else {
-    mcqOptions.style.display = "none";
+    mcqOptions.style.display = 'none';
   }
 }
+
+(function () {
+  const form = document.querySelector('form[action*="addQuestion"]');
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    const mcqRadio = document.getElementById('mcq');
+    if (!mcqRadio || !mcqRadio.checked) return;
+    const filled = Array.from(document.querySelectorAll('#options-wrapper .option-text-input'))
+      .map(function (el) { return el.value.trim(); })
+      .filter(function (v) { return v !== ''; });
+    if (filled.length < minOptions) {
+      e.preventDefault();
+      alert('Please provide at least ' + minOptions + ' options with text.');
+      return;
+    }
+    const anyCorrect = form.querySelector('#options-wrapper input[name="is_correct[]"]:checked');
+    if (!anyCorrect) {
+      e.preventDefault();
+      alert('Please select at least one correct option.');
+    }
+  });
+})();
 </script>
 
    <!-- Submit Button -->

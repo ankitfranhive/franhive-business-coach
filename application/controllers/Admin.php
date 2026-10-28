@@ -354,6 +354,12 @@ public function update_question()
                     'SORT_ORDER'   => $pos
                 ];
             }
+
+            if (count($options) < 2) {
+                $this->session->set_flashdata('error', 'Please provide at least 2 valid options.');
+                redirect('edit-question/' . $question_id);
+                return;
+            }
         }
 
         $ok = $this->AdminConsoleModel->update_question_with_options($question_id, $data, $question_type, $options);
