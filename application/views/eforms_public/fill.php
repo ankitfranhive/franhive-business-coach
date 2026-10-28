@@ -93,9 +93,9 @@ function render_input($f, $fname, $val, $checkbox_errors = []) {
 
         echo '<div class="scale-row">';
         if ($min_label !== '') {
-            echo '<span class="scale-end-label">'.html_escape($min_label).'</span>';
+            echo '<span class="scale-end-label scale-end-min">'.html_escape($min_label).'</span>';
         }
-        echo '<div class="scale-points">';
+        echo '<div class="scale-points" role="group" aria-label="Scale">';
         for ($n = $min; $n <= $max; $n++) {
             $checked = ((string)$val === (string)$n) ? 'checked' : '';
             echo '<label class="scale-point">
@@ -108,7 +108,7 @@ function render_input($f, $fname, $val, $checkbox_errors = []) {
         }
         echo '</div>';
         if ($max_label !== '') {
-            echo '<span class="scale-end-label">'.html_escape($max_label).'</span>';
+            echo '<span class="scale-end-label scale-end-max">'.html_escape($max_label).'</span>';
         }
         echo '</div>';
         return;
@@ -538,8 +538,6 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       align-items:flex-end;
       gap:10px 14px;
       margin-top:8px;
-      overflow-x:auto;
-      -webkit-overflow-scrolling:touch;
       padding-bottom:4px;
     }
     .scale-end-label{
@@ -547,7 +545,7 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       color:var(--muted);
       white-space:nowrap;
       flex:0 0 auto;
-      max-width:140px;
+      max-width:min(140px, 22vw);
       line-height:1.3;
       align-self:center;
     }
@@ -559,6 +557,9 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       gap:2px 6px;
       flex-wrap:nowrap;
       min-width:0;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      padding:2px 4px 6px;
     }
     .scale-point{
       display:flex;
@@ -568,8 +569,52 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       cursor:pointer;
       padding:2px;
       flex:0 0 auto;
+      min-width:26px;
     }
     .scale-num{font-size:12px;color:var(--muted);line-height:1;}
+
+    /* Scale: stack labels above/below the 0–10 row on narrow screens (no overlap) */
+    @media (max-width: 768px){
+      .scale-row{
+        flex-direction:column;
+        align-items:stretch;
+        gap:8px;
+      }
+      .scale-end-label{
+        max-width:none;
+        white-space:normal;
+        align-self:stretch;
+        font-size:12px;
+        line-height:1.35;
+      }
+      .scale-end-min{
+        order:1;
+        text-align:left;
+        padding-right:8px;
+      }
+      .scale-end-max{
+        order:3;
+        text-align:right;
+        padding-left:8px;
+      }
+      .scale-points{
+        order:2;
+        flex:none;
+        width:100%;
+        justify-content:space-between;
+        gap:2px 4px;
+        overflow-x:auto;
+        scrollbar-width:thin;
+      }
+      .scale-point{
+        min-width:24px;
+        gap:3px;
+      }
+      .scale-num{font-size:11px;}
+      .scale-points .opt-control{width:18px;height:18px;}
+      .scale-points .opt-control input{width:18px;height:18px;}
+      .scale-points .radio-control .opt-dot{width:18px;height:18px;}
+    }
     .opt-row{
       display:flex;
       align-items:center;
@@ -794,6 +839,9 @@ $footer_page = 1; // static "Page 1" per your screenshot; can be made dynamic la
       .btns{gap:10px;}
       button{padding:10px 18px;font-size:14px;width:100%;}
       .btns{flex-direction:column;}
+
+      .scale-points{gap:1px 2px;padding-bottom:8px;}
+      .scale-point{min-width:22px;}
     }
   </style>
 </head>
