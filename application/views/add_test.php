@@ -45,6 +45,7 @@
 						<option value="3">NORMAL MCQ</option>	
 						<option value="4">BRS</option>
 						<option value="5">K-10</option>
+						<option value="6">Value Test</option>
 					
 						
 					</select>

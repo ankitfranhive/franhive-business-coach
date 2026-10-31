@@ -44,6 +44,7 @@
                             <option value="3" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '3' ? 'selected' : '' ?>>Normal MCQ</option>
                             <option value="4" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '4' ? 'selected' : '' ?>>BRS</option>
                             <option value="5" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '5' ? 'selected' : '' ?>>K-10</option>
+                            <option value="6" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '6' ? 'selected' : '' ?>>Value Test</option>
                     </div>
                 </div>
 
