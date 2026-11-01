@@ -6,7 +6,6 @@
 $counts = $choice_counts ?? ['me' => 0, 'dont_care' => 0, 'not_me' => 0];
 $meTotal = (float)($weighted_me_total ?? 0);
 $notMeTotal = (float)($weighted_not_me_total ?? 0);
-$scoredTotal = (float)($scored_total ?? ($meTotal + $notMeTotal));
 $attempted = (int)($attempted ?? 0);
 $response_id = isset($response_id) ? (int)$response_id : (int)($user_data['ID'] ?? $user_data['id'] ?? 0);
 $is_eval = (int)($user_data['IS_EVAL'] ?? $user_data['is_eval'] ?? 0);
@@ -196,7 +195,7 @@ $eval_submit_url = !empty($eval_submit_url)
                 </div>
             </div>
 
-            <h5 class="mb-3 text-secondary">Weighted totals (Me + Not me only)</h5>
+            <h5 class="mb-3 text-secondary">Weighted totals</h5>
             <div class="vt-grid">
                 <div class="vt-card weight-me">
                     <h5>Me weighted total</h5>
@@ -207,9 +206,8 @@ $eval_submit_url = !empty($eval_submit_url)
                     <div class="vt-num"><?= number_format($notMeTotal, 2) ?></div>
                 </div>
                 <div class="vt-card">
-                    <h5>Combined (Me + Not me)</h5>
-                    <div class="vt-num" style="color:var(--vt-accent);"><?= number_format($scoredTotal, 2) ?></div>
-                    <small class="text-muted"><?= $attempted ?> questions answered</small>
+                    <h5>Questions answered</h5>
+                    <div class="vt-num" style="color:var(--vt-accent); font-size:1.75rem;"><?= $attempted ?></div>
                 </div>
             </div>
 

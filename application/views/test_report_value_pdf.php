@@ -38,7 +38,6 @@
   <h3>Weighted totals</h3>
   <p><strong>Me total:</strong> <?= number_format((float)($weighted_me_total ?? 0), 2) ?></p>
   <p><strong>Not me total:</strong> <?= number_format((float)($weighted_not_me_total ?? 0), 2) ?></p>
-  <p><strong>Combined (Me + Not me):</strong> <?= number_format((float)($scored_total ?? 0), 2) ?></p>
 </div>
 
 <div class="box">
