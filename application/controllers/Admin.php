@@ -938,7 +938,16 @@ if ($testType === 5) {
     return;
 }
 
-    
+    // ==========================================
+    // TYPE 6 — Value test (Me / I don't care / Not me)
+    // ==========================================
+    if ($testType === 6) {
+        $this->load->helper('test_report_pdf');
+        $valueData = test_report_value_pdf_data($this, $data['user_data']);
+        $data = array_merge($data, $valueData);
+        $this->load->view('test_report_value', $data);
+        return;
+    }
 
     // === Other types
     $data['user_response'] = $data['user_data'];
@@ -971,6 +980,9 @@ if ($testType === 5) {
         } elseif (in_array($testType, [4, 5], true)) {
             $data = test_report_brs_pdf_data($this, $row);
             $html = $this->load->view('test_report_brs_pdf', $data, true);
+        } elseif ($testType === 6) {
+            $data = test_report_value_pdf_data($this, $row);
+            $html = $this->load->view('test_report_value_pdf', $data, true);
         } else {
             show_error('PDF download is not available for this test type.', 400);
             return;

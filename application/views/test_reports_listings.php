@@ -82,6 +82,9 @@
             <?php elseif ($isEval !== 1 && $testType === 3): ?>
                 <a href="<?= base_url('eval/' . $responseId) ?>" class="btn btn-info btn-sm">View Result</a>
 
+            <?php elseif ($isEval !== 1 && $testType === 6): ?>
+                <a href="<?= base_url('eval/' . $responseId) ?>" class="btn btn-info btn-sm">View Value Report</a>
+
             <?php else: ?>
                 <a href="<?= base_url('eval/' . $responseId) ?>" class="btn btn-primary btn-sm">Evaluate</a>
             <?php endif; ?>

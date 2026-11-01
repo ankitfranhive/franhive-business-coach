@@ -202,6 +202,124 @@ if (!function_exists('test_report_brs_pdf_data')) {
     }
 }
 
+if (!function_exists('test_report_value_pdf_data')) {
+    /**
+     * Type 6 — Value test: Me (1) / I don't care (2) / Not me (3).
+     * Weighted totals use QUESTION_MARKS for options 1 and 3 only; option 2 is excluded from totals.
+     *
+     * @return array<string,mixed>
+     */
+    function test_report_value_pdf_data($CI, array $row)
+    {
+        $responses = test_report_decode_responses($row);
+
+        $data = [
+            'user_data'            => $row,
+            'attempted'            => 0,
+            'choice_counts'        => ['me' => 0, 'dont_care' => 0, 'not_me' => 0],
+            'weighted_me_total'    => 0.0,
+            'weighted_not_me_total'=> 0.0,
+            'question_analysis'    => [],
+            'value_labels'         => [
+                1 => 'Me',
+                2 => "I don't care",
+                3 => 'Not me',
+            ],
+        ];
+
+        $questionIds = array_values(array_unique(
+            array_map('intval', array_filter(array_column($responses, 'question_id')))
+        ));
+
+        $questionsById = [];
+        if ($questionIds) {
+            $CI->db->select('QUESTION_ID, QUESTION_NAME, QUESTION_MARKS');
+            $CI->db->where_in('QUESTION_ID', $questionIds);
+            foreach ($CI->db->get('TEST_SERIES_QUESTIONS')->result_array() as $q) {
+                $questionsById[(int)$q['QUESTION_ID']] = $q;
+            }
+        }
+
+        $optionsByQid = [];
+        if ($questionIds) {
+            $CI->db->select('QUESTION_ID, OPTION_TEXT, SORT_ORDER');
+            $CI->db->where_in('QUESTION_ID', $questionIds);
+            $CI->db->order_by('QUESTION_ID', 'ASC');
+            $CI->db->order_by('SORT_ORDER', 'ASC');
+            foreach ($CI->db->get('TEST_SERIES_QUESTION_OPTIONS')->result_array() as $o) {
+                $qid = (int)$o['QUESTION_ID'];
+                $key = 'option_' . (int)$o['SORT_ORDER'];
+                $optionsByQid[$qid][$key] = (string)($o['OPTION_TEXT'] ?? '');
+            }
+        }
+
+        foreach ($responses as $r) {
+            $qid = isset($r['question_id']) ? (int)$r['question_id'] : 0;
+            if (!$qid || !isset($questionsById[$qid])) {
+                continue;
+            }
+
+            $selectedKey = (string)($r['selected_option'] ?? '');
+            if ($selectedKey === '') {
+                continue;
+            }
+
+            $selectedN = (int)str_replace('option_', '', $selectedKey);
+            if ($selectedN < 1 || $selectedN > 3) {
+                continue;
+            }
+
+            $qMarks = (float)($questionsById[$qid]['QUESTION_MARKS'] ?? 1);
+            if ($qMarks < 0) {
+                $qMarks = 0;
+            }
+
+            $label = $data['value_labels'][$selectedN] ?? ('Option ' . $selectedN);
+            $answerText = trim($optionsByQid[$qid][$selectedKey] ?? '');
+            if ($answerText === '') {
+                $answerText = $label;
+            }
+
+            $weighted = 0.0;
+            $countsToward = '—';
+            if ($selectedN === 1) {
+                $data['choice_counts']['me']++;
+                $data['weighted_me_total'] += $qMarks;
+                $weighted = $qMarks;
+                $countsToward = 'Me total';
+            } elseif ($selectedN === 2) {
+                $data['choice_counts']['dont_care']++;
+                $countsToward = 'Excluded from totals';
+            } elseif ($selectedN === 3) {
+                $data['choice_counts']['not_me']++;
+                $data['weighted_not_me_total'] += $qMarks;
+                $weighted = $qMarks;
+                $countsToward = 'Not me total';
+            }
+
+            $data['attempted']++;
+            $data['question_analysis'][] = [
+                'question_id'     => $qid,
+                'question_text'   => (string)$questionsById[$qid]['QUESTION_NAME'],
+                'your_answer'     => $answerText,
+                'choice_key'      => $selectedKey,
+                'choice_number'   => $selectedN,
+                'choice_label'    => $label,
+                'question_marks'  => $qMarks,
+                'weighted_score'  => $weighted,
+                'counts_toward'   => $countsToward,
+                'time_spent'      => isset($r['time_spent']) ? (int)$r['time_spent'] : 0,
+            ];
+        }
+
+        $data['weighted_me_total'] = round($data['weighted_me_total'], 2);
+        $data['weighted_not_me_total'] = round($data['weighted_not_me_total'], 2);
+        $data['scored_total'] = round($data['weighted_me_total'] + $data['weighted_not_me_total'], 2);
+
+        return $data;
+    }
+}
+
 if (!function_exists('test_report_stream_pdf')) {
     function test_report_stream_pdf($html, $filename)
     {

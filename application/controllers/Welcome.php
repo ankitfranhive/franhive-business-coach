@@ -68,7 +68,7 @@ class Welcome extends CI_Controller {
 
     // ✅ Hydrate options for all MCQ-like types (1 = Most/Least, 3/4/5 = MCQ)
     $testType = (int)$data['test_details']['TEST_TYPE'];
-    if (in_array($testType, [1,3,4,5], true)) {
+    if (in_array($testType, [1, 3, 4, 5, 6], true)) {
 
         $questionIds = [];
         foreach ($data['test_questions'] as $q) {
@@ -90,7 +90,7 @@ class Welcome extends CI_Controller {
     }
 
     // Load views (your original logic)
-    if (in_array($testType, [1,3,4,5], true)) {
+    if (in_array($testType, [1, 3, 4, 5, 6], true)) {
         $this->load->view('user_test_mcq_dashboard', $data);
     } else {
         $this->load->view('user_test_dashboard', $data);
@@ -215,6 +215,9 @@ public function downloadReportPdf($response_id)
     } elseif (in_array($testType, [4, 5], true)) {
         $data = test_report_brs_pdf_data($this, $row);
         $html = $this->load->view('test_report_brs_pdf', $data, true);
+    } elseif ($testType === 6) {
+        $data = test_report_value_pdf_data($this, $row);
+        $html = $this->load->view('test_report_value_pdf', $data, true);
     } else {
         show_error('This report type is not supported here.', 400);
         return;

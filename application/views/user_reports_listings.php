@@ -75,6 +75,18 @@
                 <?php endif; ?>
 
             <!-- ✅ TEST TYPE 4 & 5 -->
+            <?php elseif ($testType === 6): ?>
+
+                <?php if ($attempts === 0): ?>
+                    <button class="btn btn-warning">Not Submitted</button>
+                <?php elseif ($isEval === 1): ?>
+                    <button class="btn btn-success" disabled>Evaluated</button>
+                <?php elseif ($isEval === 0 && $isSub === 1): ?>
+                    <button class="btn btn-primary">Not Evaluated</button>
+                <?php else: ?>
+                    <button class="btn btn-warning">Not Submitted</button>
+                <?php endif; ?>
+
             <?php elseif (in_array($testType, [4, 5], true)): ?>
 
                 <?php if ($attempts === 0): ?>
