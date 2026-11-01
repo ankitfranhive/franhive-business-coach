@@ -465,12 +465,10 @@ public function update_question()
 
     public function getAllTestsAllocation()
     {
-        $user_id = $this->uri->segment(2);
+        $user_id = (int) $this->uri->segment(2);
+        $data['user_id'] = $user_id;
+        $data['user'] = $this->AdminConsoleModel->get_user_by_id($user_id);
         $data['tests'] = $this->AdminConsoleModel->get_userassigned_tests($user_id);
-        // $data['assigned_tests'] = $this->AdminConsoleModel->get_tests();
-
-        // echo "pre";
-        // print_r(  $data['tests'] );die;
 
         $this->load->view('test_allocation_listing', $data);
     }
@@ -550,16 +548,21 @@ public function update_question()
 
     public function questionsList()
     {
-
+        $data['test_id'] = null;
+        $data['test'] = null;
         $data['questions'] = $this->AdminConsoleModel->get_questions();
+        $data['question_groups'] = $this->AdminConsoleModel->get_distinct_question_groups();
 
         $this->load->view('add-test-question', $data);
     }
 
     public function questionsListTest()
     {
-        $test_id =  $this->uri->segment(2);
-        $data['questions'] = $this->AdminConsoleModel->get_questions_in_test($test_id );
+        $test_id = (int) $this->uri->segment(2);
+        $data['test_id'] = $test_id;
+        $data['test'] = $this->AdminConsoleModel->get_test_details($test_id);
+        $data['questions'] = $this->AdminConsoleModel->get_questions_in_test($test_id);
+        $data['question_groups'] = $this->AdminConsoleModel->get_distinct_question_groups();
 
         $this->load->view('add-test-question', $data);
     }
@@ -568,33 +571,42 @@ public function update_question()
 
     public function addQuestionTest()
     {
+        $question_id = (int) $this->input->post('question_id');
+        $test_id = (int) $this->input->post('test_id');
 
-        $question_id = $this->input->post('question_id');
-        $test_id = $this->input->post('test_id');
-
-        // Save the data to the database using your model
-        $data = array(
+        $data = [
             'QUESTION_ID' => $question_id,
-            'TEST_ID' => $test_id,
-        );
+            'TEST_ID'     => $test_id,
+        ];
 
         $add_question = $this->AdminConsoleModel->save_test_questing_mapping($data);
 
         if ($add_question) {
-            echo "Added Question in test";
+            echo 'Added Question in test';
+        } else {
+            $this->output->set_status_header(409);
+            echo 'Question already in test or invalid.';
+        }
+    }
+
+    public function addQuestionTestBulk()
+    {
+        $test_id = (int) $this->input->post('test_id');
+        $question_ids = $this->input->post('question_ids');
+        if (!is_array($question_ids)) {
+            $question_ids = [];
         }
 
-        // redirect('test');
+        $result = $this->AdminConsoleModel->save_test_question_mappings_bulk($test_id, $question_ids);
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode($result));
     }
 
 
     public function testAllocation()
     {
-
-        $data['users'] = $this->AdminConsoleModel->get_all_users();
-        // echo "<pre>";
-        // print_r(  $data['users']);die;
-
+        $data['users'] = $this->AdminConsoleModel->get_users_for_test_allocation();
         $this->load->view('test_user_allocation', $data);
     }
 
@@ -1013,24 +1025,36 @@ if ($testType === 5) {
 
     public function addTestUser()
     {
+        $test_id = (int) $this->input->post('test_id');
+        $user_id = (int) $this->input->post('user_id');
 
-        $test_id = $this->input->post('test_id');
-        $user_id = $this->input->post('user_id');
-
-        // Save the data to the database using your model
-        $data = array(
+        $data = [
             'TEST_ID' => $test_id,
             'USER_ID' => $user_id,
-        );
+        ];
 
-        //  print_r($data);die;
         $add_test = $this->AdminConsoleModel->save_test_user_mapping($data);
 
         if ($add_test) {
-            echo "Assigned test to user";
+            echo 'Assigned test to user';
+        } else {
+            $this->output->set_status_header(409);
+            echo 'Test already assigned or invalid.';
+        }
+    }
+
+    public function addTestUserBulk()
+    {
+        $user_id = (int) $this->input->post('user_id');
+        $test_ids = $this->input->post('test_ids');
+        if (!is_array($test_ids)) {
+            $test_ids = [];
         }
 
-        // redirect('test');
+        $result = $this->AdminConsoleModel->save_test_user_mappings_bulk($user_id, $test_ids);
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode($result));
     }
 
     public function removeTestUser()

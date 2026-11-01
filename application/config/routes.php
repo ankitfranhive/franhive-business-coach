@@ -102,6 +102,7 @@ $route['add-question'] = 'admin/addQuestion';
 $route['add-question-test/(:any)'] = 'admin/questionsListTest';
 
 $route['save-question-test'] = 'admin/addQuestionTest';
+$route['bulk-save-question-test'] = 'admin/addQuestionTestBulk';
 
 $route['edit-quetsion/(:any)'] = 'admin/editQuestion';
 
@@ -123,6 +124,7 @@ $route['save-user-eval'] = 'admin/saveUserTestEval';
 $route['test-allocation/(:any)'] = 'admin/getAllTestsAllocation';
 
 $route['save-test-user'] = 'admin/addTestUser';
+$route['bulk-save-test-user'] = 'admin/addTestUserBulk';
 
 $route['remove-test-user'] = 'admin/removeTestUser';
 

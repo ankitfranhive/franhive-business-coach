@@ -24,20 +24,35 @@ class AdminConsoleModel extends CI_Model
     }
 
 
-    public function get_questions_in_test($test_id )
+    public function get_questions_in_test($test_id)
     {
-        // Fetch questions from your database
-        $query = "SELECT 
-        TEST_SERIES_QUESTIONS.QUESTION_GROUP,TEST_SERIES_QUESTIONS.QUESTION_ID,TEST_SERIES_QUESTIONS.QUESTION_NAME,
-        TEST_QUESTION_MAPPING.ID as `MAPPING_ID`,
-        TEST_QUESTION_MAPPING.MAP_STATUS 
-        FROM TEST_SERIES_QUESTIONS
-        LEFT JOIN TEST_QUESTION_MAPPING ON TEST_QUESTION_MAPPING.QUESTION_ID = TEST_SERIES_QUESTIONS.QUESTION_ID AND TEST_QUESTION_MAPPING.TEST_ID =".$test_id ."
-        ORDER BY QUESTION_ID DESC
-                            ";
+        $test_id = (int) $test_id;
+        $sql = "
+            SELECT
+                q.QUESTION_GROUP,
+                q.QUESTION_ID,
+                q.QUESTION_NAME,
+                q.QUESTION_TYPE,
+                q.QUESTION_MARKS,
+                m.ID AS MAPPING_ID,
+                m.MAP_STATUS
+            FROM TEST_SERIES_QUESTIONS q
+            LEFT JOIN TEST_QUESTION_MAPPING m
+                ON m.QUESTION_ID = q.QUESTION_ID AND m.TEST_ID = ?
+            ORDER BY q.QUESTION_ID DESC
+        ";
+        return $this->db->query($sql, [$test_id])->result();
+    }
 
-        $query = $this->db->query($query);
-        return $query->result();
+    public function get_distinct_question_groups()
+    {
+        $this->db->distinct();
+        $this->db->select('QUESTION_GROUP');
+        $this->db->from('TEST_SERIES_QUESTIONS');
+        $this->db->where('QUESTION_GROUP IS NOT NULL', null, false);
+        $this->db->where('QUESTION_GROUP !=', '');
+        $this->db->order_by('QUESTION_GROUP', 'ASC');
+        return $this->db->get()->result();
     }
 
 
@@ -325,10 +340,40 @@ class AdminConsoleModel extends CI_Model
 
     public function get_all_users()
     {
-        // Fetch questions from your database
         $this->db->order_by('USER_ID', 'DESC');
         $query = $this->db->get('USERS');
         return $query->result();
+    }
+
+    public function get_users_for_test_allocation()
+    {
+        $sql = "
+            SELECT
+                u.USER_ID,
+                u.NAME,
+                u.EMAIL,
+                COALESCE(cnt.alloc_count, 0) AS ALLOCATED_TESTS
+            FROM USERS u
+            LEFT JOIN (
+                SELECT USER_ID, COUNT(*) AS alloc_count
+                FROM TEST_USER_ALLOCATION
+                WHERE COALESCE(IS_REMOVED, 0) = 0
+                GROUP BY USER_ID
+            ) cnt ON cnt.USER_ID = u.USER_ID
+            ORDER BY u.USER_ID DESC
+        ";
+        $q = $this->db->query($sql);
+        return $q ? $q->result() : [];
+    }
+
+    public function get_user_by_id($user_id)
+    {
+        $user_id = (int) $user_id;
+        if ($user_id <= 0) {
+            return null;
+        }
+        $this->db->where('USER_ID', $user_id);
+        return $this->db->get('USERS')->row();
     }
 
 
@@ -354,22 +399,119 @@ class AdminConsoleModel extends CI_Model
 
     public function save_test_questing_mapping($data)
     {
-        // Insert the question data into the TEST_SERIES_QUESTION table
-        $add_qustn =  $this->db->insert('TEST_QUESTION_MAPPING', $data);
-        $this->db->last_query();
-        if ($add_qustn) {
-            return true;
+        $test_id = (int) ($data['TEST_ID'] ?? 0);
+        $question_id = (int) ($data['QUESTION_ID'] ?? 0);
+        if ($test_id <= 0 || $question_id <= 0) {
+            return false;
         }
+        $this->db->where('TEST_ID', $test_id);
+        $this->db->where('QUESTION_ID', $question_id);
+        if ($this->db->count_all_results('TEST_QUESTION_MAPPING') > 0) {
+            return false;
+        }
+        return (bool) $this->db->insert('TEST_QUESTION_MAPPING', $data);
+    }
+
+    /**
+     * @return array{added:int, skipped:int, question_ids:int[]}
+     */
+    public function save_test_question_mappings_bulk($test_id, array $question_ids)
+    {
+        $test_id = (int) $test_id;
+        $question_ids = array_values(array_unique(array_filter(array_map('intval', $question_ids))));
+        if ($test_id <= 0 || empty($question_ids)) {
+            return ['added' => 0, 'skipped' => 0, 'question_ids' => []];
+        }
+
+        $this->db->select('QUESTION_ID');
+        $this->db->where('TEST_ID', $test_id);
+        $this->db->where_in('QUESTION_ID', $question_ids);
+        $existing = array_map('intval', array_column($this->db->get('TEST_QUESTION_MAPPING')->result_array(), 'QUESTION_ID'));
+
+        $added = 0;
+        $skipped = 0;
+        $added_ids = [];
+        foreach ($question_ids as $qid) {
+            if (in_array($qid, $existing, true)) {
+                $skipped++;
+                continue;
+            }
+            if ($this->db->insert('TEST_QUESTION_MAPPING', [
+                'QUESTION_ID' => $qid,
+                'TEST_ID'     => $test_id,
+            ])) {
+                $added++;
+                $added_ids[] = $qid;
+                $existing[] = $qid;
+            } else {
+                $skipped++;
+            }
+        }
+
+        return ['added' => $added, 'skipped' => $skipped, 'question_ids' => $added_ids];
     }
 
     public function save_test_user_mapping($data)
     {
-        // Insert the question data into the TEST_SERIES_QUESTION table
-        $add_qustn =  $this->db->insert('TEST_USER_ALLOCATION', $data);
-        $this->db->last_query();
-        if ($add_qustn) {
-            return true;
+        $test_id = (int) ($data['TEST_ID'] ?? 0);
+        $user_id = (int) ($data['USER_ID'] ?? 0);
+        if ($test_id <= 0 || $user_id <= 0) {
+            return false;
         }
+        $this->db->where('TEST_ID', $test_id);
+        $this->db->where('USER_ID', $user_id);
+        $existing = $this->db->get('TEST_USER_ALLOCATION')->result();
+        foreach ($existing as $row) {
+            if ((int) ($row->IS_REMOVED ?? 0) === 0) {
+                return false;
+            }
+        }
+        return (bool) $this->db->insert('TEST_USER_ALLOCATION', $data);
+    }
+
+    /**
+     * @return array{added:int, skipped:int, test_ids:int[]}
+     */
+    public function save_test_user_mappings_bulk($user_id, array $test_ids)
+    {
+        $user_id = (int) $user_id;
+        $test_ids = array_values(array_unique(array_filter(array_map('intval', $test_ids))));
+        if ($user_id <= 0 || empty($test_ids)) {
+            return ['added' => 0, 'skipped' => 0, 'test_ids' => []];
+        }
+
+        $this->db->select('TEST_ID, IS_REMOVED');
+        $this->db->where('USER_ID', $user_id);
+        $this->db->where_in('TEST_ID', $test_ids);
+        $existing = [];
+        foreach ($this->db->get('TEST_USER_ALLOCATION')->result_array() as $row) {
+            if ((int) ($row['IS_REMOVED'] ?? 0) === 0) {
+                $existing[] = (int) $row['TEST_ID'];
+            }
+        }
+        $existing = array_values(array_unique($existing));
+
+        $added = 0;
+        $skipped = 0;
+        $added_ids = [];
+        foreach ($test_ids as $tid) {
+            if (in_array($tid, $existing, true)) {
+                $skipped++;
+                continue;
+            }
+            if ($this->db->insert('TEST_USER_ALLOCATION', [
+                'TEST_ID' => $tid,
+                'USER_ID' => $user_id,
+            ])) {
+                $added++;
+                $added_ids[] = $tid;
+                $existing[] = $tid;
+            } else {
+                $skipped++;
+            }
+        }
+
+        return ['added' => $added, 'skipped' => $skipped, 'test_ids' => $added_ids];
     }
 
 
@@ -431,17 +573,21 @@ class AdminConsoleModel extends CI_Model
 
     public function get_userassigned_tests($user_id)
     {
-        // Fetch questions from your database
-
-        $query = "SELECT TEST_SERIES.*, TEST_USER_ALLOCATION.USER_ID,TEST_USER_ALLOCATION.MAPPING_ID,TEST_USER_ALLOCATION.IS_REMOVED
-                    FROM TEST_SERIES 
-                    LEFT JOIN TEST_USER_ALLOCATION on TEST_USER_ALLOCATION.TEST_ID = TEST_SERIES.TEST_ID AND TEST_USER_ALLOCATION.USER_ID = ".$user_id."
-                  
-                    ORDER BY TEST_SERIES.TEST_ID DESC
-                    ";
-
-        $query = $this->db->query($query);
-        return $query->result();
+        $user_id = (int) $user_id;
+        $sql = "
+            SELECT
+                ts.*,
+                tua.USER_ID,
+                tua.MAPPING_ID,
+                tua.IS_REMOVED
+            FROM TEST_SERIES ts
+            LEFT JOIN TEST_USER_ALLOCATION tua
+                ON tua.TEST_ID = ts.TEST_ID AND tua.USER_ID = ?
+            WHERE COALESCE(ts.IS_DEL, 0) = 0
+            ORDER BY ts.TEST_ID DESC
+        ";
+        $q = $this->db->query($sql, [$user_id]);
+        return $q ? $q->result() : [];
     }
 
     public function update_user_test_eval($data)
