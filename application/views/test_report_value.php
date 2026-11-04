@@ -173,23 +173,25 @@ $eval_submit_url = !empty($eval_submit_url)
                 <strong>How scoring works:</strong>
                 Choosing <strong>Me</strong> adds that question&rsquo;s marks to the <em>Me</em> total;
                 <strong>Not me</strong> adds marks to the <em>Not me</em> total.
-                <strong>I don&rsquo;t care</strong> does not add to either weighted total. There is no right or wrong answer.
+                <strong>I don&rsquo;t care</strong> does not add to either weighted total.
+                Questions with only two options (Me / Not me) are scored by option text, not position alone.
+                There is no right or wrong answer.
             </div>
 
             <h5 class="mb-3 text-secondary">Choice distribution (all responses)</h5>
             <div class="vt-grid">
                 <div class="vt-card me">
-                    <h5>Me (option 1)</h5>
+                    <h5>Me</h5>
                     <div class="vt-num"><?= (int)$counts['me'] ?></div>
                     <small class="text-muted">times selected</small>
                 </div>
                 <div class="vt-card neutral">
-                    <h5>I don&rsquo;t care (option 2)</h5>
+                    <h5>I don&rsquo;t care</h5>
                     <div class="vt-num"><?= (int)$counts['dont_care'] ?></div>
                     <small class="text-muted">excluded from weighted totals</small>
                 </div>
                 <div class="vt-card not">
-                    <h5>Not me (option 3)</h5>
+                    <h5>Not me</h5>
                     <div class="vt-num"><?= (int)$counts['not_me'] ?></div>
                     <small class="text-muted">times selected</small>
                 </div>
@@ -211,12 +213,84 @@ $eval_submit_url = !empty($eval_submit_url)
                 </div>
             </div>
 
+            <?php if (!empty($has_section_analytics) && !empty($sections_summary)): ?>
+            <h5 class="mb-3 text-secondary">By section (Me / I don&rsquo;t care / Not me)</h5>
+            <div class="table-responsive mb-4">
+                <table class="vt-table">
+                    <thead>
+                        <tr>
+                            <th>Section</th>
+                            <th>Value #</th>
+                            <th>Me</th>
+                            <th>I don&rsquo;t care</th>
+                            <th>Not me</th>
+                            <th>Me weighted</th>
+                            <th>Not me weighted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($sections_summary as $sec): $c = $sec['counts'] ?? []; ?>
+                        <tr>
+                            <td><?= htmlspecialchars($sec['section_name'] ?? '') ?></td>
+                            <td><?= (int)($sec['value_number'] ?? 0) ?></td>
+                            <td><?= (int)($c['me'] ?? 0) ?></td>
+                            <td><?= (int)($c['dont_care'] ?? 0) ?></td>
+                            <td><?= (int)($c['not_me'] ?? 0) ?></td>
+                            <td><?= number_format((float)($sec['weighted_me'] ?? 0), 2) ?></td>
+                            <td><?= number_format((float)($sec['weighted_not_me'] ?? 0), 2) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <?php if (!empty($values_summary)): ?>
+            <h5 class="mb-3 text-secondary">By value number</h5>
+            <div class="table-responsive mb-4">
+                <table class="vt-table">
+                    <thead><tr><th>Value</th><th>Section</th><th>Me</th><th>I don&rsquo;t care</th><th>Not me</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($values_summary as $v): $c = $v['counts'] ?? []; ?>
+                        <tr>
+                            <td><?= (int)($v['value_number'] ?? 0) ?></td>
+                            <td><?= htmlspecialchars($v['section_name'] ?? '') ?></td>
+                            <td><?= (int)($c['me'] ?? 0) ?></td>
+                            <td><?= (int)($c['dont_care'] ?? 0) ?></td>
+                            <td><?= (int)($c['not_me'] ?? 0) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php
+            $evenC = $even_values_summary ?? [];
+            $oddC = $odd_values_summary ?? [];
+            ?>
+            <div class="vt-grid mb-4">
+                <div class="vt-card">
+                    <h5>Even values (2, 4, 6…)</h5>
+                    <p class="mb-1">Me: <strong><?= (int)($evenC['me'] ?? 0) ?></strong></p>
+                    <p class="mb-1">I don&rsquo;t care: <strong><?= (int)($evenC['dont_care'] ?? 0) ?></strong></p>
+                    <p class="mb-0">Not me: <strong><?= (int)($evenC['not_me'] ?? 0) ?></strong></p>
+                </div>
+                <div class="vt-card">
+                    <h5>Odd values (3, 5, 7…)</h5>
+                    <p class="mb-1">Me: <strong><?= (int)($oddC['me'] ?? 0) ?></strong></p>
+                    <p class="mb-1">I don&rsquo;t care: <strong><?= (int)($oddC['dont_care'] ?? 0) ?></strong></p>
+                    <p class="mb-0">Not me: <strong><?= (int)($oddC['not_me'] ?? 0) ?></strong></p>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <h5 class="mb-3 text-secondary">Question-by-question</h5>
             <div class="table-responsive">
                 <table class="vt-table">
                     <thead>
                         <tr>
                             <th>#</th>
+                            <?php if (!empty($has_section_analytics)): ?><th>Section</th><?php endif; ?>
                             <th>Question</th>
                             <th>Response</th>
                             <th>Q marks</th>
@@ -226,11 +300,14 @@ $eval_submit_url = !empty($eval_submit_url)
                     </thead>
                     <tbody>
                         <?php $i = 1; foreach (($question_analysis ?? []) as $qa):
-                            $cn = (int)($qa['choice_number'] ?? 0);
-                            $pillClass = $cn === 1 ? 'me' : ($cn === 3 ? 'not' : 'neutral');
+                            $bucket = (string)($qa['choice_bucket'] ?? '');
+                            $pillClass = $bucket === 'me' ? 'me' : ($bucket === 'not_me' ? 'not' : 'neutral');
                         ?>
                             <tr>
                                 <td><?= $i++ ?></td>
+                                <?php if (!empty($has_section_analytics)): ?>
+                                <td><?= htmlspecialchars($qa['section_name'] ?? '—') ?><?php if (!empty($qa['value_number'])): ?> <small class="text-muted">(V<?= (int)$qa['value_number'] ?>)</small><?php endif; ?></td>
+                                <?php endif; ?>
                                 <td><?= strip_tags($qa['question_text'] ?? '') ?></td>
                                 <td>
                                     <span class="vt-pill <?= $pillClass ?>"><?= htmlspecialchars($qa['your_answer'] ?? '') ?></span>
@@ -238,7 +315,7 @@ $eval_submit_url = !empty($eval_submit_url)
                                 <td><?= number_format((float)($qa['question_marks'] ?? 0), 2) ?></td>
                                 <td><?= number_format((float)($qa['weighted_score'] ?? 0), 2) ?></td>
                                 <td>
-                                    <?php if ($cn === 2): ?>
+                                    <?php if ($bucket === 'dont_care'): ?>
                                         <span class="vt-excluded">Excluded</span>
                                     <?php else: ?>
                                         <?= htmlspecialchars($qa['counts_toward'] ?? '') ?>

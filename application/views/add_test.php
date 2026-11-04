@@ -99,6 +99,30 @@
 
 
 				<div class="form-group row">
+					<label class="col-sm-12 col-md-2 col-form-label">Student options</label>
+					<div class="col-sm-12 col-md-10">
+						<div class="custom-control custom-checkbox mb-2">
+							<input type="checkbox" class="custom-control-input" id="resume_available" name="resume_available" value="1">
+							<label class="custom-control-label" for="resume_available">
+								<strong>Resume available</strong> — save progress and continue later until final submit.
+							</label>
+						</div>
+						<div class="custom-control custom-checkbox">
+							<input type="checkbox" class="custom-control-input" id="reattempt_available" name="reattempt_available" value="1">
+							<label class="custom-control-label" for="reattempt_available">
+								<strong>Reattempt available</strong> — after submit and evaluation, allow another attempt.
+							</label>
+						</div>
+						<div class="custom-control custom-checkbox mt-2">
+							<input type="checkbox" class="custom-control-input" id="use_sections" name="use_sections" value="1">
+							<label class="custom-control-label" for="use_sections">
+								<strong>Use sections</strong> — enable section-wise questions (configure after creating the test).
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<div class="form-group row">
 					<label class="col-sm-12 col-md-2 col-form-label">Start Date</label>
 					<div class="col-sm-12 col-md-10">
 						<input class="form-control datetimepicker" name="start_date" placeholder="Choose Date anf time" type="text">

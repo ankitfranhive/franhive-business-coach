@@ -202,10 +202,101 @@ if (!function_exists('test_report_brs_pdf_data')) {
     }
 }
 
+if (!function_exists('value_test_normalize_option_text')) {
+    function value_test_normalize_option_text($text)
+    {
+        $t = strtolower(trim(strip_tags((string)$text)));
+        $t = preg_replace('/[\x{2019}\x{2018}\']/u', "'", $t);
+        $t = preg_replace('/\s+/', ' ', $t);
+        return $t;
+    }
+}
+
+if (!function_exists('value_test_classify_single_option')) {
+    /**
+     * Classify one option as me | dont_care | not_me using label text, then position rules.
+     *
+     * @param string $optionText
+     * @param int    $sortOrder   1-based SORT_ORDER
+     * @param int    $totalOptions number of options on this question
+     */
+    function value_test_classify_single_option($optionText, $sortOrder, $totalOptions)
+    {
+        $t = value_test_normalize_option_text($optionText);
+        $sortOrder = (int)$sortOrder;
+        $totalOptions = max(1, (int)$totalOptions);
+
+        if ($t !== '' && preg_match('/\bnot\s*me\b|\bnotme\b/', $t)) {
+            return 'not_me';
+        }
+        if ($t !== '' && preg_match("/\b(don'?t|do not)\s*care\b|\bdont\s*care\b|\bi don'?t care\b/", $t)) {
+            return 'dont_care';
+        }
+        if ($t === 'me' || ($t !== '' && preg_match('/^me\b/', $t) && !preg_match('/\bnot\s*me\b/', $t))) {
+            return 'me';
+        }
+
+        if ($totalOptions === 2) {
+            if ($sortOrder === 1) {
+                return 'me';
+            }
+            if ($sortOrder === 2) {
+                return 'not_me';
+            }
+        }
+
+        if ($totalOptions >= 3) {
+            if ($sortOrder === 1) {
+                return 'me';
+            }
+            if ($sortOrder === 2) {
+                return 'dont_care';
+            }
+            if ($sortOrder === 3) {
+                return 'not_me';
+            }
+        }
+
+        if ($sortOrder === 1) {
+            return 'me';
+        }
+        if ($sortOrder === $totalOptions) {
+            return 'not_me';
+        }
+
+        return 'dont_care';
+    }
+}
+
+if (!function_exists('value_test_build_option_class_map')) {
+    /** @return array<string, string> option_1 => me|dont_care|not_me */
+    function value_test_build_option_class_map(array $optionsKeyed)
+    {
+        $bySort = [];
+        foreach ($optionsKeyed as $key => $text) {
+            $n = (int)str_replace('option_', '', (string)$key);
+            if ($n > 0) {
+                $bySort[$n] = (string)$text;
+            }
+        }
+        ksort($bySort);
+        $total = count($bySort);
+        if ($total === 0) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($bySort as $sort => $text) {
+            $map['option_' . $sort] = value_test_classify_single_option($text, $sort, $total);
+        }
+        return $map;
+    }
+}
+
 if (!function_exists('test_report_value_pdf_data')) {
     /**
-     * Type 6 — Value test: Me (1) / I don't care (2) / Not me (3).
-     * Weighted totals use QUESTION_MARKS for options 1 and 3 only; option 2 is excluded from totals.
+     * Type 6 — Value test: Me / I don't care / Not me (by option label; 2-option items = Me + Not me).
+     * Weighted totals use QUESTION_MARKS for Me and Not me; I don't care is excluded.
      *
      * @return array<string,mixed>
      */
@@ -220,11 +311,6 @@ if (!function_exists('test_report_value_pdf_data')) {
             'weighted_me_total'    => 0.0,
             'weighted_not_me_total'=> 0.0,
             'question_analysis'    => [],
-            'value_labels'         => [
-                1 => 'Me',
-                2 => "I don't care",
-                3 => 'Not me',
-            ],
         ];
 
         $questionIds = array_values(array_unique(
@@ -265,32 +351,53 @@ if (!function_exists('test_report_value_pdf_data')) {
             }
 
             $selectedN = (int)str_replace('option_', '', $selectedKey);
-            if ($selectedN < 1 || $selectedN > 3) {
+            if ($selectedN < 1) {
                 continue;
             }
+
+            $qOpts = $optionsByQid[$qid] ?? [];
+            if ($selectedKey !== '' && !isset($qOpts[$selectedKey])) {
+                continue;
+            }
+
+            $classMap = value_test_build_option_class_map($qOpts);
+            $answerText = trim($qOpts[$selectedKey] ?? '');
+            $bucket = $classMap[$selectedKey] ?? null;
+            if ($bucket === null) {
+                $bucket = value_test_classify_single_option(
+                    $answerText,
+                    $selectedN,
+                    count($classMap) ?: count($qOpts)
+                );
+            }
+
+            $bucketLabels = [
+                'me'        => 'Me',
+                'dont_care' => "I don't care",
+                'not_me'    => 'Not me',
+            ];
+            $label = $bucketLabels[$bucket] ?? 'Unknown';
 
             $qMarks = (float)($questionsById[$qid]['QUESTION_MARKS'] ?? 1);
             if ($qMarks < 0) {
                 $qMarks = 0;
             }
 
-            $label = $data['value_labels'][$selectedN] ?? ('Option ' . $selectedN);
-            $answerText = trim($optionsByQid[$qid][$selectedKey] ?? '');
             if ($answerText === '') {
                 $answerText = $label;
             }
 
             $weighted = 0.0;
             $countsToward = '—';
-            if ($selectedN === 1) {
+            if ($bucket === 'me') {
                 $data['choice_counts']['me']++;
                 $data['weighted_me_total'] += $qMarks;
                 $weighted = $qMarks;
                 $countsToward = 'Me total';
-            } elseif ($selectedN === 2) {
+            } elseif ($bucket === 'dont_care') {
                 $data['choice_counts']['dont_care']++;
                 $countsToward = 'Excluded from totals';
-            } elseif ($selectedN === 3) {
+            } elseif ($bucket === 'not_me') {
                 $data['choice_counts']['not_me']++;
                 $data['weighted_not_me_total'] += $qMarks;
                 $weighted = $qMarks;
@@ -304,6 +411,7 @@ if (!function_exists('test_report_value_pdf_data')) {
                 'your_answer'     => $answerText,
                 'choice_key'      => $selectedKey,
                 'choice_number'   => $selectedN,
+                'choice_bucket'   => $bucket,
                 'choice_label'    => $label,
                 'question_marks'  => $qMarks,
                 'weighted_score'  => $weighted,
@@ -315,6 +423,10 @@ if (!function_exists('test_report_value_pdf_data')) {
         $data['weighted_me_total'] = round($data['weighted_me_total'], 2);
         $data['weighted_not_me_total'] = round($data['weighted_not_me_total'], 2);
         $data['scored_total'] = round($data['weighted_me_total'] + $data['weighted_not_me_total'], 2);
+
+        $CI->load->helper('test_sections');
+        $test_id = (int) ($row['TEST_ID'] ?? $row['test_id'] ?? 0);
+        value_test_apply_section_analytics($data, $CI->db, $test_id);
 
         return $data;
     }

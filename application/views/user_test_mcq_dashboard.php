@@ -40,9 +40,22 @@
             border: 1px solid #dee2e6; padding: 0.5rem;
         }
         .test-instructions-content img { max-width: 100%; height: auto; border-radius: 4px; }
+        .section-nav-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
+        .section-pill {
+            border: 1px solid #cbd5e1; background: #f8fafc; color: #334155;
+            border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+        }
+        .section-pill.active { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 600; }
+        .section-pill .sec-count { opacity: 0.85; font-size: 12px; }
     </style>
 </head>
 
+<?php
+$resume_available = (int)($test_details['RESUME_AVAILABLE'] ?? 0) === 1;
+$has_draft = !empty($user_test_details[0]['USER_RESPONSE'])
+    && (int)($user_test_details[0]['IS_SUBMITTED'] ?? 1) === 0;
+$start_label = ($resume_available && $has_draft) ? 'Resume Test' : 'Take the Test';
+?>
 <body>
 <div class="container mt-5 text-center">
     <div id="instructionPage" class="test-container">
@@ -56,30 +69,221 @@
             ?>
         </div>
         <?php endif; ?>
-        <button class="btn btn-primary" id="startTestBtn">Take the Test</button>
+        <button class="btn btn-primary" id="startTestBtn"><?= html_escape($start_label) ?></button>
+        <?php if ($resume_available): ?>
+        <button class="btn btn-outline-secondary mt-2" id="saveExitBtn" style="display:none;">Save &amp; exit</button>
+        <?php endif; ?>
+        <?php if (!$resume_available): ?>
+        <p class="text-muted small mt-2 mb-0">This test cannot be resumed. Complete it in one sitting.</p>
+        <?php endif; ?>
     </div>
 
     <div id="questionPage" style="display:none;">
+        <div id="sectionNavWrap" class="test-container" style="display:none; margin-top:16px; padding:12px 16px;">
+            <div class="section-nav-bar" id="sectionNavBar"></div>
+        </div>
         <div id="questionContainer"></div>
+    </div>
+</div>
+
+<div id="submitConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999;">
+    <div style="background:#fff; max-width:480px; margin:12vh auto; padding:24px; border-radius:10px; text-align:left; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+        <h5 class="mb-3">Submit test?</h5>
+        <p id="submitModalMessage"></p>
+        <div class="text-right mt-3">
+            <button type="button" class="btn btn-secondary" id="cancelSubmitBtn">Go back</button>
+            <button type="button" class="btn btn-success ml-2" id="confirmSubmitBtn">Submit now</button>
+        </div>
     </div>
 </div>
 
 <script>
 $(document).ready(function () {
+    let testStructure = <?php echo json_encode($test_question_structure ?? ['use_sections' => false, 'sections' => [], 'questions' => []]); ?>;
+    let useSections = !!(testStructure && testStructure.use_sections);
+    let sectionMeta = (testStructure && testStructure.sections) ? testStructure.sections : [];
     let questions = <?php echo json_encode($test_questions); ?>;
     let testType = <?php echo (int)$test_details['TEST_TYPE']; ?>;
+    let testId = "<?= (int)($test_details['TEST_ID'] ?? $this->uri->segment(2)) ?>";
+    let resumeAvailable = <?= $resume_available ? 'true' : 'false' ?>;
+    let savedDraftRaw = <?php
+        $draft = null;
+        if ($has_draft) {
+            $draft = $user_test_details[0]['USER_RESPONSE'];
+        }
+        echo json_encode($draft);
+    ?>;
     let currentIndex = 0;
     let timerInterval;
     let elapsedSeconds = 0;
     let responses = [];
     let clearResponseCount = 2;
     let questionStartTime = 0;
+    let saveInFlight = false;
+
+    function isQuestionAnswered(index) {
+        const r = responses[index];
+        if (!r) return false;
+        if (testType === 1) {
+            return !!(r.most_likely && r.least_likely);
+        }
+        return !!r.selected_option;
+    }
+
+    function buildResponsesPayload() {
+        const out = [];
+        for (let i = 0; i < questions.length; i++) {
+            if (responses[i]) {
+                const row = Object.assign({}, responses[i]);
+                if (!row.question_id && questions[i]) {
+                    row.question_id = questions[i].QUESTION_ID;
+                }
+                out.push(row);
+            }
+        }
+        return out;
+    }
+
+    function preloadDraft() {
+        if (!savedDraftRaw) return;
+        let saved = savedDraftRaw;
+        if (typeof saved === 'string') {
+            try { saved = JSON.parse(saved); } catch (e) { return; }
+        }
+        if (!Array.isArray(saved)) return;
+
+        saved.forEach(function (r) {
+            const qid = r.question_id || (r.question ? r.question.QUESTION_ID : null);
+            let idx = questions.findIndex(function (q) {
+                return String(q.QUESTION_ID) === String(qid);
+            });
+            if (idx === -1) return;
+            responses[idx] = {
+                question_id: questions[idx].QUESTION_ID,
+                most_likely: r.most_likely || null,
+                least_likely: r.least_likely || null,
+                selected_option: r.selected_option || null,
+                time_spent: r.time_spent || 0
+            };
+        });
+
+        for (let i = 0; i < questions.length; i++) {
+            if (!isQuestionAnswered(i)) {
+                currentIndex = i;
+                return;
+            }
+        }
+        currentIndex = Math.max(0, questions.length - 1);
+    }
+
+    function restoreSelectionsForIndex(index) {
+        const r = responses[index];
+        if (!r) return;
+        if (testType === 1) {
+            if (r.most_likely) {
+                const $most = $(`input.most-likely[name='most_likely_${index}'][value='${r.most_likely}']`);
+                $most.prop('checked', true);
+                $(`input[name='most_likely_${index}']`).not($most).prop('disabled', true);
+            }
+            if (r.least_likely) {
+                const $least = $(`input.least-likely[name='least_likely_${index}'][value='${r.least_likely}']`);
+                $least.prop('checked', true);
+                $(`input[name='least_likely_${index}']`).not($least).prop('disabled', true);
+            }
+        } else if (r.selected_option) {
+            $(`input[name='mcq_${index}'][value='${r.selected_option}']`).prop('checked', true);
+        }
+        toggleSubmitButton();
+    }
+
+    function countUnanswered() {
+        let n = 0;
+        for (let i = 0; i < questions.length; i++) {
+            if (!isQuestionAnswered(i)) n++;
+        }
+        return n;
+    }
+
+    function saveDraft(exitAfter) {
+        if (!resumeAvailable) return;
+        if (saveInFlight) return;
+        saveInFlight = true;
+        $.ajax({
+            type: 'POST',
+            url: "<?php echo base_url('/save-test-response') ?>",
+            contentType: 'application/json',
+            data: JSON.stringify({
+                responses: buildResponsesPayload(),
+                test_id: testId,
+                is_submitted: false
+            }),
+            complete: function () { saveInFlight = false; },
+            success: function () {
+                if (exitAfter) {
+                    window.location.href = '<?php echo base_url('my-test') ?>';
+                }
+            },
+            error: function () {
+                if (exitAfter) {
+                    alert('Could not save progress. Please try again.');
+                }
+            }
+        });
+    }
+
+    function renderSectionNav() {
+        if (!useSections || !sectionMeta.length) {
+            $('#sectionNavWrap').hide();
+            return;
+        }
+        $('#sectionNavWrap').show();
+        const $bar = $('#sectionNavBar').empty();
+        sectionMeta.forEach(function (sec, idx) {
+            const active = questions[currentIndex] && questions[currentIndex].SECTION_KEY === idx;
+            const $btn = $('<button type="button" class="section-pill"></button>');
+            $btn.toggleClass('active', !!active);
+            $btn.html(sec.section_name + ' <span class="sec-count">(' + sec.question_count + ')</span>');
+            $btn.on('click', function () {
+                jumpToSection(idx);
+            });
+            $bar.append($btn);
+        });
+    }
+
+    function jumpToSection(sectionKey) {
+        const idx = questions.findIndex(function (q) { return q.SECTION_KEY === sectionKey; });
+        if (idx >= 0) {
+            currentIndex = idx;
+            showQuestion(currentIndex);
+        }
+    }
+
+    function questionProgressLabel(index) {
+        const q = questions[index];
+        if (!useSections || !q || q.SECTION_KEY === null || q.SECTION_KEY === undefined) {
+            return 'Question ' + (index + 1) + ' of ' + questions.length;
+        }
+        const sec = sectionMeta[q.SECTION_KEY];
+        const secName = sec ? sec.section_name : (q.SECTION_NAME || 'Section');
+        const qIn = q.QUESTION_INDEX_IN_SECTION || 1;
+        const secTotal = sec ? sec.question_count : '?';
+        let label = 'Question ' + qIn + ' of ' + secTotal + ' · ' + secName;
+        if (sec && sec.value_number) {
+            label += ' (Value ' + sec.value_number + ')';
+        }
+        return label;
+    }
 
     function startTest() {
+        preloadDraft();
         $("#instructionPage").hide();
         $("#questionPage").show();
+        if (resumeAvailable) {
+            $("#saveExitBtn").show();
+        }
         questionStartTime = elapsedSeconds;
         startTimer();
+        renderSectionNav();
         showQuestion(currentIndex);
     }
 
@@ -111,7 +315,7 @@ $(document).ready(function () {
         let html = `<h2 class="mb-3"><?php echo $test_details['TEST_NAME']; ?></h2>
                     <div class='test-container'>
                         <div class='d-flex justify-content-between align-items-center'>
-                            <h5 class='text-primary'>Question ${index + 1} of ${questions.length}</h5>
+                            <h5 class='text-primary progress-label'>${questionProgressLabel(index)}</h5>
                             <div id="timer">00:00:00</div>
                         </div>
                         <h4 class='text-center mb-4'>${question.QUESTION_NAME}</h4>`;
@@ -177,7 +381,10 @@ $(document).ready(function () {
 
         html += `</div>`;
         questionContainer.html(html);
+        $("#timer").text(formatTime(elapsedSeconds));
+        restoreSelectionsForIndex(index);
         questionStartTime = elapsedSeconds;
+        renderSectionNav();
 
         if (index === questions.length - 1) {
             toggleSubmitButton();
@@ -198,12 +405,14 @@ $(document).ready(function () {
 
         responses[index].time_spent = elapsedSeconds - questionStartTime;
         toggleSubmitButton();
+        saveDraft(false);
     };
 
     // --- Handler for MCQ types (3/4/5/etc) ---
     window.handleMCQSelection = function (index, selectedRadio) {
         responses[index] = { question_id: questions[index]?.QUESTION_ID || null, selected_option: $(selectedRadio).val(), time_spent: elapsedSeconds - questionStartTime };
         toggleSubmitButton();
+        saveDraft(false);
     };
 
     // --- Clear for Type 1 only ---
@@ -227,14 +436,15 @@ $(document).ready(function () {
     };
 
     function toggleSubmitButton() {
-        const lastResponse = responses[questions.length - 1] || {};
         const submitBtn = $('#submitBtn');
-
-        if (testType === 1) {
-            submitBtn.prop('disabled', !(lastResponse.most_likely && lastResponse.least_likely));
-        } else {
-            submitBtn.prop('disabled', !lastResponse.selected_option);
+        let anyAnswered = false;
+        for (let i = 0; i < questions.length; i++) {
+            if (isQuestionAnswered(i)) {
+                anyAnswered = true;
+                break;
+            }
         }
+        submitBtn.prop('disabled', !anyAnswered);
     }
 
     window.nextQuestion = function () {
@@ -254,29 +464,60 @@ $(document).ready(function () {
         if (currentIndex < questions.length - 1) {
             currentIndex++;
             showQuestion(currentIndex);
+            saveDraft(false);
         }
     };
 
-    window.submitTest = function () {
+    function performFinalSubmit() {
         clearInterval(timerInterval);
-        let responseJSON = JSON.stringify({
-            responses: responses,
-            test_id: window.location.href.split('/').pop(),
-            is_submitted: true
-        });
-
         $.ajax({
-            type: "POST",
-            url: "<?php echo base_url('/save-test-response')?>",
-            contentType: "application/json",
-            data: responseJSON,
-            success: function() {
-                window.location.href = '<?php echo base_url('my-test-thankyou')?>';
+            type: 'POST',
+            url: "<?php echo base_url('/save-test-response') ?>",
+            contentType: 'application/json',
+            data: JSON.stringify({
+                responses: buildResponsesPayload(),
+                test_id: testId,
+                is_submitted: true
+            }),
+            success: function () {
+                window.location.href = '<?php echo base_url('my-test-thankyou') ?>';
+            },
+            error: function () {
+                alert('Could not submit test. Please try again.');
             }
         });
+    }
+
+    window.submitTest = function () {
+        const unanswered = countUnanswered();
+        let msg = '';
+        if (resumeAvailable) {
+            msg = unanswered > 0
+                ? 'You have ' + unanswered + ' unanswered question(s). Submitting now will finish the test. To continue later, use Save & exit instead.'
+                : 'Submit your test now? You can still use Save & exit if you need to leave without submitting.';
+        } else {
+            msg = unanswered > 0
+                ? 'You have ' + unanswered + ' unanswered question(s). This test cannot be resumed — if you leave, progress may be lost. Submit now?'
+                : 'This test cannot be resumed. Submit now to finish?';
+        }
+        $('#submitModalMessage').text(msg);
+        $('#submitConfirmModal').show();
     };
 
     $("#startTestBtn").click(startTest);
+    $('#cancelSubmitBtn').on('click', function () {
+        $('#submitConfirmModal').hide();
+    });
+    $('#confirmSubmitBtn').on('click', function () {
+        $('#submitConfirmModal').hide();
+        performFinalSubmit();
+    });
+    $("#saveExitBtn").on('click', function () {
+        if (responses[currentIndex]) {
+            responses[currentIndex].time_spent = elapsedSeconds - questionStartTime;
+        }
+        saveDraft(true);
+    });
 });
 </script>
 

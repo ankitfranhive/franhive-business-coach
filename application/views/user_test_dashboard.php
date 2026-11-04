@@ -48,10 +48,16 @@
     </style>
 </head>
 
+<?php
+$resume_available = (int)($test_details['RESUME_AVAILABLE'] ?? 0) === 1;
+?>
 <body>
 
 <div class="container">
-    <h1 class="mt-4"><?=$test_details['TEST_NAME']?></h1>
+    <h1 class="mt-4"><?= htmlspecialchars($test_details['TEST_NAME']) ?></h1>
+    <?php if (!$resume_available): ?>
+        <p class="alert alert-warning py-2">This test cannot be resumed. Use <strong>Submit</strong> when finished; leaving may lose progress.</p>
+    <?php endif; ?>
 
     <div id="progressBarContainer" style="width: 100%; background-color: #eee;">
         <div id="progressBar" style="width: 0%; height: 20px; background-color: #4CAF50;"></div>
@@ -71,7 +77,9 @@
             </div>
             <div>
                 <button class="btn btn-warning" id="skipButton" onclick="skipQuestion()">Skip</button>
-                <button class="btn btn-success" id="finishButton" onclick="finishTest()">Save My Responses</button>
+                <?php if ($resume_available): ?>
+                <button class="btn btn-success" id="finishButton" onclick="finishTest()">Save &amp; exit</button>
+                <?php endif; ?>
                 <button class="btn btn-success" id="submitButton" onclick="submitAnswers()" style="display: none;">Submit</button>
             </div>
         </div>
@@ -101,6 +109,7 @@
 <script>
 let currentQuestionIndex = 0;
 let testQuestions = <?php echo json_encode($test_questions); ?>;
+let resumeAvailable = <?= $resume_available ? 'true' : 'false' ?>;
 
 // ✅ USER_RESPONSE IS JSON STRING
 let user_test_details = <?php echo isset($user_test_details[0]['USER_RESPONSE']) ? json_encode($user_test_details[0]['USER_RESPONSE']) : "null"; ?>;
@@ -220,6 +229,21 @@ function countWords(text) {
 }
 
 
+function persistDraftQuiet() {
+    if (!resumeAvailable) return;
+    var test_id = window.location.href.split('/').pop();
+    $.ajax({
+        type: "POST",
+        url: "<?php echo base_url('/save-test-response')?>",
+        contentType: "application/json",
+        data: JSON.stringify({
+            responses: responses,
+            test_id: test_id,
+            is_submitted: false
+        })
+    });
+}
+
 // ✅ Save Response
 function saveResponse(is_nxt) {
     let answer = editor.getData();
@@ -251,11 +275,12 @@ function saveResponse(is_nxt) {
                 test_id: test_id,
                 is_submitted: false
             }),
-            success: function(res) {
-                window.location.href = '<?php echo base_url('my-test-thankyou')?>';
+            success: function() {
+                window.location.href = '<?php echo base_url('my-test') ?>';
             },
             error: function() {
                 console.error("Error saving response");
+                alert('Could not save progress. Please try again.');
             }
         });
     }
@@ -275,9 +300,11 @@ function nextQuestion() {
     if (currentQuestionIndex < testQuestions.length - 1) {
         currentQuestionIndex++;
         displayCurrentQuestion();
+        persistDraftQuiet();
     } else {
         document.getElementById('nextButton').style.display = 'none';
         document.getElementById('submitButton').style.display = 'block';
+        persistDraftQuiet();
     }
 }
 
@@ -308,6 +335,7 @@ function skipQuestion() {
     if (currentQuestionIndex < testQuestions.length - 1) {
         currentQuestionIndex++;
         displayCurrentQuestion();
+        persistDraftQuiet();
     }
 }
 
@@ -334,15 +362,12 @@ function updateProgressBar() {
 
 // ✅ Finish
 function finishTest() {
+    if (!resumeAvailable) return;
     let unattempted = testQuestions.length - calculateAttemptedQuestions();
-
-    if (unattempted > 0) {
-        document.getElementById('modalContent').innerText =
-            "You have " + unattempted + " unattempted questions. Exit & Save?";
-        document.getElementById('finishTestModal').style.display = "block";
-    } else {
-        submitAnswers();
-    }
+    document.getElementById('modalContent').innerText = unattempted > 0
+        ? "You have " + unattempted + " unanswered question(s). Save and exit? You can resume later from My Tests."
+        : "Save your progress and exit? You can resume later from My Tests.";
+    document.getElementById('finishTestModal').style.display = "block";
 }
 
 
@@ -350,10 +375,17 @@ function finishTest() {
 function submitAnswers() {
     let attempted = calculateAttemptedQuestions();
     let skipped = testQuestions.length - attempted;
-
-    document.getElementById('modalContent1').innerText =
-        `You have attempted ${attempted} and skipped ${skipped}. Submit test?`;
-
+    let msg = '';
+    if (resumeAvailable) {
+        msg = skipped > 0
+            ? `You have ${skipped} unanswered question(s). Submitting now will finish the test. To continue later, use Save & exit instead.`
+            : `Submit your test now? (${attempted} answered)`;
+    } else {
+        msg = skipped > 0
+            ? `You have ${skipped} unanswered question(s). This test cannot be resumed — progress may be lost if you leave. Submit now?`
+            : `This test cannot be resumed. Submit now to finish? (${attempted} answered)`;
+    }
+    document.getElementById('modalContent1').innerText = msg;
     document.getElementById('submitTestModal').style.display = "block";
 }
 

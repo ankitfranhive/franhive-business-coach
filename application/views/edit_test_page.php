@@ -45,6 +45,37 @@
                             <option value="4" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '4' ? 'selected' : '' ?>>BRS</option>
                             <option value="5" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '5' ? 'selected' : '' ?>>K-10</option>
                             <option value="6" <?= isset($testData['TEST_TYPE']) && $testData['TEST_TYPE'] == '6' ? 'selected' : '' ?>>Value Test</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label class="col-sm-12 col-md-2 col-form-label">Student options</label>
+                    <div class="col-sm-12 col-md-10">
+                        <div class="custom-control custom-checkbox mb-2">
+                            <input type="checkbox" class="custom-control-input" id="resume_available" name="resume_available" value="1"
+                                <?= !empty($testData['RESUME_AVAILABLE']) ? 'checked' : '' ?>>
+                            <label class="custom-control-label" for="resume_available">
+                                <strong>Resume available</strong> — students can save progress and continue later until they submit finally.
+                            </label>
+                        </div>
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="reattempt_available" name="reattempt_available" value="1"
+                                <?= !empty($testData['REATTEMPT_AVAILABLE']) ? 'checked' : '' ?>>
+                            <label class="custom-control-label" for="reattempt_available">
+                                <strong>Reattempt available</strong> — after final submit and evaluation, students may take the test again (within dates).
+                            </label>
+                        </div>
+                        <div class="custom-control custom-checkbox mt-2">
+                            <input type="checkbox" class="custom-control-input" id="use_sections" name="use_sections" value="1"
+                                <?= !empty($testData['USE_SECTIONS']) ? 'checked' : '' ?>>
+                            <label class="custom-control-label" for="use_sections">
+                                <strong>Use sections</strong> — group questions (Value Test: section 1 = Value 2, etc.).
+                            </label>
+                        </div>
+                        <?php if (!empty($testData['TEST_ID'])): ?>
+                        <a class="btn btn-sm btn-outline-info mt-2" href="<?= base_url('test-sections/' . (int)$testData['TEST_ID']) ?>">Manage sections &amp; assignments</a>
+                        <?php endif; ?>
                     </div>
                 </div>
 

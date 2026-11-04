@@ -482,6 +482,8 @@ public function update_question()
     {
         $test_id = $this->uri->segment(2);
 
+        $this->load->helper('test_reattempt');
+        ensure_test_series_policy_columns($this->db);
         $data['testData'] = $this->AdminConsoleModel->get_test_details($test_id);
         // echo "<pre>";
         // print_r(   $data['testData']);die;
@@ -502,7 +504,9 @@ public function update_question()
         $test_type = $this->input->post('test_type');
         $test_instructions = $this->input->post('test_instructions', false);
 
-        // Save the data to the database using your model
+        $this->load->helper('test_reattempt');
+        ensure_test_series_policy_columns($this->db);
+
         $data = array(
             'TEST_NAME' => $test_name,
             'TOTAL_QUESTIONS' => $total_questions,
@@ -510,9 +514,14 @@ public function update_question()
             'TEST_START_DATE' => $start_date,
             'END_DATE' => $end_date,
             'TEST_TYPE' => $test_type,
-            'TEST_INSTRUCTIONS' => $test_instructions
+            'TEST_INSTRUCTIONS' => $test_instructions,
+            'RESUME_AVAILABLE' => $this->input->post('resume_available') ? 1 : 0,
+            'REATTEMPT_AVAILABLE' => $this->input->post('reattempt_available') ? 1 : 0,
+            'USE_SECTIONS' => $this->input->post('use_sections') ? 1 : 0,
         );
 
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
         $this->AdminConsoleModel->save_test($data);
 
         redirect('test');
@@ -530,7 +539,9 @@ public function update_question()
         $test_type = $this->input->post('test_type');
         $test_instructions = $this->input->post('test_instructions', false);
 
-        // Save the data to the database using your model
+        $this->load->helper('test_reattempt');
+        ensure_test_series_policy_columns($this->db);
+
         $data = array(
             'TEST_NAME' => $test_name,
             'TOTAL_QUESTIONS' => $total_questions,
@@ -538,12 +549,80 @@ public function update_question()
             'TEST_START_DATE' => $start_date,
             'END_DATE' => $end_date,
             'TEST_TYPE' => $test_type,
-            'TEST_INSTRUCTIONS' => $test_instructions
+            'TEST_INSTRUCTIONS' => $test_instructions,
+            'RESUME_AVAILABLE' => $this->input->post('resume_available') ? 1 : 0,
+            'REATTEMPT_AVAILABLE' => $this->input->post('reattempt_available') ? 1 : 0,
+            'USE_SECTIONS' => $this->input->post('use_sections') ? 1 : 0,
         );
         $test_id =  $this->input->post('test_id');
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
         $this->AdminConsoleModel->update_test_details($data, $test_id);
 
         redirect('test');
+    }
+
+    public function manageTestSections($test_id = null)
+    {
+        $test_id = (int) ($test_id ?: $this->uri->segment(2));
+        if ($test_id <= 0) {
+            show_404();
+        }
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+
+        $data['test_id'] = $test_id;
+        $data['test'] = $this->AdminConsoleModel->get_test_details($test_id);
+        $data['sections'] = $this->AdminConsoleModel->get_test_sections($test_id);
+        $data['mapped_questions'] = $this->AdminConsoleModel->get_test_mapped_questions_admin($test_id);
+
+        $this->load->view('admin/manage_test_sections', $data);
+    }
+
+    public function saveTestSectionConfig()
+    {
+        $test_id = (int) $this->input->post('test_id');
+        if ($test_id <= 0) {
+            redirect('test');
+        }
+
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+
+        $sectionsJson = $this->input->post('sections_json');
+        $assignJson = $this->input->post('assignments_json');
+        $sections = json_decode($sectionsJson ?: '[]', true);
+        $assignments = json_decode($assignJson ?: '[]', true);
+        if (!is_array($sections)) {
+            $sections = [];
+        }
+        if (!is_array($assignments)) {
+            $assignments = [];
+        }
+
+        $this->AdminConsoleModel->sync_test_sections($test_id, $sections);
+        $ordered = $this->AdminConsoleModel->get_test_sections($test_id);
+        $idByIndex = [];
+        foreach ($ordered as $i => $s) {
+            $idByIndex[$i] = (int) $s['SECTION_ID'];
+        }
+        $normalized = [];
+        foreach ($assignments as $row) {
+            $mappingId = (int) ($row['mapping_id'] ?? 0);
+            if ($mappingId <= 0) {
+                continue;
+            }
+            $idx = $row['section_index'] ?? $row['section_id'] ?? '';
+            $sectionId = null;
+            if ($idx !== '' && $idx !== null && is_numeric($idx)) {
+                $sectionId = $idByIndex[(int) $idx] ?? null;
+            }
+            $normalized[] = ['mapping_id' => $mappingId, 'section_id' => $sectionId];
+        }
+        $this->AdminConsoleModel->update_test_question_sections($test_id, $normalized);
+
+        $this->session->set_flashdata('success', 'Sections and question assignments saved.');
+        redirect('test-sections/' . $test_id);
     }
 
     public function questionsList()

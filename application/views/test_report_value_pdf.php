@@ -31,7 +31,7 @@
   <div class="stat"><strong><?= (int)$counts['me'] ?></strong><br>Me (1)</div>
   <div class="stat"><strong><?= (int)$counts['dont_care'] ?></strong><br>I don't care (2)</div>
   <div class="stat"><strong><?= (int)$counts['not_me'] ?></strong><br>Not me (3)</div>
-  <p style="margin-top:10px;font-size:10px;">Option 2 is excluded from weighted totals below.</p>
+  <p style="margin-top:10px;font-size:10px;">&ldquo;I don&rsquo;t care&rdquo; is excluded from weighted totals. Two-option questions use Me / Not me by label.</p>
 </div>
 
 <div class="box">
@@ -39,6 +39,62 @@
   <p><strong>Me total:</strong> <?= number_format((float)($weighted_me_total ?? 0), 2) ?></p>
   <p><strong>Not me total:</strong> <?= number_format((float)($weighted_not_me_total ?? 0), 2) ?></p>
 </div>
+
+<?php if (!empty($has_section_analytics) && !empty($sections_summary)): ?>
+<div class="box">
+  <h3>By section</h3>
+  <table>
+    <thead>
+      <tr><th>Section</th><th>Value</th><th>Me</th><th>Don't care</th><th>Not me</th><th>Me wtd</th><th>Not me wtd</th></tr>
+    </thead>
+    <tbody>
+      <?php foreach ($sections_summary as $sec): $c = $sec['counts'] ?? []; ?>
+      <tr>
+        <td><?= htmlspecialchars($sec['section_name'] ?? '') ?></td>
+        <td><?= (int)($sec['value_number'] ?? 0) ?></td>
+        <td><?= (int)($c['me'] ?? 0) ?></td>
+        <td><?= (int)($c['dont_care'] ?? 0) ?></td>
+        <td><?= (int)($c['not_me'] ?? 0) ?></td>
+        <td><?= number_format((float)($sec['weighted_me'] ?? 0), 2) ?></td>
+        <td><?= number_format((float)($sec['weighted_not_me'] ?? 0), 2) ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
+<?php if (!empty($values_summary)): ?>
+<div class="box">
+  <h3>By value number</h3>
+  <table>
+    <thead><tr><th>Value</th><th>Section</th><th>Me</th><th>Don't care</th><th>Not me</th></tr></thead>
+    <tbody>
+      <?php foreach ($values_summary as $v): $c = $v['counts'] ?? []; ?>
+      <tr>
+        <td><?= (int)($v['value_number'] ?? 0) ?></td>
+        <td><?= htmlspecialchars($v['section_name'] ?? '') ?></td>
+        <td><?= (int)($c['me'] ?? 0) ?></td>
+        <td><?= (int)($c['dont_care'] ?? 0) ?></td>
+        <td><?= (int)($c['not_me'] ?? 0) ?></td>
+      </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>
+<?php endif; ?>
+<?php
+$evenC = $even_values_summary ?? [];
+$oddC = $odd_values_summary ?? [];
+?>
+<div class="box">
+  <h3>Even vs odd values</h3>
+  <p><strong>Even (2,4,6…):</strong> Me <?= (int)($evenC['me'] ?? 0) ?>,
+  Don't care <?= (int)($evenC['dont_care'] ?? 0) ?>,
+  Not me <?= (int)($evenC['not_me'] ?? 0) ?></p>
+  <p><strong>Odd (3,5,7…):</strong> Me <?= (int)($oddC['me'] ?? 0) ?>,
+  Don't care <?= (int)($oddC['dont_care'] ?? 0) ?>,
+  Not me <?= (int)($oddC['not_me'] ?? 0) ?></p>
+</div>
+<?php endif; ?>
 
 <div class="box">
   <h3>Question detail</h3>

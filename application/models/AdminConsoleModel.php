@@ -704,4 +704,135 @@ class AdminConsoleModel extends CI_Model
         // Return true if the update was successful, false otherwise
         return $this->db->affected_rows() > 0;
     }
+
+    public function get_test_sections($test_id)
+    {
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+        $test_id = (int) $test_id;
+        $this->db->where('TEST_ID', $test_id);
+        $this->db->order_by('SORT_ORDER', 'ASC');
+        $this->db->order_by('SECTION_ID', 'ASC');
+        return $this->db->get('TEST_SECTIONS')->result_array();
+    }
+
+    public function sync_test_sections($test_id, array $sections)
+    {
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+        $test_id = (int) $test_id;
+        if ($test_id <= 0) {
+            return false;
+        }
+
+        $this->db->trans_start();
+        $keepIds = [];
+        $sort = 0;
+        foreach ($sections as $sec) {
+            $name = trim($sec['name'] ?? $sec['SECTION_NAME'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            $sort++;
+            $sid = (int) ($sec['id'] ?? $sec['SECTION_ID'] ?? 0);
+            if ($sid > 0) {
+                $this->db->where('SECTION_ID', $sid);
+                $this->db->where('TEST_ID', $test_id);
+                $this->db->update('TEST_SECTIONS', [
+                    'SECTION_NAME' => $name,
+                    'SORT_ORDER'   => $sort,
+                ]);
+                $keepIds[] = $sid;
+            } else {
+                $this->db->insert('TEST_SECTIONS', [
+                    'TEST_ID'      => $test_id,
+                    'SECTION_NAME' => $name,
+                    'SORT_ORDER'   => $sort,
+                    'CREATED_ON'   => date('Y-m-d H:i:s'),
+                ]);
+                $keepIds[] = (int) $this->db->insert_id();
+            }
+        }
+
+        if (!empty($keepIds)) {
+            $this->db->where('TEST_ID', $test_id);
+            $this->db->where_not_in('SECTION_ID', $keepIds);
+            $removed = $this->db->get('TEST_SECTIONS')->result_array();
+            foreach ($removed as $r) {
+                $rid = (int) $r['SECTION_ID'];
+                $this->db->where('SECTION_ID', $rid)->update('TEST_QUESTION_MAPPING', ['SECTION_ID' => null]);
+            }
+            $this->db->where('TEST_ID', $test_id);
+            $this->db->where_not_in('SECTION_ID', $keepIds);
+            $this->db->delete('TEST_SECTIONS');
+        } else {
+            $this->db->where('TEST_ID', $test_id)->update('TEST_QUESTION_MAPPING', ['SECTION_ID' => null]);
+            $this->db->where('TEST_ID', $test_id)->delete('TEST_SECTIONS');
+        }
+
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function get_test_mapped_questions_admin($test_id)
+    {
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+        $test_id = (int) $test_id;
+        $sql = "
+            SELECT
+                tqm.ID AS MAPPING_ID,
+                tqm.QUESTION_ID,
+                tqm.SECTION_ID,
+                tqm.QUESTION_SORT,
+                tsq.QUESTION_NAME,
+                tsq.QUESTION_GROUP,
+                sec.SECTION_NAME,
+                sec.SORT_ORDER AS SECTION_SORT
+            FROM TEST_QUESTION_MAPPING tqm
+            INNER JOIN TEST_SERIES_QUESTIONS tsq ON tsq.QUESTION_ID = tqm.QUESTION_ID
+            LEFT JOIN TEST_SECTIONS sec ON sec.SECTION_ID = tqm.SECTION_ID
+            WHERE tqm.TEST_ID = ?
+            ORDER BY COALESCE(sec.SORT_ORDER, 9999), COALESCE(tqm.QUESTION_SORT, tqm.ID), tqm.ID
+        ";
+        $q = $this->db->query($sql, [$test_id]);
+        return $q ? $q->result_array() : [];
+    }
+
+    public function update_test_question_sections($test_id, array $assignments)
+    {
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+        $test_id = (int) $test_id;
+        if ($test_id <= 0) {
+            return false;
+        }
+
+        $sections = $this->get_test_sections($test_id);
+        $sectionIds = array_map(function ($s) {
+            return (int) $s['SECTION_ID'];
+        }, $sections);
+
+        $this->db->trans_start();
+        foreach ($assignments as $row) {
+            $mappingId = (int) ($row['mapping_id'] ?? 0);
+            $sectionId = isset($row['section_id']) && $row['section_id'] !== '' ? (int) $row['section_id'] : null;
+            $sort = isset($row['question_sort']) ? (int) $row['question_sort'] : null;
+            if ($mappingId <= 0) {
+                continue;
+            }
+            if ($sectionId !== null && !in_array($sectionId, $sectionIds, true)) {
+                $sectionId = null;
+            }
+            $payload = ['SECTION_ID' => $sectionId];
+            if ($sort !== null && $sort > 0) {
+                $payload['QUESTION_SORT'] = $sort;
+            }
+            $this->db->where('ID', $mappingId);
+            $this->db->where('TEST_ID', $test_id);
+            $this->db->update('TEST_QUESTION_MAPPING', $payload);
+        }
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
 }

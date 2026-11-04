@@ -32,3 +32,28 @@ function ensure_test_user_reattempt_grant_table($db)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
     return (bool) $db->query($sql);
 }
+
+/**
+ * Per-test resume (draft) and reattempt policy on TEST_SERIES.
+ */
+function ensure_test_series_policy_columns($db)
+{
+    $columns = [
+        'RESUME_AVAILABLE'     => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'REATTEMPT_AVAILABLE'  => 'TINYINT(1) NOT NULL DEFAULT 0',
+    ];
+    foreach ($columns as $col => $def) {
+        if (!$db->field_exists($col, 'TEST_SERIES')) {
+            $db->query("ALTER TABLE `TEST_SERIES` ADD COLUMN `{$col}` {$def}");
+        }
+    }
+    return true;
+}
+
+function test_series_policy_from_row(array $row)
+{
+    return [
+        'resume_available'    => (int)($row['RESUME_AVAILABLE'] ?? $row['resume_available'] ?? 0),
+        'reattempt_available' => (int)($row['REATTEMPT_AVAILABLE'] ?? $row['reattempt_available'] ?? 0),
+    ];
+}

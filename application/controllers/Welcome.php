@@ -35,7 +35,8 @@ class Welcome extends CI_Controller {
     }
 
     $data['test_details']   = $this->User_test_model->getTestDetails($test_id);
-    $data['test_questions'] = $this->User_test_model->getTestQuestions($test_id);
+    $data['test_question_structure'] = $this->User_test_model->getTestQuestionStructure($test_id);
+    $data['test_questions'] = $data['test_question_structure']['questions'];
 
     // ✅ If no questions, show message (helps debugging)
     if (empty($data['test_questions'])) {

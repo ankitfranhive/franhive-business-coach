@@ -32,13 +32,12 @@
 								<li class="col-lg-4 col-md-6 col-sm-12">
 									<div class="product-box">
 										<div class="producct-img">
-											<!-- <img src="vendors/images/product-img1.jpg" alt="" /> -->
 										</div>
 										<div class="product-caption">
-											<h3><?= $value['TEST_NAME'] ?></h3>
-											<div class="price">Total Questions: <?= $value['TOTAL_QUESTIONS'] ?></div>
-											<div class="price">Start Date: <?= $value['TEST_START_DATE'] ?></div>
-											<div class="price">End Date: <?= $value['END_DATE'] ?></div>
+											<h3><?= htmlspecialchars($value['TEST_NAME']) ?></h3>
+											<div class="price">Total Questions: <?= (int)$value['TOTAL_QUESTIONS'] ?></div>
+											<div class="price">Start Date: <?= htmlspecialchars($value['TEST_START_DATE']) ?></div>
+											<div class="price">End Date: <?= htmlspecialchars($value['END_DATE']) ?></div>
 
 											<?php
 											$start_date = strtotime($value['TEST_START_DATE']);
@@ -50,16 +49,25 @@
 											$is_eval = (int)($value['IS_EVAL'] ?? $value['is_eval'] ?? 0);
 											$is_sub = (int)($value['IS_SUBMITTED'] ?? $value['is_submitted'] ?? 0);
 											$test_id = (int)$value['TEST_ID'];
-											$can_reattempt = ((int)($value['ALLOW_REATTEMPT'] ?? 0) === 1)
+											$resume_on = (int)($value['RESUME_AVAILABLE'] ?? 0) === 1;
+											$test_reattempt_on = (int)($value['REATTEMPT_AVAILABLE'] ?? 0) === 1;
+											$has_draft = !empty($value['USER_RESPONSE']) && $is_sub !== 1;
+
+											$admin_reattempt = ((int)($value['ALLOW_REATTEMPT'] ?? 0) === 1)
 												|| ((int)($value['HAS_REATTEMPT_GRANT'] ?? 0) === 1);
+											$can_reattempt = $in_window && (
+												$admin_reattempt
+												|| ($test_reattempt_on && $is_sub === 1 && $is_eval === 1)
+											);
 
 											$result_url = in_array($test_type, [4, 5], true)
 												? base_url('my-test-report/' . $test_id)
 												: base_url('my-reports');
 											$btn = 'margin:4px;';
+											$test_url = base_url('my-test/' . $test_id);
 
-											if ($can_reattempt && $in_window) {
-												echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-success" style="' . $btn . '">Reattempt Test</a>';
+											if ($can_reattempt) {
+												echo '<a href="' . html_escape($test_url) . '" class="btn btn-outline-success" style="' . $btn . '">Reattempt Test</a>';
 												if ($is_eval === 1) {
 													echo '<a href="' . html_escape($result_url) . '" class="btn btn-outline-primary" style="' . $btn . '">See Result</a>';
 												} elseif ($is_sub === 1) {
@@ -69,10 +77,13 @@
 												echo '<a href="' . html_escape($result_url) . '" class="btn btn-outline-primary" style="' . $btn . '">See Result</a>';
 											} elseif ($is_sub === 1) {
 												echo '<span class="btn btn-outline-secondary" style="' . $btn . '">Not Evaluated</span>';
-											} elseif ($value['USER_RESPONSE'] != null && $is_sub !== 1) {
-												echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-warning" style="' . $btn . '">Resume</a>';
+											} elseif ($has_draft && $resume_on && $in_window) {
+												echo '<a href="' . html_escape($test_url) . '" class="btn btn-outline-warning" style="' . $btn . '">Resume</a>';
+											} elseif ($has_draft && !$resume_on && $in_window) {
+												echo '<a href="' . html_escape($test_url) . '" class="btn btn-outline-warning" style="' . $btn . '">Continue Test</a>';
+												echo '<div class="small text-muted mt-1">Resume is not enabled — finish in one sitting.</div>';
 											} elseif ($in_window) {
-												echo '<a href="' . base_url('my-test/' . $test_id) . '" class="btn btn-outline-success" style="' . $btn . '">Take the Test</a>';
+												echo '<a href="' . html_escape($test_url) . '" class="btn btn-outline-success" style="' . $btn . '">Take the Test</a>';
 											} elseif ($current_date > $end_date) {
 												echo '<span class="btn btn-outline-danger" style="' . $btn . '">Expired</span>';
 											} else {
@@ -94,20 +105,9 @@
 			</div>
 		</div>
 		
-		<!-- js -->
 		<script src="vendors/scripts/core.js"></script>
 		<script src="vendors/scripts/script.min.js"></script>
 		<script src="vendors/scripts/process.js"></script>
 		<script src="vendors/scripts/layout-settings.js"></script>
-		<!-- Google Tag Manager (noscript) -->
-		<noscript
-			><iframe
-				src="https://www.googletagmanager.com/ns.html?id=GTM-NXZMQSS"
-				height="0"
-				width="0"
-				style="display: none; visibility: hidden"
-			></iframe
-		></noscript>
-		<!-- End Google Tag Manager (noscript) -->
 	</body>
 </html>

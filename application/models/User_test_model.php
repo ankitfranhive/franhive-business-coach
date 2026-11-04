@@ -87,6 +87,7 @@ class User_test_model extends CI_Model {
     {
         $user_id = (int)$this->session->userdata('user')['USER_ID'];
         $this->load->helper('test_reattempt');
+        ensure_test_series_policy_columns($this->db);
 
         $allocUser = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['USER_ID', 'user_id'], 'USER_ID');
         $allocTest = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['TEST_ID', 'test_id'], 'TEST_ID');
@@ -121,6 +122,8 @@ class User_test_model extends CI_Model {
                 ts.TEST_NAME,
                 ts.TEST_START_DATE,
                 ts.TEST_TYPE,
+                COALESCE(ts.RESUME_AVAILABLE, 0) AS RESUME_AVAILABLE,
+                COALESCE(ts.REATTEMPT_AVAILABLE, 0) AS REATTEMPT_AVAILABLE,
                 {$reattemptSelect},
                 {$grantSelect},
     
@@ -236,41 +239,130 @@ class User_test_model extends CI_Model {
     // ✅ safer binding, same output
     public function getTestDetails($test_id)
     {
+        $this->load->helper('test_reattempt');
+        $this->load->helper('test_sections');
+        ensure_test_series_policy_columns($this->db);
+        ensure_test_sections_schema($this->db);
+
         $sql = "SELECT 
+                    TEST_ID,
                     TOTAL_QUESTIONS,
                     TEST_NAME,
                     TEST_INSTRUCTIONS,
                     TEST_TYPE,
                     END_DATE,
                     TEST_START_DATE,
-                    TEST_TYPE
+                    COALESCE(RESUME_AVAILABLE, 0) AS RESUME_AVAILABLE,
+                    COALESCE(REATTEMPT_AVAILABLE, 0) AS REATTEMPT_AVAILABLE,
+                    COALESCE(USE_SECTIONS, 0) AS USE_SECTIONS
                 FROM TEST_SERIES
                 WHERE TEST_ID = ?";
         return $this->db->query($sql, [$test_id])->row_array();
     }
+
+    public function test_allows_resume($test_id)
+    {
+        $row = $this->getTestDetails($test_id);
+        return !empty($row) && (int)($row['RESUME_AVAILABLE'] ?? 0) === 1;
+    }
     
 
-    // ✅ still returns option_1..4 for legacy, plus is_correct_1..4 to allow fallback building
     public function getTestQuestions($test_id)
-{
-    $sql = "SELECT 
-                tsq.QUESTION_NAME, 
-                tsq.QUESTION_ID,
-                tsq.option_1,
-                tsq.option_2,
-                tsq.option_3,
-                tsq.option_4,
-                tsq.is_correct_1,
-                tsq.is_correct_2,
-                tsq.is_correct_3,
-                tsq.is_correct_4
-            FROM TEST_QUESTION_MAPPING tqm
-            INNER JOIN TEST_SERIES_QUESTIONS tsq 
-                ON tsq.QUESTION_ID = tqm.QUESTION_ID
-            WHERE tqm.TEST_ID = ?";
+    {
+        $structure = $this->getTestQuestionStructure($test_id);
+        return $structure['questions'];
+    }
 
-    return $this->db->query($sql, [$test_id])->result_array();
-}
+    /**
+     * Flat question list plus optional section grouping (legacy tests: use_sections false).
+     */
+    public function getTestQuestionStructure($test_id)
+    {
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+
+        $test_id = (int) $test_id;
+        $test = $this->getTestDetails($test_id);
+        $useSections = !empty($test) && (int) ($test['USE_SECTIONS'] ?? 0) === 1;
+
+        $sql = "
+            SELECT
+                tsq.QUESTION_NAME,
+                tsq.QUESTION_ID,
+                tsq.option_1, tsq.option_2, tsq.option_3, tsq.option_4,
+                tsq.is_correct_1, tsq.is_correct_2, tsq.is_correct_3, tsq.is_correct_4,
+                tqm.ID AS MAPPING_ID,
+                tqm.SECTION_ID,
+                tqm.QUESTION_SORT,
+                sec.SECTION_NAME,
+                sec.SORT_ORDER AS SECTION_SORT
+            FROM TEST_QUESTION_MAPPING tqm
+            INNER JOIN TEST_SERIES_QUESTIONS tsq ON tsq.QUESTION_ID = tqm.QUESTION_ID
+            LEFT JOIN TEST_SECTIONS sec ON sec.SECTION_ID = tqm.SECTION_ID
+            WHERE tqm.TEST_ID = ?
+            ORDER BY COALESCE(sec.SORT_ORDER, 9999), COALESCE(tqm.QUESTION_SORT, tqm.ID), tqm.ID
+        ";
+        $rows = $this->db->query($sql, [$test_id])->result_array();
+
+        $sections = [];
+        if ($useSections) {
+            $this->db->where('TEST_ID', $test_id);
+            $this->db->order_by('SORT_ORDER', 'ASC');
+            foreach ($this->db->get('TEST_SECTIONS')->result_array() as $sec) {
+                $sort = (int) ($sec['SORT_ORDER'] ?? 0);
+                $sections[] = [
+                    'section_id'    => (int) $sec['SECTION_ID'],
+                    'section_name'  => $sec['SECTION_NAME'],
+                    'sort_order'    => $sort,
+                    'value_number'  => value_number_from_section_sort($sort),
+                    'question_count'=> 0,
+                ];
+            }
+        }
+
+        $secIndex = [];
+        foreach ($sections as $i => $s) {
+            $secIndex[(int) $s['section_id']] = $i;
+            $sections[$i]['questions'] = [];
+        }
+
+        $questions = [];
+        $unassigned = 0;
+        foreach ($rows as $row) {
+            $sid = isset($row['SECTION_ID']) ? (int) $row['SECTION_ID'] : 0;
+            $qInSection = 0;
+            $sectionName = '';
+            $valueNumber = null;
+            $sectionKey = null;
+
+            if ($useSections && $sid > 0 && isset($secIndex[$sid])) {
+                $idx = $secIndex[$sid];
+                $sections[$idx]['question_count']++;
+                $qInSection = $sections[$idx]['question_count'];
+                $sectionName = $sections[$idx]['section_name'];
+                $valueNumber = $sections[$idx]['value_number'];
+                $sectionKey = $idx;
+                $sections[$idx]['questions'][] = (int) $row['QUESTION_ID'];
+            } elseif ($useSections && $sid <= 0) {
+                $unassigned++;
+                $qInSection = $unassigned;
+                $sectionName = 'Unassigned';
+            }
+
+            $row['SECTION_ID'] = $sid ?: null;
+            $row['SECTION_NAME'] = $sectionName;
+            $row['VALUE_NUMBER'] = $valueNumber;
+            $row['QUESTION_INDEX_IN_SECTION'] = $qInSection;
+            $row['SECTION_KEY'] = $sectionKey;
+            $questions[] = $row;
+        }
+
+        return [
+            'use_sections' => $useSections && count($sections) > 0,
+            'sections'       => $sections,
+            'questions'      => $questions,
+        ];
+    }
 
 
     // ✅ NEW: bulk load options from new table
@@ -353,26 +445,71 @@ public function buildLegacyOptionsFromQuestionRow($qRow)
     }
 
     public function saveUserResponse($user_id, $test_id, $user_response, $is_submitted)
-{
-    if (!$this->user_has_active_allocation($user_id, $test_id)) {
+    {
+        if (!$this->user_has_active_allocation($user_id, $test_id)) {
+            return false;
+        }
+
+        $is_submitted = filter_var($is_submitted, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        if ($is_submitted === 0 && !$this->test_allows_resume($test_id)) {
+            return false;
+        }
+
+        $this->load->helper('test_reattempt');
+        $user_id = (int) $user_id;
+        $test_id = (int) $test_id;
+        $pk = test_db_column($this->db, 'TEST_USER_RESPONSE', ['id', 'ID'], 'id');
+        $colUser = test_db_column($this->db, 'TEST_USER_RESPONSE', ['user_id', 'USER_ID'], 'user_id');
+        $colTest = test_db_column($this->db, 'TEST_USER_RESPONSE', ['test_id', 'TEST_ID'], 'test_id');
+        $colResp = test_db_column($this->db, 'TEST_USER_RESPONSE', ['user_response', 'USER_RESPONSE'], 'user_response');
+        $colSub = test_db_column($this->db, 'TEST_USER_RESPONSE', ['is_submitted', 'IS_SUBMITTED'], 'is_submitted');
+        $colEval = test_db_column($this->db, 'TEST_USER_RESPONSE', ['is_eval', 'IS_EVAL'], 'is_eval');
+
+        $this->db->where($colUser, $user_id);
+        $this->db->where($colTest, $test_id);
+        $this->db->order_by($pk, 'DESC');
+        $this->db->limit(1);
+        $latest = $this->db->get('TEST_USER_RESPONSE')->row_array();
+
+        $payload = [
+            $colResp => $user_response,
+            $colSub  => $is_submitted,
+        ];
+        if ($this->db->field_exists($colEval, 'TEST_USER_RESPONSE') && $is_submitted === 0) {
+            $payload[$colEval] = 0;
+        }
+        if ($this->db->field_exists('updated_at', 'TEST_USER_RESPONSE')) {
+            $payload['updated_at'] = date('Y-m-d H:i:s');
+        }
+
+        $latestIsDraft = $latest && (int) ($latest[$colSub] ?? 0) === 0;
+
+        if ($latestIsDraft) {
+            $this->db->where($pk, $latest[$pk]);
+            $ok = $this->db->update('TEST_USER_RESPONSE', $payload);
+            if ($ok) {
+                $this->clear_allocation_reattempt_flag($user_id, $test_id);
+            }
+            return $ok;
+        }
+
+        $insert = [
+            $colUser => $user_id,
+            $colTest => $test_id,
+            $colResp => $user_response,
+            $colSub  => $is_submitted,
+        ];
+        if ($this->db->field_exists($colEval, 'TEST_USER_RESPONSE')) {
+            $insert[$colEval] = 0;
+        }
+
+        $ok = $this->db->insert('TEST_USER_RESPONSE', $insert);
+        if ($ok && $this->db->affected_rows() > 0) {
+            $this->clear_allocation_reattempt_flag($user_id, $test_id);
+            return true;
+        }
         return false;
     }
-
-    $data = [
-        'user_id' => $user_id,
-        'test_id' => $test_id,
-        'user_response' => $user_response,
-        'is_submitted'  => $is_submitted,
-        'is_eval'       => 0,
-    ];
-
-    $this->db->insert('TEST_USER_RESPONSE', $data);
-    $ok = $this->db->affected_rows() > 0;
-    if ($ok) {
-        $this->clear_allocation_reattempt_flag($user_id, $test_id);
-    }
-    return $ok;
-}
 
 
 public function get_my_tests_reports($user_id)
