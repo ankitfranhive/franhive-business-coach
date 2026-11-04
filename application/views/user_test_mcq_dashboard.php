@@ -9,7 +9,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <style>
-        body { background-color: #f8f9fa; }
         .form-check-input:disabled~.form-check-label, .form-check-input[disabled]~.form-check-label { cursor: default; opacity: 1; }
         .test-container { max-width: 900px; margin: auto; margin-top: 50px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
         .option-container { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -40,20 +39,88 @@
             border: 1px solid #dee2e6; padding: 0.5rem;
         }
         .test-instructions-content img { max-width: 100%; height: auto; border-radius: 4px; }
-        .section-nav-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
-        .section-pill {
-            border: 1px solid #cbd5e1; background: #f8fafc; color: #334155;
-            border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+        body { background: linear-gradient(180deg, #f0fdfa 0%, #f8fafc 40%, #f1f5f9 100%); min-height: 100vh; }
+        .test-page-shell { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+        .test-header {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(15, 118, 110, 0.08);
+            border: 1px solid #e2e8f0;
+            padding: 1.25rem 1.5rem 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
         }
-        .section-pill.active { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 600; }
-        .section-pill .sec-count { opacity: 0.85; font-size: 12px; }
+        .test-header .test-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 1rem;
+            line-height: 1.35;
+        }
+        .section-nav-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .section-pill {
+            border: 1px solid #cbd5e1; background: #f8fafc; color: #475569;
+            border-radius: 999px; padding: 8px 16px; font-size: 13px; cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+        .section-pill:hover { background: #ecfdf5; border-color: #99f6e4; color: #0f766e; }
+        .section-pill.active { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 600; box-shadow: 0 2px 8px rgba(15, 118, 110, 0.35); }
+        .section-pill .sec-count { opacity: 0.9; font-size: 12px; font-weight: 500; }
+        .question-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem 1.75rem;
+        }
+        .question-card .progress-label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0f766e;
+            margin: 0;
+        }
+        .question-card .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.5;
+            margin: 1.25rem 0 1.5rem;
+        }
+        .question-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 0.5rem;
+        }
+        #timer {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f766e;
+            background: #ecfdf5;
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 1px solid #99f6e4;
+            box-shadow: none;
+        }
+        .test-actions-bar {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 
 <?php
 $resume_available = (int)($test_details['RESUME_AVAILABLE'] ?? 0) === 1;
-$has_draft = !empty($user_test_details[0]['USER_RESPONSE'])
-    && (int)($user_test_details[0]['IS_SUBMITTED'] ?? 1) === 0;
+$this->load->helper('test_reattempt');
+$attempt_row = $user_test_details[0] ?? [];
+$has_draft = test_attempt_is_draft($attempt_row);
 $start_label = ($resume_available && $has_draft) ? 'Resume Test' : 'Take the Test';
 ?>
 <body>
@@ -70,19 +137,26 @@ $start_label = ($resume_available && $has_draft) ? 'Resume Test' : 'Take the Tes
         </div>
         <?php endif; ?>
         <button class="btn btn-primary" id="startTestBtn"><?= html_escape($start_label) ?></button>
-        <?php if ($resume_available): ?>
-        <button class="btn btn-outline-secondary mt-2" id="saveExitBtn" style="display:none;">Save &amp; exit</button>
-        <?php endif; ?>
         <?php if (!$resume_available): ?>
         <p class="text-muted small mt-2 mb-0">This test cannot be resumed. Complete it in one sitting.</p>
         <?php endif; ?>
     </div>
 
     <div id="questionPage" style="display:none;">
-        <div id="sectionNavWrap" class="test-container" style="display:none; margin-top:16px; padding:12px 16px;">
-            <div class="section-nav-bar" id="sectionNavBar"></div>
+        <div class="test-page-shell">
+            <header class="test-header">
+                <h1 class="test-title"><?php echo html_escape($test_details['TEST_NAME']); ?></h1>
+                <div id="sectionNavWrap" style="display:none;">
+                    <div class="section-nav-bar" id="sectionNavBar"></div>
+                </div>
+            </header>
+            <div id="questionContainer"></div>
+            <?php if ($resume_available): ?>
+            <div class="test-actions-bar">
+                <button type="button" class="btn btn-outline-secondary" id="saveExitBtn">Save &amp; exit</button>
+            </div>
+            <?php endif; ?>
         </div>
-        <div id="questionContainer"></div>
     </div>
 </div>
 
@@ -205,29 +279,48 @@ $(document).ready(function () {
     }
 
     function saveDraft(exitAfter) {
-        if (!resumeAvailable) return;
+        if (!resumeAvailable) {
+            if (exitAfter) {
+                alert('Resume is not enabled for this test. Ask your coach to turn on Resume available on the test, then open the test again.');
+            }
+            return;
+        }
         if (saveInFlight) return;
         saveInFlight = true;
         $.ajax({
             type: 'POST',
             url: "<?php echo base_url('/save-test-response') ?>",
             contentType: 'application/json',
+            dataType: 'json',
             data: JSON.stringify({
                 responses: buildResponsesPayload(),
                 test_id: testId,
                 is_submitted: false
             }),
             complete: function () { saveInFlight = false; },
-            success: function () {
+            success: function (resp) {
+                if (resp && resp.ok === false) {
+                    alert(resp.error || 'Could not save progress.');
+                    return;
+                }
                 if (exitAfter) {
                     window.location.href = '<?php echo base_url('my-test') ?>';
                 }
             },
-            error: function () {
-                if (exitAfter) {
-                    alert('Could not save progress. Please try again.');
-                }
+            error: function (xhr) {
+                var msg = 'Could not save progress. Please try again.';
+                try {
+                    var j = xhr.responseJSON || JSON.parse(xhr.responseText);
+                    if (j && j.error) msg = j.error;
+                } catch (e) {}
+                alert(msg);
             }
+        });
+    }
+
+    function sectionsWithQuestions() {
+        return sectionMeta.filter(function (sec) {
+            return (sec.question_count || 0) > 0;
         });
     }
 
@@ -236,9 +329,17 @@ $(document).ready(function () {
             $('#sectionNavWrap').hide();
             return;
         }
+        const visible = sectionsWithQuestions();
+        if (!visible.length) {
+            $('#sectionNavWrap').hide();
+            return;
+        }
         $('#sectionNavWrap').show();
         const $bar = $('#sectionNavBar').empty();
         sectionMeta.forEach(function (sec, idx) {
+            if ((sec.question_count || 0) <= 0) {
+                return;
+            }
             const active = questions[currentIndex] && questions[currentIndex].SECTION_KEY === idx;
             const $btn = $('<button type="button" class="section-pill"></button>');
             $btn.toggleClass('active', !!active);
@@ -266,21 +367,13 @@ $(document).ready(function () {
         const sec = sectionMeta[q.SECTION_KEY];
         const secName = sec ? sec.section_name : (q.SECTION_NAME || 'Section');
         const qIn = q.QUESTION_INDEX_IN_SECTION || 1;
-        const secTotal = sec ? sec.question_count : '?';
-        let label = 'Question ' + qIn + ' of ' + secTotal + ' · ' + secName;
-        if (sec && sec.value_number) {
-            label += ' (Value ' + sec.value_number + ')';
-        }
-        return label;
+        return 'Question ' + qIn + ' of ' + secName;
     }
 
     function startTest() {
         preloadDraft();
         $("#instructionPage").hide();
         $("#questionPage").show();
-        if (resumeAvailable) {
-            $("#saveExitBtn").show();
-        }
         questionStartTime = elapsedSeconds;
         startTimer();
         renderSectionNav();
@@ -312,13 +405,12 @@ $(document).ready(function () {
         let question = questions[index];
         let questionContainer = $("#questionContainer");
 
-        let html = `<h2 class="mb-3"><?php echo $test_details['TEST_NAME']; ?></h2>
-                    <div class='test-container'>
-                        <div class='d-flex justify-content-between align-items-center'>
-                            <h5 class='text-primary progress-label'>${questionProgressLabel(index)}</h5>
+        let html = `<div class='question-card'>
+                        <div class='question-toolbar'>
+                            <p class='progress-label mb-0'>${questionProgressLabel(index)}</p>
                             <div id="timer">00:00:00</div>
                         </div>
-                        <h4 class='text-center mb-4'>${question.QUESTION_NAME}</h4>`;
+                        <div class='question-text text-center'>${question.QUESTION_NAME}</div>`;
 
         // Options are hydrated by controller/model (new table) OR legacy fallback (option_1..4)
         const opts = Array.isArray(question.options) ? question.options : [];

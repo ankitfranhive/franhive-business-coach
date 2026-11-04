@@ -114,14 +114,24 @@ class Welcome extends CI_Controller {
 
     public function saveTestResponse()
     {
-        $json_data = $this->input->raw_input_stream; // Get raw input stream
-        $data = json_decode($json_data, true); // Decode JSON data
+        $json_data = $this->input->raw_input_stream;
+        $data = json_decode($json_data, true);
+        if (!is_array($data)) {
+            $this->output->set_status_header(400)->set_content_type('application/json')
+                ->set_output(json_encode(['ok' => false, 'error' => 'Invalid request.']));
+            return;
+        }
 
         $user_data = $this->session->userdata('user');
+        if (empty($user_data['USER_ID'])) {
+            $this->output->set_status_header(401)->set_content_type('application/json')
+                ->set_output(json_encode(['ok' => false, 'error' => 'Please sign in again.']));
+            return;
+        }
 
-        $test_id = $data['test_id'];
-        $is_submitted = $data['is_submitted'];
-        $responses = json_encode($data['responses'], true);
+        $test_id = (int) ($data['test_id'] ?? 0);
+        $is_submitted = $data['is_submitted'] ?? false;
+        $responses = json_encode($data['responses'] ?? []);
 
         $save_responses = $this->User_test_model->saveUserResponse(
             $user_data['USER_ID'],

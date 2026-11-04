@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html>
-<?php $this->load->view('includes/header'); ?>
+<?php
+$this->load->view('includes/header');
+$this->load->helper('test_reattempt');
+?>
 		<div class="mobile-menu-overlay"></div>
 
 		<div class="main-container">
@@ -51,7 +54,7 @@
 											$test_id = (int)$value['TEST_ID'];
 											$resume_on = (int)($value['RESUME_AVAILABLE'] ?? 0) === 1;
 											$test_reattempt_on = (int)($value['REATTEMPT_AVAILABLE'] ?? 0) === 1;
-											$has_draft = !empty($value['USER_RESPONSE']) && $is_sub !== 1;
+											$has_draft = test_attempt_is_draft($value);
 
 											$admin_reattempt = ((int)($value['ALLOW_REATTEMPT'] ?? 0) === 1)
 												|| ((int)($value['HAS_REATTEMPT_GRANT'] ?? 0) === 1);

@@ -57,3 +57,28 @@ function test_series_policy_from_row(array $row)
         'reattempt_available' => (int)($row['REATTEMPT_AVAILABLE'] ?? $row['reattempt_available'] ?? 0),
     ];
 }
+
+/** Latest attempt is an in-progress draft (not finally submitted). */
+function test_attempt_is_draft(array $row)
+{
+    $sub = (int) ($row['IS_SUBMITTED'] ?? $row['is_submitted'] ?? 1);
+    if ($sub === 1) {
+        return false;
+    }
+    $responseId = (int) ($row['RESPONSE_ID'] ?? $row['ID'] ?? $row['id'] ?? 0);
+    if ($responseId > 0) {
+        return true;
+    }
+    $raw = $row['USER_RESPONSE'] ?? $row['user_response'] ?? null;
+    return $raw !== null && $raw !== '';
+}
+
+function test_row_int(array $row, array $keys, $default = 0)
+{
+    foreach ($keys as $key) {
+        if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
+            return (int) $row[$key];
+        }
+    }
+    return (int) $default;
+}

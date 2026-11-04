@@ -80,14 +80,22 @@ class User_test_model extends CI_Model {
         $row['IS_SUBMITTED'] = (int)($row['IS_SUBMITTED'] ?? $row['is_submitted'] ?? 0);
         $row['ALLOW_REATTEMPT'] = (int)($row['ALLOW_REATTEMPT'] ?? $row['allow_reattempt'] ?? 0);
         $row['HAS_REATTEMPT_GRANT'] = (int)($row['HAS_REATTEMPT_GRANT'] ?? 0);
+        $row['RESUME_AVAILABLE'] = (int)($row['RESUME_AVAILABLE'] ?? $row['resume_available'] ?? 0);
+        if (!array_key_exists('USER_RESPONSE', $row) && array_key_exists('user_response', $row)) {
+            $row['USER_RESPONSE'] = $row['user_response'];
+        }
+        if (!array_key_exists('RESPONSE_ID', $row)) {
+            $row['RESPONSE_ID'] = (int)($row['ID'] ?? $row['id'] ?? 0);
+        }
         return $row;
     }
 
     public function get_my_tests()
     {
         $user_id = (int)$this->session->userdata('user')['USER_ID'];
+        $this->load->helper('test_schema_cache');
+        ensure_test_admin_schema_cached($this->db);
         $this->load->helper('test_reattempt');
-        ensure_test_series_policy_columns($this->db);
 
         $allocUser = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['USER_ID', 'user_id'], 'USER_ID');
         $allocTest = test_db_column($this->db, 'TEST_USER_ALLOCATION', ['TEST_ID', 'test_id'], 'TEST_ID');
@@ -259,42 +267,55 @@ class User_test_model extends CI_Model {
         return $reattempt_on && $is_eval === 1;
     }
 
-    public function user_test_details($user_id, $test_id) {
+    public function user_test_details($user_id, $test_id)
+    {
+        $this->load->helper('test_reattempt');
+        $user_id = (int) $user_id;
+        $test_id = (int) $test_id;
+
+        $respPk = test_db_column($this->db, 'TEST_USER_RESPONSE', ['id', 'ID'], 'id');
+        $respTest = test_db_column($this->db, 'TEST_USER_RESPONSE', ['test_id', 'TEST_ID'], 'test_id');
+        $respUser = test_db_column($this->db, 'TEST_USER_RESPONSE', ['user_id', 'USER_ID'], 'user_id');
+        $colSub = test_db_column($this->db, 'TEST_USER_RESPONSE', ['is_submitted', 'IS_SUBMITTED'], 'is_submitted');
+        $colResp = test_db_column($this->db, 'TEST_USER_RESPONSE', ['user_response', 'USER_RESPONSE'], 'user_response');
+        $colEval = test_db_column($this->db, 'TEST_USER_RESPONSE', ['is_eval', 'IS_EVAL'], 'is_eval');
 
         $qry = "
-            SELECT 
+            SELECT
                 TEST_USER_ALLOCATION.TEST_ID,
                 TEST_USER_ALLOCATION.MAPPING_ID,
                 TEST_SERIES.TOTAL_QUESTIONS,
-                TEST_SERIES.END_DATE, 
+                TEST_SERIES.END_DATE,
                 TEST_SERIES.TEST_NAME,
                 TEST_SERIES.TEST_START_DATE,
-                TEST_USER_RESPONSE.IS_EVAL,
                 TEST_SERIES.TEST_TYPE,
-                TEST_USER_RESPONSE.IS_SUBMITTED,
-                TEST_USER_RESPONSE.USER_RESPONSE
-            FROM 
-                TEST_USER_ALLOCATION
-            LEFT JOIN 
-                TEST_SERIES 
-                ON TEST_SERIES.TEST_ID = TEST_USER_ALLOCATION.TEST_ID 
-            LEFT JOIN TEST_USER_RESPONSE
-                ON TEST_USER_RESPONSE.ID = (
-                    SELECT tur2.ID
+                tur_latest.{$respPk} AS RESPONSE_ID,
+                COALESCE(tur_latest.{$colEval}, 0) AS IS_EVAL,
+                COALESCE(tur_latest.{$colSub}, 0) AS IS_SUBMITTED,
+                tur_latest.{$colResp} AS USER_RESPONSE
+            FROM TEST_USER_ALLOCATION
+            LEFT JOIN TEST_SERIES ON TEST_SERIES.TEST_ID = TEST_USER_ALLOCATION.TEST_ID
+            LEFT JOIN TEST_USER_RESPONSE tur_latest
+                ON tur_latest.{$respPk} = (
+                    SELECT tur2.{$respPk}
                     FROM TEST_USER_RESPONSE tur2
-                    WHERE tur2.TEST_ID = TEST_USER_ALLOCATION.TEST_ID
-                      AND tur2.USER_ID = ?
-                    ORDER BY tur2.ID DESC
+                    WHERE tur2.{$respTest} = TEST_USER_ALLOCATION.TEST_ID
+                      AND tur2.{$respUser} = ?
+                    ORDER BY tur2.{$respPk} DESC
                     LIMIT 1
                 )
-            WHERE 
-                TEST_USER_ALLOCATION.USER_ID = ? AND TEST_USER_ALLOCATION.TEST_ID = ?
-                AND COALESCE(TEST_USER_ALLOCATION.IS_REMOVED, 0) = 0
-                AND TEST_SERIES.IS_DEL = 0
+            WHERE TEST_USER_ALLOCATION.USER_ID = ?
+              AND TEST_USER_ALLOCATION.TEST_ID = ?
+              AND COALESCE(TEST_USER_ALLOCATION.IS_REMOVED, 0) = 0
+              AND TEST_SERIES.IS_DEL = 0
         ";
 
-        $query = $this->db->query($qry, array($user_id, $user_id, $test_id));
-        return $query->result_array();
+        $query = $this->db->query($qry, [$user_id, $user_id, $test_id]);
+        $rows = $query ? $query->result_array() : [];
+        foreach ($rows as $i => $row) {
+            $rows[$i] = $this->normalize_my_test_row($row);
+        }
+        return $rows;
     }
 
     // ✅ safer binding, same output
@@ -541,20 +562,27 @@ public function buildLegacyOptionsFromQuestionRow($qRow)
             $payload['updated_at'] = date('Y-m-d H:i:s');
         }
 
-        $latestIsDraft = $latest && (int) ($latest[$colSub] ?? 0) === 0;
-        $latestIsSubmitted = $latest && (int) ($latest[$colSub] ?? 0) === 1;
+        $latestSub = $latest
+            ? test_row_int($latest, [$colSub, 'IS_SUBMITTED', 'is_submitted'], 0)
+            : 0;
+        $latestIsDraft = $latest && $latestSub === 0;
+        $latestIsSubmitted = $latest && $latestSub === 1;
 
         if ($latestIsSubmitted && !$this->user_can_reattempt_test($user_id, $test_id)) {
             return false;
         }
 
         if ($latestIsDraft) {
-            $this->db->where($pk, $latest[$pk]);
+            $latestPk = $latest[$pk] ?? $latest['ID'] ?? $latest['id'] ?? null;
+            if ($latestPk === null) {
+                return false;
+            }
+            $this->db->where($pk, $latestPk);
             $ok = $this->db->update('TEST_USER_RESPONSE', $payload);
             if ($ok) {
                 $this->clear_allocation_reattempt_flag($user_id, $test_id);
             }
-            return $ok;
+            return (bool) $ok;
         }
 
         $insert = [
@@ -567,12 +595,11 @@ public function buildLegacyOptionsFromQuestionRow($qRow)
             $insert[$colEval] = 0;
         }
 
-        $ok = $this->db->insert('TEST_USER_RESPONSE', $insert);
-        if ($ok && $this->db->affected_rows() > 0) {
-            $this->clear_allocation_reattempt_flag($user_id, $test_id);
-            return true;
+        if (!$this->db->insert('TEST_USER_RESPONSE', $insert)) {
+            return false;
         }
-        return false;
+        $this->clear_allocation_reattempt_flag($user_id, $test_id);
+        return (int) $this->db->insert_id() > 0 || $this->db->affected_rows() > 0;
     }
 
 
