@@ -104,6 +104,10 @@ $resume_available = (int)($test_details['RESUME_AVAILABLE'] ?? 0) === 1;
     </div>
 </div>
 
+<?php if ($resume_available): ?>
+<?php $this->load->view('partials/student_test_save_loader'); ?>
+<?php endif; ?>
+
 <!-- JQuery -->
 <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 <script>
@@ -265,22 +269,40 @@ function saveResponse(is_nxt) {
 
     if (is_nxt) {
         var test_id = window.location.href.split('/').pop();
+        document.getElementById('finishTestModal').style.display = 'none';
+        if (window.showTestSaveLoader) {
+            window.showTestSaveLoader('Saving your progress…');
+        }
 
         $.ajax({
             type: "POST",
             url: "<?php echo base_url('/save-test-response')?>",
             contentType: "application/json",
+            dataType: 'json',
             data: JSON.stringify({
                 responses: responses,
                 test_id: test_id,
                 is_submitted: false
             }),
-            success: function() {
+            success: function(resp) {
+                if (resp && resp.ok === false) {
+                    if (window.hideTestSaveLoader) window.hideTestSaveLoader();
+                    alert(resp.error || 'Could not save progress.');
+                    return;
+                }
+                if (window.showTestSaveLoader) {
+                    window.showTestSaveLoader('Saved! Returning to My Tests…');
+                }
                 window.location.href = '<?php echo base_url('my-test') ?>';
             },
-            error: function() {
-                console.error("Error saving response");
-                alert('Could not save progress. Please try again.');
+            error: function(xhr) {
+                if (window.hideTestSaveLoader) window.hideTestSaveLoader();
+                var msg = 'Could not save progress. Please try again.';
+                try {
+                    var j = xhr.responseJSON || JSON.parse(xhr.responseText);
+                    if (j && j.error) msg = j.error;
+                } catch (e) {}
+                alert(msg);
             }
         });
     }

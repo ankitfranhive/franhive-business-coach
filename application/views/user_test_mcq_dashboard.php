@@ -153,8 +153,9 @@ $start_label = ($resume_available && $has_draft) ? 'Resume Test' : 'Take the Tes
             <div id="questionContainer"></div>
             <?php if ($resume_available): ?>
             <div class="test-actions-bar">
-                <button type="button" class="btn btn-outline-secondary" id="saveExitBtn">Save &amp; exit</button>
+                <button type="button" class="btn btn-outline-secondary" id="saveExitBtn" data-label="Save &amp; exit">Save &amp; exit</button>
             </div>
+            <?php $this->load->view('partials/student_test_save_loader'); ?>
             <?php endif; ?>
         </div>
     </div>
@@ -287,6 +288,17 @@ $(document).ready(function () {
         }
         if (saveInFlight) return;
         saveInFlight = true;
+
+        if (exitAfter) {
+            var $exitBtn = $('#saveExitBtn');
+            if ($exitBtn.length) {
+                $exitBtn.prop('disabled', true).text('Saving…');
+            }
+            if (window.showTestSaveLoader) {
+                window.showTestSaveLoader('Saving your progress…');
+            }
+        }
+
         $.ajax({
             type: 'POST',
             url: "<?php echo base_url('/save-test-response') ?>",
@@ -300,14 +312,20 @@ $(document).ready(function () {
             complete: function () { saveInFlight = false; },
             success: function (resp) {
                 if (resp && resp.ok === false) {
+                    if (window.hideTestSaveLoader) window.hideTestSaveLoader();
                     alert(resp.error || 'Could not save progress.');
                     return;
                 }
                 if (exitAfter) {
+                    if (window.showTestSaveLoader) {
+                        window.showTestSaveLoader('Saved! Returning to My Tests…');
+                    }
                     window.location.href = '<?php echo base_url('my-test') ?>';
+                    return;
                 }
             },
             error: function (xhr) {
+                if (window.hideTestSaveLoader) window.hideTestSaveLoader();
                 var msg = 'Could not save progress. Please try again.';
                 try {
                     var j = xhr.responseJSON || JSON.parse(xhr.responseText);
