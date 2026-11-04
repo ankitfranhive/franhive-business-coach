@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('partials/admin_test_loading'); ?>
 
 <?php
 $test_id = isset($test_id) ? (int) $test_id : 0;
@@ -113,50 +114,7 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
                                 <th class="datatable-nosort">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php foreach ($questions as $question) :
-                                $qid = (int) $question->QUESTION_ID;
-                                $qtype = (int) ($question->QUESTION_TYPE ?? 2);
-                                $group = trim($question->QUESTION_GROUP ?? '');
-                                $in_test = !empty($question->MAPPING_ID) ? 1 : 0;
-                                $name_plain = strip_tags($question->QUESTION_NAME ?? '');
-                            ?>
-                                <tr
-                                    data-question-id="<?= $qid ?>"
-                                    data-group="<?= htmlspecialchars($group, ENT_QUOTES, 'UTF-8') ?>"
-                                    data-type="<?= $qtype ?>"
-                                    data-in-test="<?= $in_test ?>"
-                                >
-                                    <?php if ($test_id > 0) : ?>
-                                    <td class="text-center">
-                                        <?php if (!$in_test) : ?>
-                                            <input type="checkbox" class="row-select-question" value="<?= $qid ?>">
-                                        <?php endif; ?>
-                                    </td>
-                                    <?php endif; ?>
-                                    <td><?= $qid ?></td>
-                                    <td><?= htmlspecialchars($name_plain) ?></td>
-                                    <td><?= htmlspecialchars($group) ?></td>
-                                    <td><?= $qtype === 1 ? 'MCQ' : 'Subjective' ?></td>
-                                    <td><?= htmlspecialchars((string) ($question->QUESTION_MARKS ?? '')) ?></td>
-                                    <?php if ($test_id > 0) : ?>
-                                    <td class="col-in-test"><?= $in_test ? 'In test' : '—' ?></td>
-                                    <?php endif; ?>
-                                    <td class="col-actions">
-                                        <?php if ($test_id > 0) : ?>
-                                            <?php if ($in_test) : ?>
-                                                <span class="badge badge-success">Added</span>
-                                            <?php else : ?>
-                                                <button type="button" class="btn btn-primary btn-sm add-question" data-question-id="<?= $qid ?>">Add to test</button>
-                                                <span class="tooltip-added" id="tooltip_<?= $qid ?>">Added!</span>
-                                            <?php endif; ?>
-                                        <?php else : ?>
-                                            <span class="text-muted">—</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
+                        <tbody></tbody>
                     </table>
                 </div>
             </div>
@@ -169,10 +127,55 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
 <script>
 (function () {
     var testId = <?= (int) $test_id ?>;
-    var filterFn = null;
+    var ajaxUrl = '<?= base_url('admin-test-questions-datatable') ?>';
+    var table = null;
+
+    function escapeHtml(s) {
+        return $('<div/>').text(s == null ? '' : s).html();
+    }
+
+    function buildColumns() {
+        if (testId > 0) {
+            return [
+                {
+                    data: null, orderable: false, searchable: false,
+                    render: function (d, t, row) {
+                        if (row.IN_TEST) return '';
+                        return '<input type="checkbox" class="row-select-question" value="' + row.QUESTION_ID + '">';
+                    }
+                },
+                { data: 'QUESTION_ID' },
+                { data: 'QUESTION_NAME', render: function (d) { return escapeHtml(d); } },
+                { data: 'QUESTION_GROUP', render: function (d) { return escapeHtml(d); } },
+                { data: 'QUESTION_TYPE', render: function (d) { return Number(d) === 1 ? 'MCQ' : 'Subjective'; } },
+                { data: 'QUESTION_MARKS', render: function (d) { return escapeHtml(String(d)); } },
+                { data: 'IN_TEST', className: 'col-in-test', render: function (d) { return d ? 'In test' : '—'; } },
+                {
+                    data: null, orderable: false, searchable: false, className: 'col-actions',
+                    render: function (d, t, row) {
+                        if (row.IN_TEST) {
+                            return '<span class="badge badge-success">Added</span>';
+                        }
+                        return '<button type="button" class="btn btn-primary btn-sm add-question" data-question-id="' + row.QUESTION_ID + '">Add to test</button>';
+                    }
+                }
+            ];
+        }
+        return [
+            { data: 'QUESTION_ID' },
+            { data: 'QUESTION_NAME', render: function (d) { return escapeHtml(d); } },
+            { data: 'QUESTION_GROUP', render: function (d) { return escapeHtml(d); } },
+            { data: 'QUESTION_TYPE', render: function (d) { return Number(d) === 1 ? 'MCQ' : 'Subjective'; } },
+            { data: 'QUESTION_MARKS', render: function (d) { return escapeHtml(String(d)); } },
+            {
+                data: null, orderable: false, searchable: false,
+                render: function () { return '<span class="text-muted">—</span>'; }
+            }
+        ];
+    }
 
     function initTable() {
-        if (!$.fn.DataTable || $('#test-questions-table').length === 0) {
+        if (!$.fn.DataTable || !$('#test-questions-table').length) {
             return null;
         }
         if ($.fn.DataTable.isDataTable('#test-questions-table')) {
@@ -180,60 +183,57 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
         }
 
         var idColIndex = testId > 0 ? 1 : 0;
-        var columnDefs = [{ targets: 'datatable-nosort', orderable: false, searchable: false }];
-        if (testId > 0) {
-            columnDefs.unshift({ targets: 0, orderable: false, searchable: false });
-        }
-        var table = $('#test-questions-table').DataTable({
+        table = $('#test-questions-table').DataTable({
+            processing: true,
+            serverSide: true,
+            deferRender: true,
             scrollCollapse: true,
             autoWidth: false,
             responsive: true,
             order: [[idColIndex, 'desc']],
-            columnDefs: columnDefs,
+            ajax: {
+                url: ajaxUrl,
+                type: 'POST',
+                data: function (d) {
+                    d.test_id = testId;
+                    d.filter_group = $('#filter-group').val() || '';
+                    d.filter_type = $('#filter-type').val() || '';
+                    d.filter_in_test = $('#filter-in-test').length ? ($('#filter-in-test').val() || '') : '';
+                }
+            },
+            columns: buildColumns(),
             lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
             pageLength: 25,
             language: {
+                processing: 'Loading questions…',
                 info: '_START_–_END_ of _TOTAL_',
                 searchPlaceholder: 'Search questions…',
                 paginate: {
                     next: '<i class="ion-chevron-right"></i>',
                     previous: '<i class="ion-chevron-left"></i>'
                 }
+            },
+            rowCallback: function (row, data) {
+                $(row).attr('data-question-id', data.QUESTION_ID);
             }
         });
 
-        filterFn = function (settings, data, dataIndex) {
-            if (settings.nTable.id !== 'test-questions-table') {
-                return true;
-            }
-            var row = table.row(dataIndex).node();
-            if (!row) return true;
-            var $row = $(row);
-            var groupVal = $('#filter-group').val() || '';
-            var typeVal = $('#filter-type').val() || '';
-            var inTestVal = $('#filter-in-test').length ? ($('#filter-in-test').val() || '') : '';
-
-            if (groupVal && $row.data('group') !== groupVal) return false;
-            if (typeVal && String($row.data('type')) !== typeVal) return false;
-            if (inTestVal === '1' && Number($row.data('in-test')) !== 1) return false;
-            if (inTestVal === '0' && Number($row.data('in-test')) !== 0) return false;
-            return true;
-        };
-        $.fn.dataTable.ext.search.push(filterFn);
-
         $('#filter-group, #filter-type, #filter-in-test').on('change', function () {
-            table.draw();
+            table.ajax.reload();
         });
         $('#filter-reset').on('click', function () {
             $('#filter-group, #filter-type, #filter-in-test').val('');
             $('#select-all-page').prop('checked', false);
-            table.search('').draw();
+            table.search('').ajax.reload();
             updateBulkUi();
         });
 
         table.on('draw', function () {
             $('#select-all-page').prop('checked', false);
             updateBulkUi();
+            if (window.adminTestHideLoader) {
+                window.adminTestHideLoader();
+            }
         });
 
         return table;
@@ -254,24 +254,15 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
         $('#bulk-selected-count').text(n ? (n + ' selected') : '');
     }
 
-    function markQuestionRowAdded($row) {
-        $row.attr('data-in-test', '1');
-        $row.data('in-test', 1);
-        $row.find('.row-select-question').remove();
-        $row.find('.col-in-test').text('In test');
-        $row.find('.col-actions').html('<span class="badge badge-success">Added</span>');
-    }
-
     $(document).ready(function () {
-        var table = initTable();
+        table = initTable();
 
         $(document).on('change', '.row-select-question', updateBulkUi);
 
         $('#select-all-page').on('change', function () {
             if (!table) return;
             var checked = this.checked;
-            var nodes = table.rows({ page: 'current', search: 'applied' }).nodes();
-            $(nodes).find('.row-select-question').prop('checked', checked);
+            $('#test-questions-table tbody .row-select-question').prop('checked', checked);
             updateBulkUi();
         });
 
@@ -280,26 +271,26 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
             if (!ids.length || !testId) return;
             if (!confirm('Add ' + ids.length + ' question(s) to this test?')) return;
             var $btn = $(this).prop('disabled', true);
+            if (window.adminTestShowLoader) window.adminTestShowLoader('Adding questions…');
             $.ajax({
                 url: '<?= base_url('bulk-save-question-test') ?>',
                 method: 'POST',
                 dataType: 'json',
                 data: { test_id: testId, question_ids: ids },
                 success: function (res) {
-                    (res.question_ids || []).forEach(function (qid) {
-                        var $row = $('#test-questions-table tbody tr[data-question-id="' + qid + '"]');
-                        if ($row.length) markQuestionRowAdded($row);
-                    });
                     alert('Added: ' + (res.added || 0) + ', skipped: ' + (res.skipped || 0));
                     $('#select-all-page').prop('checked', false);
                     updateBulkUi();
                     $btn.prop('disabled', false);
-                    if (table) table.draw(false);
+                    if (table) table.ajax.reload(null, false);
                 },
                 error: function () {
                     alert('Bulk add failed.');
                     $btn.prop('disabled', false);
                     updateBulkUi();
+                },
+                complete: function () {
+                    if (window.adminTestHideLoader) window.adminTestHideLoader();
                 }
             });
         });
@@ -308,26 +299,18 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
             if (!testId) return;
             var button = $(this);
             var questionId = button.data('question-id');
-            var tooltip = $('#tooltip_' + questionId);
-            var $row = button.closest('tr');
-
+            button.prop('disabled', true);
             $.ajax({
                 url: '<?= base_url('save-question-test') ?>',
                 method: 'POST',
-                data: {
-                    question_id: questionId,
-                    test_id: testId
-                },
+                data: { question_id: questionId, test_id: testId },
                 success: function () {
-                    markQuestionRowAdded($row);
-                    tooltip.css('visibility', 'visible');
-                    setTimeout(function () { tooltip.css('visibility', 'hidden'); }, 2500);
                     updateBulkUi();
-                    if (table) table.draw(false);
+                    if (table) table.ajax.reload(null, false);
                 },
-                error: function (xhr) {
-                    console.error(xhr);
+                error: function () {
                     alert('Could not add question. It may already be in this test.');
+                    button.prop('disabled', false);
                 }
             });
         });

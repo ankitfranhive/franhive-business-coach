@@ -103,6 +103,7 @@ $route['add-question-test/(:any)'] = 'admin/questionsListTest';
 
 $route['save-question-test'] = 'admin/addQuestionTest';
 $route['bulk-save-question-test'] = 'admin/addQuestionTestBulk';
+$route['admin-test-questions-datatable'] = 'admin/testQuestionsDatatable';
 $route['test-sections/(:num)'] = 'admin/manageTestSections/$1';
 $route['save-test-section-config'] = 'admin/saveTestSectionConfig';
 

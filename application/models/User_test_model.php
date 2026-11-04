@@ -196,7 +196,68 @@ class User_test_model extends CI_Model {
         }
         return (int)($row['IS_REMOVED'] ?? $row['is_removed'] ?? 0) === 0;
     }
-    
+
+    /**
+     * True when the user's latest attempt is submitted and they may start a new one.
+     */
+    public function user_can_reattempt_test($user_id, $test_id)
+    {
+        $user_id = (int) $user_id;
+        $test_id = (int) $test_id;
+        if ($user_id <= 0 || $test_id <= 0 || !$this->user_has_active_allocation($user_id, $test_id)) {
+            return false;
+        }
+
+        $details = $this->user_test_details($user_id, $test_id);
+        if (empty($details[0]) || (int) ($details[0]['IS_SUBMITTED'] ?? 0) !== 1) {
+            return false;
+        }
+
+        $test = $this->getTestDetails($test_id);
+        if (empty($test)) {
+            return false;
+        }
+
+        $now = time();
+        $start = strtotime($test['TEST_START_DATE'] ?? '');
+        $end = strtotime($test['END_DATE'] ?? '');
+        if ($start && $now < $start) {
+            return false;
+        }
+        if ($end && $now > $end) {
+            return false;
+        }
+
+        $is_eval = (int) ($details[0]['IS_EVAL'] ?? 0);
+        $reattempt_on = (int) ($test['REATTEMPT_AVAILABLE'] ?? 0) === 1;
+
+        $allow_alloc = 0;
+        if ($this->db->field_exists('ALLOW_REATTEMPT', 'TEST_USER_ALLOCATION')) {
+            $alloc = $this->db->select('ALLOW_REATTEMPT')
+                ->from('TEST_USER_ALLOCATION')
+                ->where('USER_ID', $user_id)
+                ->where('TEST_ID', $test_id)
+                ->limit(1)
+                ->get()
+                ->row_array();
+            $allow_alloc = (int) ($alloc['ALLOW_REATTEMPT'] ?? 0);
+        } elseif ($this->db->field_exists('allow_reattempt', 'TEST_USER_ALLOCATION')) {
+            $alloc = $this->db->select('allow_reattempt')
+                ->from('TEST_USER_ALLOCATION')
+                ->where('user_id', $user_id)
+                ->where('test_id', $test_id)
+                ->limit(1)
+                ->get()
+                ->row_array();
+            $allow_alloc = (int) ($alloc['allow_reattempt'] ?? 0);
+        }
+
+        if ($allow_alloc === 1 || $this->user_has_reattempt_grant($user_id, $test_id)) {
+            return true;
+        }
+
+        return $reattempt_on && $is_eval === 1;
+    }
 
     public function user_test_details($user_id, $test_id) {
 
@@ -239,10 +300,8 @@ class User_test_model extends CI_Model {
     // ✅ safer binding, same output
     public function getTestDetails($test_id)
     {
-        $this->load->helper('test_reattempt');
-        $this->load->helper('test_sections');
-        ensure_test_series_policy_columns($this->db);
-        ensure_test_sections_schema($this->db);
+        $this->load->helper('test_schema_cache');
+        ensure_test_admin_schema_cached($this->db);
 
         $sql = "SELECT 
                     TEST_ID,
@@ -483,6 +542,11 @@ public function buildLegacyOptionsFromQuestionRow($qRow)
         }
 
         $latestIsDraft = $latest && (int) ($latest[$colSub] ?? 0) === 0;
+        $latestIsSubmitted = $latest && (int) ($latest[$colSub] ?? 0) === 1;
+
+        if ($latestIsSubmitted && !$this->user_can_reattempt_test($user_id, $test_id)) {
+            return false;
+        }
 
         if ($latestIsDraft) {
             $this->db->where($pk, $latest[$pk]);

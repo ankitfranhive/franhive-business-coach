@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('partials/admin_test_loading'); ?>
 
 
 <div class="mobile-menu-overlay"></div>

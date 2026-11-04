@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('partials/admin_test_loading'); ?>
 
 
 
@@ -110,5 +111,7 @@
 
 </body>
 	<?php $this->load->view('includes/footer'); ?>
+<script src="<?= base_url('vendors/scripts/datatable-setting.js') ?>"></script>
+<script>$(function(){ if(window.adminTestHideLoader) adminTestHideLoader(); });</script>
 </html>
 

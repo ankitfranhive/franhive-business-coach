@@ -89,8 +89,9 @@ class Admin extends CI_Controller
 
     public function getAllQuestions()
     {
-
-        $data['questions'] = $this->AdminConsoleModel->get_questions();
+        $this->load_test_admin_schema();
+        $data['questions'] = [];
+        $data['questions_ajax'] = true;
 
         $this->load->view('test_questions_listing', $data);
     }
@@ -419,7 +420,7 @@ public function update_question()
 
     public function getAllTests()
     {
-
+        $this->load_test_admin_schema();
         $data['tests'] = $this->AdminConsoleModel->get_tests();
 
         $this->load->view('test_listing', $data);
@@ -428,7 +429,7 @@ public function update_question()
 
     public function getAllTestsReports()
     {
-
+        $this->load_test_admin_schema();
         $data['tests'] = $this->AdminConsoleModel->get_tests_reports();
 
         // echo "<pre>";
@@ -465,6 +466,7 @@ public function update_question()
 
     public function getAllTestsAllocation()
     {
+        $this->load_test_admin_schema();
         $user_id = (int) $this->uri->segment(2);
         $data['user_id'] = $user_id;
         $data['user'] = $this->AdminConsoleModel->get_user_by_id($user_id);
@@ -482,8 +484,7 @@ public function update_question()
     {
         $test_id = $this->uri->segment(2);
 
-        $this->load->helper('test_reattempt');
-        ensure_test_series_policy_columns($this->db);
+        $this->load_test_admin_schema();
         $data['testData'] = $this->AdminConsoleModel->get_test_details($test_id);
         // echo "<pre>";
         // print_r(   $data['testData']);die;
@@ -504,8 +505,7 @@ public function update_question()
         $test_type = $this->input->post('test_type');
         $test_instructions = $this->input->post('test_instructions', false);
 
-        $this->load->helper('test_reattempt');
-        ensure_test_series_policy_columns($this->db);
+        $this->load_test_admin_schema();
 
         $data = array(
             'TEST_NAME' => $test_name,
@@ -520,8 +520,6 @@ public function update_question()
             'USE_SECTIONS' => $this->input->post('use_sections') ? 1 : 0,
         );
 
-        $this->load->helper('test_sections');
-        ensure_test_sections_schema($this->db);
         $this->AdminConsoleModel->save_test($data);
 
         redirect('test');
@@ -539,8 +537,7 @@ public function update_question()
         $test_type = $this->input->post('test_type');
         $test_instructions = $this->input->post('test_instructions', false);
 
-        $this->load->helper('test_reattempt');
-        ensure_test_series_policy_columns($this->db);
+        $this->load_test_admin_schema();
 
         $data = array(
             'TEST_NAME' => $test_name,
@@ -555,8 +552,6 @@ public function update_question()
             'USE_SECTIONS' => $this->input->post('use_sections') ? 1 : 0,
         );
         $test_id =  $this->input->post('test_id');
-        $this->load->helper('test_sections');
-        ensure_test_sections_schema($this->db);
         $this->AdminConsoleModel->update_test_details($data, $test_id);
 
         redirect('test');
@@ -568,8 +563,7 @@ public function update_question()
         if ($test_id <= 0) {
             show_404();
         }
-        $this->load->helper('test_sections');
-        ensure_test_sections_schema($this->db);
+        $this->load_test_admin_schema();
 
         $data['test_id'] = $test_id;
         $data['test'] = $this->AdminConsoleModel->get_test_details($test_id);
@@ -586,8 +580,7 @@ public function update_question()
             redirect('test');
         }
 
-        $this->load->helper('test_sections');
-        ensure_test_sections_schema($this->db);
+        $this->load_test_admin_schema();
 
         $sectionsJson = $this->input->post('sections_json');
         $assignJson = $this->input->post('assignments_json');
@@ -627,9 +620,11 @@ public function update_question()
 
     public function questionsList()
     {
+        $this->load_test_admin_schema();
         $data['test_id'] = null;
         $data['test'] = null;
-        $data['questions'] = $this->AdminConsoleModel->get_questions();
+        $data['questions'] = [];
+        $data['questions_ajax'] = true;
         $data['question_groups'] = $this->AdminConsoleModel->get_distinct_question_groups();
 
         $this->load->view('add-test-question', $data);
@@ -637,10 +632,12 @@ public function update_question()
 
     public function questionsListTest()
     {
+        $this->load_test_admin_schema();
         $test_id = (int) $this->uri->segment(2);
         $data['test_id'] = $test_id;
         $data['test'] = $this->AdminConsoleModel->get_test_details($test_id);
-        $data['questions'] = $this->AdminConsoleModel->get_questions_in_test($test_id);
+        $data['questions'] = [];
+        $data['questions_ajax'] = true;
         $data['question_groups'] = $this->AdminConsoleModel->get_distinct_question_groups();
 
         $this->load->view('add-test-question', $data);
@@ -685,8 +682,29 @@ public function update_question()
 
     public function testAllocation()
     {
+        $this->load_test_admin_schema();
         $data['users'] = $this->AdminConsoleModel->get_users_for_test_allocation();
         $this->load->view('test_user_allocation', $data);
+    }
+
+    /** Server-side question bank for admin DataTables (add-to-test + question listing). */
+    public function testQuestionsDatatable()
+    {
+        $this->load_test_admin_schema();
+        $payload = $this->input->post(null, true);
+        if (empty($payload)) {
+            $payload = $this->input->get(null, true) ?: [];
+        }
+        $result = $this->AdminConsoleModel->admin_questions_datatable($payload);
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode($result));
+    }
+
+    protected function load_test_admin_schema()
+    {
+        $this->load->helper('test_schema_cache');
+        ensure_test_admin_schema_cached($this->db);
     }
 
     public function testEval()

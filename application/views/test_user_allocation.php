@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('partials/admin_test_loading'); ?>
 
 <style>
     .allocation-filters label {
@@ -85,6 +86,8 @@
             return $('#test-allocation-users-table').DataTable();
         }
         var table = $('#test-allocation-users-table').DataTable({
+            processing: true,
+            deferRender: true,
             scrollCollapse: true,
             autoWidth: false,
             responsive: true,
@@ -93,6 +96,7 @@
             lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
             pageLength: 25,
             language: {
+                processing: 'Loading users…',
                 info: '_START_–_END_ of _TOTAL_',
                 searchPlaceholder: 'Search users…',
                 paginate: {

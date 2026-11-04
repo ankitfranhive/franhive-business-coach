@@ -1,5 +1,7 @@
 $('document').ready(function(){
 	$('.data-table').DataTable({
+		processing: true,
+		deferRender: true,
 		scrollCollapse: true,
 		autoWidth: false,
 		responsive: true,

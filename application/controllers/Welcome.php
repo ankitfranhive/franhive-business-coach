@@ -49,6 +49,13 @@ class Welcome extends CI_Controller {
         $test_id
     );
 
+    $latestAttempt = $data['user_test_details'][0] ?? null;
+    $alreadySubmitted = $latestAttempt && (int) ($latestAttempt['IS_SUBMITTED'] ?? 0) === 1;
+    if ($alreadySubmitted && !$this->User_test_model->user_can_reattempt_test($user_id, $test_id)) {
+        show_error('You have already submitted this test. See My Tests for status or results.', 403);
+        return;
+    }
+
     // time checks (your logic)
     $test_start_datetime = strtotime($data['test_details']['TEST_START_DATE']);
     $test_end_datetime   = strtotime($data['test_details']['END_DATE']);
@@ -123,11 +130,13 @@ class Welcome extends CI_Controller {
             $is_submitted
         );
 
+        $this->output->set_content_type('application/json');
         if ($save_responses) {
-            return true;
+            echo json_encode(['ok' => true]);
+            return;
         }
         $this->output->set_status_header(403);
-        echo json_encode(['error' => 'Test not assigned or removed']);
+        echo json_encode(['ok' => false, 'error' => 'Save not allowed (not assigned, resume off, or already submitted).']);
     }
 
     public function myTestReports() {

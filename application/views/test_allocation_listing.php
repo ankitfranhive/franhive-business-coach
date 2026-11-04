@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('partials/admin_test_loading'); ?>
 
 <?php
 $user_id = isset($user_id) ? (int) $user_id : 0;
@@ -167,6 +168,8 @@ $user_name = !empty($user->NAME) ? $user->NAME : ('User #' . $user_id);
             return $('#test-allocation-tests-table').DataTable();
         }
         table = $('#test-allocation-tests-table').DataTable({
+            processing: true,
+            deferRender: true,
             scrollCollapse: true,
             autoWidth: false,
             responsive: true,
@@ -178,6 +181,7 @@ $user_name = !empty($user->NAME) ? $user->NAME : ('User #' . $user_id);
             lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
             pageLength: 25,
             language: {
+                processing: 'Loading tests…',
                 info: '_START_–_END_ of _TOTAL_',
                 searchPlaceholder: 'Search tests…',
                 paginate: {

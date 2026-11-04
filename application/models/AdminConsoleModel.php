@@ -17,12 +17,131 @@ class AdminConsoleModel extends CI_Model
 
     public function get_questions()
     {
-        // Fetch questions from your database
+        $this->db->select('QUESTION_ID, QUESTION_NAME, QUESTION_GROUP, QUESTION_TYPE, QUESTION_MARKS');
         $this->db->order_by('QUESTION_ID', 'DESC');
         $query = $this->db->get('TEST_SERIES_QUESTIONS');
         return $query->result();
     }
 
+    /**
+     * Server-side DataTables feed for question bank (optional test mapping).
+     *
+     * @return array{draw:int,recordsTotal:int,recordsFiltered:int,data:array<int,array>}
+     */
+    public function admin_questions_datatable(array $in)
+    {
+        $test_id = (int) ($in['test_id'] ?? 0);
+        $draw = (int) ($in['draw'] ?? 1);
+        $start = max(0, (int) ($in['start'] ?? 0));
+        $length = (int) ($in['length'] ?? 25);
+        if ($length <= 0) {
+            $length = 25;
+        }
+        if ($length > 100) {
+            $length = 100;
+        }
+
+        $searchRaw = $in['search']['value'] ?? ($in['search'] ?? '');
+        $search = trim(strip_tags((string) $searchRaw));
+        $filter_group = trim((string) ($in['filter_group'] ?? ''));
+        $filter_type = (string) ($in['filter_type'] ?? '');
+        $filter_in_test = (string) ($in['filter_in_test'] ?? '');
+
+        $orderCol = 1;
+        $orderDir = 'DESC';
+        if (!empty($in['order'][0])) {
+            $orderCol = (int) ($in['order'][0]['column'] ?? 1);
+            $orderDir = strtolower((string) ($in['order'][0]['dir'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC';
+        }
+
+        $join = '';
+        $selectExtra = '';
+        if ($test_id > 0) {
+            $join = ' LEFT JOIN TEST_QUESTION_MAPPING m ON m.QUESTION_ID = q.QUESTION_ID AND m.TEST_ID = ' . $test_id;
+            $selectExtra = ', m.ID AS MAPPING_ID';
+        }
+
+        $where = ' WHERE 1=1 ';
+        $binds = [];
+
+        if ($filter_group !== '') {
+            $where .= ' AND q.QUESTION_GROUP = ? ';
+            $binds[] = $filter_group;
+        }
+        if ($filter_type !== '' && is_numeric($filter_type)) {
+            $where .= ' AND q.QUESTION_TYPE = ? ';
+            $binds[] = (int) $filter_type;
+        }
+        if ($test_id > 0 && $filter_in_test === '1') {
+            $where .= ' AND m.ID IS NOT NULL ';
+        }
+        if ($test_id > 0 && $filter_in_test === '0') {
+            $where .= ' AND m.ID IS NULL ';
+        }
+        if ($search !== '') {
+            $like = '%' . $this->db->escape_like_str($search) . '%';
+            $where .= ' AND (q.QUESTION_NAME LIKE ? OR q.QUESTION_GROUP LIKE ? OR q.QUESTION_ID = ?) ';
+            $binds[] = $like;
+            $binds[] = $like;
+            $binds[] = (int) $search;
+        }
+
+        if ($test_id > 0) {
+            $colMap = [
+                0 => 'q.QUESTION_ID',
+                1 => 'q.QUESTION_ID',
+                2 => 'q.QUESTION_NAME',
+                3 => 'q.QUESTION_GROUP',
+                4 => 'q.QUESTION_TYPE',
+                5 => 'q.QUESTION_MARKS',
+                6 => 'q.QUESTION_ID',
+                7 => 'q.QUESTION_ID',
+            ];
+        } else {
+            $colMap = [
+                0 => 'q.QUESTION_ID',
+                1 => 'q.QUESTION_NAME',
+                2 => 'q.QUESTION_GROUP',
+                3 => 'q.QUESTION_MARKS',
+                4 => 'q.QUESTION_ID',
+            ];
+        }
+        $orderBy = $colMap[$orderCol] ?? 'q.QUESTION_ID';
+
+        $from = ' FROM TEST_SERIES_QUESTIONS q ' . $join;
+
+        $totalRow = $this->db->query('SELECT COUNT(*) AS c FROM TEST_SERIES_QUESTIONS q')->row_array();
+        $recordsTotal = (int) ($totalRow['c'] ?? 0);
+
+        $filteredRow = $this->db->query('SELECT COUNT(*) AS c ' . $from . $where, $binds)->row_array();
+        $recordsFiltered = (int) ($filteredRow['c'] ?? 0);
+
+        $sql = 'SELECT q.QUESTION_ID, q.QUESTION_NAME, q.QUESTION_GROUP, q.QUESTION_TYPE, q.QUESTION_MARKS'
+            . $selectExtra . $from . $where
+            . ' ORDER BY ' . $orderBy . ' ' . $orderDir
+            . ' LIMIT ' . (int) $start . ', ' . (int) $length;
+
+        $rows = $this->db->query($sql, $binds)->result_array();
+        $data = [];
+        foreach ($rows as $row) {
+            $data[] = [
+                'QUESTION_ID'   => (int) ($row['QUESTION_ID'] ?? 0),
+                'QUESTION_NAME' => strip_tags((string) ($row['QUESTION_NAME'] ?? '')),
+                'QUESTION_GROUP'=> trim((string) ($row['QUESTION_GROUP'] ?? '')),
+                'QUESTION_TYPE' => (int) ($row['QUESTION_TYPE'] ?? 2),
+                'QUESTION_MARKS'=> (string) ($row['QUESTION_MARKS'] ?? ''),
+                'MAPPING_ID'    => isset($row['MAPPING_ID']) ? (int) $row['MAPPING_ID'] : 0,
+                'IN_TEST'       => !empty($row['MAPPING_ID']) ? 1 : 0,
+            ];
+        }
+
+        return [
+            'draw'            => $draw,
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ];
+    }
 
     public function get_questions_in_test($test_id)
     {
@@ -37,9 +156,9 @@ class AdminConsoleModel extends CI_Model
                 m.ID AS MAPPING_ID,
                 m.MAP_STATUS
             FROM TEST_SERIES_QUESTIONS q
-            LEFT JOIN TEST_QUESTION_MAPPING m
+            INNER JOIN TEST_QUESTION_MAPPING m
                 ON m.QUESTION_ID = q.QUESTION_ID AND m.TEST_ID = ?
-            ORDER BY q.QUESTION_ID DESC
+            ORDER BY COALESCE(m.QUESTION_SORT, m.ID), m.ID
         ";
         return $this->db->query($sql, [$test_id])->result();
     }
@@ -229,8 +348,8 @@ class AdminConsoleModel extends CI_Model
 
     public function get_tests()
     {
-        // Fetch questions from your database
-        $this->db->where('IS_DEL !=', 1); // Use '!=' to exclude records where IS_DEL is equal to 1
+        $this->db->select('TEST_ID, TEST_NAME, TOTAL_QUESTIONS, TOTAL_MARKS, TEST_START_DATE, TEST_TYPE');
+        $this->db->where('IS_DEL !=', 1);
         $this->db->order_by('TEST_ID', 'DESC');
         $query = $this->db->get('TEST_SERIES');
         return $query->result();
@@ -254,40 +373,29 @@ class AdminConsoleModel extends CI_Model
                 ts.TEST_NAME,
                 ts.TEST_TYPE,
                 ts.TOTAL_MARKS,
-    
                 u.USER_ID,
                 u.NAME AS USER_NAME,
-    
                 tur_latest.ID AS RESPONSE_ID,
                 tur_latest.MARKS_OBTAINED,
                 tur_latest.IS_EVAL,
                 tur_latest.IS_SUBMITTED,
                 tur_latest.updated_at AS SUBMIT_DATE,
-    
-                cnt.ATTEMPTS
-    
+                COALESCE(cnt.ATTEMPTS, 0) AS ATTEMPTS
             FROM TEST_USER_ALLOCATION tua
             INNER JOIN TEST_SERIES ts ON ts.TEST_ID = tua.TEST_ID
             INNER JOIN USERS u ON u.USER_ID = tua.USER_ID
-    
-            -- ✅ attempts count
             LEFT JOIN (
                 SELECT USER_ID, TEST_ID, COUNT(*) AS ATTEMPTS
                 FROM TEST_USER_RESPONSE
                 GROUP BY USER_ID, TEST_ID
             ) cnt ON cnt.USER_ID = tua.USER_ID AND cnt.TEST_ID = tua.TEST_ID
-    
-            -- ✅ latest attempt id
-            LEFT JOIN (
-                SELECT USER_ID, TEST_ID, MAX(ID) AS LAST_ID
-                FROM TEST_USER_RESPONSE
-                GROUP BY USER_ID, TEST_ID
-            ) last ON last.USER_ID = tua.USER_ID AND last.TEST_ID = tua.TEST_ID
-    
-            -- ✅ latest attempt row
-            LEFT JOIN TEST_USER_RESPONSE tur_latest ON tur_latest.ID = last.LAST_ID
-    
+            LEFT JOIN TEST_USER_RESPONSE tur_latest ON tur_latest.ID = (
+                SELECT MAX(t2.ID)
+                FROM TEST_USER_RESPONSE t2
+                WHERE t2.USER_ID = tua.USER_ID AND t2.TEST_ID = tua.TEST_ID
+            )
             WHERE ts.IS_DEL = 0
+              AND COALESCE(tua.IS_REMOVED, 0) = 0
             ORDER BY tur_latest.ID DESC
         ";
     
@@ -576,7 +684,13 @@ class AdminConsoleModel extends CI_Model
         $user_id = (int) $user_id;
         $sql = "
             SELECT
-                ts.*,
+                ts.TEST_ID,
+                ts.TEST_NAME,
+                ts.TEST_TYPE,
+                ts.TOTAL_QUESTIONS,
+                ts.TOTAL_MARKS,
+                ts.TEST_START_DATE,
+                ts.END_DATE,
                 tua.USER_ID,
                 tua.MAPPING_ID,
                 tua.IS_REMOVED

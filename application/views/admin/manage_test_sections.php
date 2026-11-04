@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
+<?php $this->load->view('partials/admin_test_loading'); ?>
 <?php
 $test_id = (int) ($test_id ?? 0);
 $testName = $test['TEST_NAME'] ?? ('Test #' . $test_id);
@@ -97,6 +98,33 @@ $mapped = $mapped_questions ?? [];
 
     var container = document.getElementById('sectionsEditor');
 
+    function escapeHtml(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+
+    function sectionOptionsHtml(selectedIndex) {
+        var html = '<option value="">— Unassigned —</option>';
+        container.querySelectorAll('.section-name').forEach(function (inp, idx) {
+            var name = inp.value.trim() || ('Section ' + (idx + 1));
+            var sel = String(selectedIndex) === String(idx) ? ' selected' : '';
+            html += '<option value="' + idx + '"' + sel + '>' + escapeHtml(name) + ' (Value ' + (idx + 2) + ')</option>';
+        });
+        return html;
+    }
+
+    function rebuildAssignmentDropdowns() {
+        document.querySelectorAll('tr[data-mapping-id]').forEach(function (tr) {
+            var sel = tr.querySelector('.assign-section');
+            if (!sel) return;
+            var prev = sel.value;
+            var maxIdx = container.querySelectorAll('.section-name').length;
+            sel.innerHTML = sectionOptionsHtml('');
+            if (prev !== '' && parseInt(prev, 10) >= 0 && parseInt(prev, 10) < maxIdx) {
+                sel.value = prev;
+            }
+        });
+    }
+
     function renderSections() {
         container.innerHTML = '';
         initialSections.forEach(function (sec, idx) {
@@ -112,6 +140,7 @@ $mapped = $mapped_questions ?? [];
             container.appendChild(row);
         });
         bindSectionRows();
+        rebuildAssignmentDropdowns();
     }
 
     function bindSectionRows() {
@@ -121,6 +150,11 @@ $mapped = $mapped_questions ?? [];
                 var i = Array.prototype.indexOf.call(container.children, row);
                 if (i >= 0) initialSections.splice(i, 1);
                 renderSections();
+            };
+        });
+        container.querySelectorAll('.section-name').forEach(function (inp) {
+            inp.oninput = function () {
+                rebuildAssignmentDropdowns();
             };
         });
     }
