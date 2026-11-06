@@ -568,9 +568,40 @@ public function update_question()
         $data['test_id'] = $test_id;
         $data['test'] = $this->AdminConsoleModel->get_test_details($test_id);
         $data['sections'] = $this->AdminConsoleModel->get_test_sections($test_id);
-        $data['mapped_questions'] = $this->AdminConsoleModel->get_test_mapped_questions_admin($test_id);
+        $data['mapped_questions'] = [];
+        $data['assignment_count'] = $this->AdminConsoleModel->count_test_mapped_questions($test_id);
 
         $this->load->view('admin/manage_test_sections', $data);
+    }
+
+    /** JSON list for section assignment table (prevents 504 from huge HTML pages). */
+    public function sectionAssignmentsJson($test_id = null)
+    {
+        $test_id = (int) ($test_id ?: $this->uri->segment(2));
+        if ($test_id <= 0) {
+            $this->output->set_status_header(400)->set_content_type('application/json')
+                ->set_output(json_encode(['ok' => false, 'error' => 'Invalid test']));
+            return;
+        }
+        $this->load_test_admin_schema();
+        $rows = $this->AdminConsoleModel->get_test_section_assignments_light($test_id);
+        $sections = $this->AdminConsoleModel->get_test_sections($test_id);
+        $sectionIndexById = [];
+        foreach ($sections as $i => $s) {
+            $sectionIndexById[(int) $s['SECTION_ID']] = $i;
+        }
+        foreach ($rows as &$r) {
+            $sid = $r['section_id'];
+            $r['section_index'] = ($sid !== null && isset($sectionIndexById[$sid]))
+                ? $sectionIndexById[$sid]
+                : '';
+        }
+        unset($r);
+        $this->output->set_content_type('application/json')->set_output(json_encode([
+            'ok'    => true,
+            'rows'  => $rows,
+            'count' => count($rows),
+        ]));
     }
 
     public function saveTestSectionConfig()

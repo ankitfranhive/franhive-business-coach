@@ -872,9 +872,12 @@ class AdminConsoleModel extends CI_Model
             $this->db->where('TEST_ID', $test_id);
             $this->db->where_not_in('SECTION_ID', $keepIds);
             $removed = $this->db->get('TEST_SECTIONS')->result_array();
-            foreach ($removed as $r) {
-                $rid = (int) $r['SECTION_ID'];
-                $this->db->where('SECTION_ID', $rid)->update('TEST_QUESTION_MAPPING', ['SECTION_ID' => null]);
+            if (!empty($removed)) {
+                $removedIds = array_map(function ($r) {
+                    return (int) $r['SECTION_ID'];
+                }, $removed);
+                $this->db->where_in('SECTION_ID', $removedIds);
+                $this->db->update('TEST_QUESTION_MAPPING', ['SECTION_ID' => null]);
             }
             $this->db->where('TEST_ID', $test_id);
             $this->db->where_not_in('SECTION_ID', $keepIds);
@@ -886,6 +889,18 @@ class AdminConsoleModel extends CI_Model
 
         $this->db->trans_complete();
         return $this->db->trans_status();
+    }
+
+    public function count_test_mapped_questions($test_id)
+    {
+        $test_id = (int) $test_id;
+        if ($test_id <= 0) {
+            return 0;
+        }
+        $q = $this->db->query('SELECT COUNT(*) AS c FROM TEST_QUESTION_MAPPING WHERE TEST_ID = ?', [$test_id]);
+        $row = $q ? $q->row_array() : null;
+
+        return (int) ($row['c'] ?? 0);
     }
 
     public function get_test_mapped_questions_admin($test_id)
@@ -913,6 +928,51 @@ class AdminConsoleModel extends CI_Model
         return $q ? $q->result_array() : [];
     }
 
+    /**
+     * Lightweight list for section assignment UI (avoids huge HTML payloads).
+     *
+     * @return array<int, array{mapping_id:int, question_id:int, section_id:int|null, question_group:string, question_label:string}>
+     */
+    public function get_test_section_assignments_light($test_id)
+    {
+        $this->load->helper('test_sections');
+        ensure_test_sections_schema($this->db);
+        $test_id = (int) $test_id;
+        $sql = "
+            SELECT
+                tqm.ID AS MAPPING_ID,
+                tqm.QUESTION_ID,
+                tqm.SECTION_ID,
+                tsq.QUESTION_GROUP,
+                tsq.QUESTION_NAME
+            FROM TEST_QUESTION_MAPPING tqm
+            INNER JOIN TEST_SERIES_QUESTIONS tsq ON tsq.QUESTION_ID = tqm.QUESTION_ID
+            WHERE tqm.TEST_ID = ?
+            ORDER BY tqm.ID ASC
+        ";
+        $q = $this->db->query($sql, [$test_id]);
+        $rows = $q ? $q->result_array() : [];
+        $out = [];
+        foreach ($rows as $row) {
+            $label = strip_tags((string) ($row['QUESTION_NAME'] ?? ''));
+            $label = preg_replace('/\s+/', ' ', $label);
+            if (function_exists('mb_substr')) {
+                $label = mb_substr($label, 0, 140);
+            } else {
+                $label = substr($label, 0, 140);
+            }
+            $sid = isset($row['SECTION_ID']) && $row['SECTION_ID'] !== '' ? (int) $row['SECTION_ID'] : null;
+            $out[] = [
+                'mapping_id'      => (int) ($row['MAPPING_ID'] ?? 0),
+                'question_id'     => (int) ($row['QUESTION_ID'] ?? 0),
+                'section_id'      => $sid > 0 ? $sid : null,
+                'question_group'  => trim((string) ($row['QUESTION_GROUP'] ?? '')),
+                'question_label'  => $label,
+            ];
+        }
+        return $out;
+    }
+
     public function update_test_question_sections($test_id, array $assignments)
     {
         $this->load->helper('test_sections');
@@ -928,23 +988,27 @@ class AdminConsoleModel extends CI_Model
         }, $sections);
 
         $this->db->trans_start();
+        $batch = [];
         foreach ($assignments as $row) {
             $mappingId = (int) ($row['mapping_id'] ?? 0);
-            $sectionId = isset($row['section_id']) && $row['section_id'] !== '' ? (int) $row['section_id'] : null;
-            $sort = isset($row['question_sort']) ? (int) $row['question_sort'] : null;
+            $sectionId = array_key_exists('section_id', $row) && $row['section_id'] !== '' && $row['section_id'] !== null
+                ? (int) $row['section_id']
+                : null;
             if ($mappingId <= 0) {
                 continue;
             }
             if ($sectionId !== null && !in_array($sectionId, $sectionIds, true)) {
                 $sectionId = null;
             }
-            $payload = ['SECTION_ID' => $sectionId];
-            if ($sort !== null && $sort > 0) {
-                $payload['QUESTION_SORT'] = $sort;
+            $batch[] = [
+                'ID'         => $mappingId,
+                'SECTION_ID' => $sectionId,
+            ];
+        }
+        if (!empty($batch)) {
+            foreach (array_chunk($batch, 200) as $chunk) {
+                $this->db->update_batch('TEST_QUESTION_MAPPING', $chunk, 'ID');
             }
-            $this->db->where('ID', $mappingId);
-            $this->db->where('TEST_ID', $test_id);
-            $this->db->update('TEST_QUESTION_MAPPING', $payload);
         }
         $this->db->trans_complete();
         return $this->db->trans_status();

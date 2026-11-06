@@ -6,7 +6,7 @@
 $test_id = (int) ($test_id ?? 0);
 $testName = $test['TEST_NAME'] ?? ('Test #' . $test_id);
 $sectionsList = $sections ?? [];
-$mapped = $mapped_questions ?? [];
+$assignmentCount = (int) ($assignment_count ?? 0);
 ?>
 
 <div class="mobile-menu-overlay"></div>
@@ -42,37 +42,30 @@ $mapped = $mapped_questions ?? [];
                 </div>
 
                 <div class="pd-20 border-top">
-                    <h5 class="mb-3">Assign questions to sections</h5>
+                    <h5 class="mb-1">Assign questions to sections</h5>
+                    <p class="text-muted small mb-3" id="assignmentsMeta">
+                        <?= $assignmentCount > 0
+                            ? htmlspecialchars((string) $assignmentCount) . ' question(s) — loading list…'
+                            : 'No questions mapped yet. Use Add questions.' ?>
+                    </p>
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm">
+                        <table class="table table-bordered table-sm w-100" id="assignmentsTable">
                             <thead>
                                 <tr>
                                     <th>Question</th>
                                     <th>Group</th>
-                                    <th>Section</th>
+                                    <th style="min-width: 200px">Section</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <?php foreach ($mapped as $mq): ?>
-                                    <tr data-mapping-id="<?= (int) $mq['MAPPING_ID'] ?>">
-                                        <td><?= strip_tags($mq['QUESTION_NAME'] ?? '') ?></td>
-                                        <td><?= htmlspecialchars($mq['QUESTION_GROUP'] ?? '') ?></td>
-                                        <td>
-                                            <select class="form-control form-control-sm assign-section">
-                                                <option value="">— Unassigned —</option>
-                                                <?php foreach ($sectionsList as $si => $sec): ?>
-                                                    <option value="<?= (int) $si ?>"
-                                                        <?= (int)($mq['SECTION_ID'] ?? 0) === (int)$sec['SECTION_ID'] ? 'selected' : '' ?>>
-                                                        <?= htmlspecialchars($sec['SECTION_NAME']) ?>
-                                                        (Value <?= (int)($sec['SORT_ORDER'] ?? 0) + 1 ?>)
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        </td>
+                            <tbody id="assignmentsBody">
+                                <?php if ($assignmentCount <= 0): ?>
+                                    <tr class="assignments-placeholder">
+                                        <td colspan="3" class="text-muted">No questions mapped yet. Use Add questions.</td>
                                     </tr>
-                                <?php endforeach; ?>
-                                <?php if (empty($mapped)): ?>
-                                    <tr><td colspan="3" class="text-muted">No questions mapped yet. Use Add questions.</td></tr>
+                                <?php else: ?>
+                                    <tr class="assignments-placeholder">
+                                        <td colspan="3" class="text-muted">Loading questions…</td>
+                                    </tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -80,15 +73,18 @@ $mapped = $mapped_questions ?? [];
                 </div>
 
                 <div class="pd-20">
-                    <button type="submit" class="btn btn-success">Save sections &amp; assignments</button>
+                    <button type="submit" class="btn btn-success" id="saveSectionsBtn">Save sections &amp; assignments</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<?php $this->load->view('includes/footer'); ?>
 <script>
 (function () {
+    var testId = <?= (int) $test_id ?>;
+    var assignmentsUrl = <?= json_encode(base_url('test-section-assignments-json/' . $test_id)) ?>;
     var initialSections = <?= json_encode(array_map(function ($s) {
         return [
             'id' => (int) ($s['SECTION_ID'] ?? 0),
@@ -97,6 +93,9 @@ $mapped = $mapped_questions ?? [];
     }, $sectionsList)) ?>;
 
     var container = document.getElementById('sectionsEditor');
+    var assignmentRows = [];
+    var assignmentsTable = null;
+    var assignmentsLoaded = false;
 
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -106,23 +105,123 @@ $mapped = $mapped_questions ?? [];
         var html = '<option value="">— Unassigned —</option>';
         container.querySelectorAll('.section-name').forEach(function (inp, idx) {
             var name = inp.value.trim() || ('Section ' + (idx + 1));
-            var sel = String(selectedIndex) === String(idx) ? ' selected' : '';
+            var sel = selectedIndex !== '' && String(selectedIndex) === String(idx) ? ' selected' : '';
             html += '<option value="' + idx + '"' + sel + '>' + escapeHtml(name) + ' (Value ' + (idx + 2) + ')</option>';
         });
         return html;
     }
 
-    function rebuildAssignmentDropdowns() {
-        document.querySelectorAll('tr[data-mapping-id]').forEach(function (tr) {
-            var sel = tr.querySelector('.assign-section');
-            if (!sel) return;
-            var prev = sel.value;
-            var maxIdx = container.querySelectorAll('.section-name').length;
-            sel.innerHTML = sectionOptionsHtml('');
-            if (prev !== '' && parseInt(prev, 10) >= 0 && parseInt(prev, 10) < maxIdx) {
-                sel.value = prev;
+    function destroyAssignmentsTable() {
+        if (assignmentsTable && window.jQuery && jQuery.fn.DataTable) {
+            assignmentsTable.destroy();
+            assignmentsTable = null;
+        }
+    }
+
+    function initAssignmentsTable() {
+        if (!window.jQuery || !jQuery.fn.DataTable) {
+            return;
+        }
+        assignmentsTable = jQuery('#assignmentsTable').DataTable({
+            pageLength: 50,
+            deferRender: true,
+            order: [],
+            autoWidth: false,
+            language: { emptyTable: 'No questions mapped yet.' }
+        });
+    }
+
+    function bindAssignmentSelect(tr, rowIndex) {
+        var sel = tr.querySelector('.assign-section');
+        if (!sel) return;
+        sel.addEventListener('change', function () {
+            if (assignmentRows[rowIndex]) {
+                assignmentRows[rowIndex].section_index = sel.value;
             }
         });
+    }
+
+    function renderAssignmentRows() {
+        var tbody = document.getElementById('assignmentsBody');
+        destroyAssignmentsTable();
+        tbody.innerHTML = '';
+
+        if (!assignmentRows.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-muted">No questions mapped yet. Use Add questions.</td></tr>';
+            return;
+        }
+
+        var frag = document.createDocumentFragment();
+        assignmentRows.forEach(function (row, idx) {
+            var tr = document.createElement('tr');
+            tr.setAttribute('data-mapping-id', String(row.mapping_id));
+            tr.innerHTML =
+                '<td>' + escapeHtml(row.question_label || '') + '</td>' +
+                '<td>' + escapeHtml(row.question_group || '') + '</td>' +
+                '<td><select class="form-control form-control-sm assign-section">' +
+                sectionOptionsHtml(row.section_index !== undefined && row.section_index !== null ? row.section_index : '') +
+                '</select></td>';
+            bindAssignmentSelect(tr, idx);
+            frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+        initAssignmentsTable();
+    }
+
+    function rebuildAssignmentDropdowns() {
+        document.querySelectorAll('#assignmentsBody tr[data-mapping-id]').forEach(function (tr) {
+            var mappingId = parseInt(tr.getAttribute('data-mapping-id'), 10);
+            var sel = tr.querySelector('.assign-section');
+            if (!sel) return;
+            var row = assignmentRows.find(function (r) { return r.mapping_id === mappingId; });
+            var prev = row ? row.section_index : sel.value;
+            var maxIdx = container.querySelectorAll('.section-name').length;
+            sel.innerHTML = sectionOptionsHtml('');
+            if (prev !== '' && prev !== null && prev !== undefined && parseInt(prev, 10) >= 0 && parseInt(prev, 10) < maxIdx) {
+                sel.value = String(prev);
+                if (row) row.section_index = sel.value;
+            }
+        });
+    }
+
+    function loadAssignments() {
+        if (<?= (int) $assignmentCount ?> <= 0) {
+            assignmentsLoaded = true;
+            if (window.adminTestHideLoader) adminTestHideLoader();
+            return;
+        }
+        if (window.adminTestShowLoader) adminTestShowLoader('Loading questions…');
+        fetch(assignmentsUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function (data) {
+                if (!data || !data.ok) throw new Error((data && data.error) || 'Failed to load questions');
+                assignmentRows = (data.rows || []).map(function (r) {
+                    return {
+                        mapping_id: r.mapping_id,
+                        question_label: r.question_label,
+                        question_group: r.question_group,
+                        section_index: r.section_index !== undefined && r.section_index !== null && r.section_index !== ''
+                            ? String(r.section_index)
+                            : ''
+                    };
+                });
+                var meta = document.getElementById('assignmentsMeta');
+                if (meta) {
+                    meta.textContent = assignmentRows.length + ' question(s). Use search/pagination below; assignments are saved for all questions.';
+                }
+                renderAssignmentRows();
+                assignmentsLoaded = true;
+                if (window.adminTestHideLoader) adminTestHideLoader();
+            })
+            .catch(function (err) {
+                var tbody = document.getElementById('assignmentsBody');
+                tbody.innerHTML = '<tr><td colspan="3" class="text-danger">Could not load questions (' +
+                    escapeHtml(err.message || 'error') + '). Refresh the page or try again in a moment.</td></tr>';
+                if (window.adminTestHideLoader) adminTestHideLoader();
+            });
     }
 
     function renderSections() {
@@ -165,23 +264,31 @@ $mapped = $mapped_questions ?? [];
     };
 
     document.getElementById('sectionsForm').onsubmit = function () {
+        if (!assignmentsLoaded && <?= (int) $assignmentCount ?> > 0) {
+            alert('Questions are still loading. Please wait a moment before saving.');
+            return false;
+        }
         var secs = [];
         container.querySelectorAll('.section-name').forEach(function (inp) {
             secs.push({ id: parseInt(inp.getAttribute('data-id'), 10) || 0, name: inp.value.trim() });
         });
         document.getElementById('sections_json').value = JSON.stringify(secs);
 
-        var assigns = [];
-        document.querySelectorAll('tr[data-mapping-id]').forEach(function (tr) {
-            assigns.push({
-                mapping_id: parseInt(tr.getAttribute('data-mapping-id'), 10),
-                section_index: tr.querySelector('.assign-section').value
-            });
+        var assigns = assignmentRows.map(function (row) {
+            return {
+                mapping_id: row.mapping_id,
+                section_index: row.section_index !== undefined && row.section_index !== null ? row.section_index : ''
+            };
         });
         document.getElementById('assignments_json').value = JSON.stringify(assigns);
+
+        var btn = document.getElementById('saveSectionsBtn');
+        if (btn) btn.classList.add('is-busy');
+        if (window.adminTestShowLoader) adminTestShowLoader('Saving sections and assignments…');
     };
 
     renderSections();
+    loadAssignments();
 })();
 </script>
 </body>
