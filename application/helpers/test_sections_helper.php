@@ -26,7 +26,31 @@ function ensure_test_sections_schema($db)
         $db->query('ALTER TABLE `TEST_QUESTION_MAPPING` ADD COLUMN `QUESTION_SORT` int unsigned NULL DEFAULT NULL');
     }
 
+    ensure_question_html_column_capacity($db);
+
     return true;
+}
+
+/**
+ * Question titles / test instructions store HTML (CKEditor source). VARCHAR truncates or
+ * rejects the save under strict SQL mode — the field then "reverts" to the old short text.
+ */
+function ensure_question_html_column_capacity($db)
+{
+    if ($db->table_exists('TEST_SERIES_QUESTIONS') && $db->field_exists('QUESTION_NAME', 'TEST_SERIES_QUESTIONS')) {
+        $col = $db->query("SHOW COLUMNS FROM `TEST_SERIES_QUESTIONS` LIKE 'QUESTION_NAME'")->row_array();
+        $type = strtolower((string) ($col['Type'] ?? $col['type'] ?? ''));
+        if ($type !== '' && strpos($type, 'mediumtext') === false && strpos($type, 'longtext') === false) {
+            $db->query('ALTER TABLE `TEST_SERIES_QUESTIONS` MODIFY `QUESTION_NAME` MEDIUMTEXT NULL');
+        }
+    }
+    if ($db->table_exists('TEST_SERIES') && $db->field_exists('TEST_INSTRUCTIONS', 'TEST_SERIES')) {
+        $col = $db->query("SHOW COLUMNS FROM `TEST_SERIES` LIKE 'TEST_INSTRUCTIONS'")->row_array();
+        $type = strtolower((string) ($col['Type'] ?? $col['type'] ?? ''));
+        if ($type !== '' && strpos($type, 'mediumtext') === false && strpos($type, 'longtext') === false && strpos($type, 'text') === false) {
+            $db->query('ALTER TABLE `TEST_SERIES` MODIFY `TEST_INSTRUCTIONS` MEDIUMTEXT NULL');
+        }
+    }
 }
 
 /** Section index 1 → value 2, 2 → 3, … */

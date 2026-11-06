@@ -158,7 +158,7 @@ class AdminConsoleModel extends CI_Model
             FROM TEST_SERIES_QUESTIONS q
             INNER JOIN TEST_QUESTION_MAPPING m
                 ON m.QUESTION_ID = q.QUESTION_ID AND m.TEST_ID = ?
-            ORDER BY COALESCE(m.QUESTION_SORT, m.ID), m.ID
+            ORDER BY q.QUESTION_ID ASC, m.ID ASC
         ";
         return $this->db->query($sql, [$test_id])->result();
     }
@@ -922,7 +922,7 @@ class AdminConsoleModel extends CI_Model
             INNER JOIN TEST_SERIES_QUESTIONS tsq ON tsq.QUESTION_ID = tqm.QUESTION_ID
             LEFT JOIN TEST_SECTIONS sec ON sec.SECTION_ID = tqm.SECTION_ID
             WHERE tqm.TEST_ID = ?
-            ORDER BY COALESCE(sec.SORT_ORDER, 9999), COALESCE(tqm.QUESTION_SORT, tqm.ID), tqm.ID
+            ORDER BY COALESCE(sec.SORT_ORDER, 9999) ASC, tsq.QUESTION_ID ASC, tqm.ID ASC
         ";
         $q = $this->db->query($sql, [$test_id]);
         return $q ? $q->result_array() : [];
@@ -948,7 +948,7 @@ class AdminConsoleModel extends CI_Model
             FROM TEST_QUESTION_MAPPING tqm
             INNER JOIN TEST_SERIES_QUESTIONS tsq ON tsq.QUESTION_ID = tqm.QUESTION_ID
             WHERE tqm.TEST_ID = ?
-            ORDER BY tqm.ID ASC
+            ORDER BY tsq.QUESTION_GROUP ASC, tsq.QUESTION_ID ASC, tqm.ID ASC
         ";
         $q = $this->db->query($sql, [$test_id]);
         $rows = $q ? $q->result_array() : [];

@@ -98,6 +98,7 @@ class Admin extends CI_Controller
 
     public function addQuestion()
 {
+    $this->load_test_admin_schema();
     if ($this->input->post()) {
 
         $question_type = (int) $this->input->post('question_type', true);
@@ -229,6 +230,7 @@ class Admin extends CI_Controller
 
     public function editQuestion()
 {
+    $this->load_test_admin_schema();
     $question_id = $this->uri->segment(2);
 
     $data['questionData'] = $this->AdminConsoleModel->get_question_details($question_id);
@@ -296,6 +298,7 @@ class Admin extends CI_Controller
     
 public function update_question()
 {
+    $this->load_test_admin_schema();
     if ($this->input->post()) {
 
         $question_id    = (int)$this->input->post('question_id');

@@ -2,7 +2,7 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /** Bump when new auto-migrations are added so cache is invalidated. */
-define('TEST_SCHEMA_CACHE_VERSION', 'v5');
+define('TEST_SCHEMA_CACHE_VERSION', 'v6');
 
 function test_schema_cache_file()
 {

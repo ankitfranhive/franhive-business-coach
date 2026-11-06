@@ -190,7 +190,7 @@ $test_name = !empty($test['TEST_NAME']) ? $test['TEST_NAME'] : '';
             scrollCollapse: true,
             autoWidth: false,
             responsive: true,
-            order: [[idColIndex, 'desc']],
+            order: [[idColIndex, 'asc']],
             ajax: {
                 url: ajaxUrl,
                 type: 'POST',

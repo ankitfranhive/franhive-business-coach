@@ -28,7 +28,7 @@
                 <div class="form-group row">
     <label class="col-sm-12 col-md-2 col-form-label">Question Title</label>
     <div class="col-sm-12 col-md-10">
-        <textarea class="form-control js-richtext" name="question_name" id="question_name_editor" rows="6"><?= isset($questionData['QUESTION_NAME']) ? $questionData['QUESTION_NAME'] : '' ?></textarea>
+        <textarea class="form-control js-richtext" name="question_name" id="question_name_editor" rows="6"><?= isset($questionData['QUESTION_NAME']) ? htmlspecialchars((string) $questionData['QUESTION_NAME'], ENT_QUOTES, 'UTF-8') : '' ?></textarea>
         <small class="text-muted">Formatting (bold, italic, lists, links) is saved as HTML and shown on the test.</small>
     </div>
 </div>

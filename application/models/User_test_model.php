@@ -380,7 +380,7 @@ class User_test_model extends CI_Model {
             INNER JOIN TEST_SERIES_QUESTIONS tsq ON tsq.QUESTION_ID = tqm.QUESTION_ID
             LEFT JOIN TEST_SECTIONS sec ON sec.SECTION_ID = tqm.SECTION_ID
             WHERE tqm.TEST_ID = ?
-            ORDER BY COALESCE(sec.SORT_ORDER, 9999), COALESCE(tqm.QUESTION_SORT, tqm.ID), tqm.ID
+            ORDER BY COALESCE(sec.SORT_ORDER, 9999) ASC, tsq.QUESTION_ID ASC, tqm.ID ASC
         ";
         $rows = $this->db->query($sql, [$test_id])->result_array();
 

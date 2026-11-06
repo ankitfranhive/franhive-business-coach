@@ -16,7 +16,7 @@ $assignmentCount = (int) ($assignment_count ?? 0);
             <div class="row">
                 <div class="col-md-8">
                     <h4>Sections — <?= htmlspecialchars($testName) ?></h4>
-                    <p class="text-muted mb-0">Section 1 → Value 2, Section 2 → Value 3, etc. Legacy tests without sections are unchanged.</p>
+                    <p class="text-muted mb-0">Section 1 → Value 2, Section 2 → Value 3, etc. Assign by question group to keep counts exact. Live test order is oldest question first (ID ascending) within each section.</p>
                 </div>
                 <div class="col-md-4 text-right">
                     <a class="btn btn-warning" href="<?= base_url('edit-test/' . $test_id) ?>">Edit test</a>
@@ -43,32 +43,18 @@ $assignmentCount = (int) ($assignment_count ?? 0);
 
                 <div class="pd-20 border-top">
                     <h5 class="mb-1">Assign questions to sections</h5>
-                    <p class="text-muted small mb-3" id="assignmentsMeta">
+                    <p class="text-muted small mb-2" id="assignmentsMeta">
                         <?= $assignmentCount > 0
                             ? htmlspecialchars((string) $assignmentCount) . ' question(s) — loading list…'
                             : 'No questions mapped yet. Use Add questions.' ?>
                     </p>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm w-100" id="assignmentsTable">
-                            <thead>
-                                <tr>
-                                    <th>Question</th>
-                                    <th>Group</th>
-                                    <th style="min-width: 200px">Section</th>
-                                </tr>
-                            </thead>
-                            <tbody id="assignmentsBody">
-                                <?php if ($assignmentCount <= 0): ?>
-                                    <tr class="assignments-placeholder">
-                                        <td colspan="3" class="text-muted">No questions mapped yet. Use Add questions.</td>
-                                    </tr>
-                                <?php else: ?>
-                                    <tr class="assignments-placeholder">
-                                        <td colspan="3" class="text-muted">Loading questions…</td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                    <div id="sectionCountsBar" class="mb-3"></div>
+                    <div id="assignmentGroups">
+                        <?php if ($assignmentCount <= 0): ?>
+                            <p class="text-muted">No questions mapped yet. Use Add questions.</p>
+                        <?php else: ?>
+                            <p class="text-muted">Loading questions…</p>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -83,7 +69,6 @@ $assignmentCount = (int) ($assignment_count ?? 0);
 <?php $this->load->view('includes/footer'); ?>
 <script>
 (function () {
-    var testId = <?= (int) $test_id ?>;
     var assignmentsUrl = <?= json_encode(base_url('test-section-assignments-json/' . $test_id)) ?>;
     var initialSections = <?= json_encode(array_map(function ($s) {
         return [
@@ -94,7 +79,6 @@ $assignmentCount = (int) ($assignment_count ?? 0);
 
     var container = document.getElementById('sectionsEditor');
     var assignmentRows = [];
-    var assignmentsTable = null;
     var assignmentsLoaded = false;
 
     function escapeHtml(s) {
@@ -111,78 +95,132 @@ $assignmentCount = (int) ($assignment_count ?? 0);
         return html;
     }
 
-    function destroyAssignmentsTable() {
-        if (assignmentsTable && window.jQuery && jQuery.fn.DataTable) {
-            assignmentsTable.destroy();
-            assignmentsTable = null;
-        }
-    }
-
-    function initAssignmentsTable() {
-        if (!window.jQuery || !jQuery.fn.DataTable) {
-            return;
-        }
-        assignmentsTable = jQuery('#assignmentsTable').DataTable({
-            pageLength: 50,
-            deferRender: true,
-            order: [],
-            autoWidth: false,
-            language: { emptyTable: 'No questions mapped yet.' }
-        });
-    }
-
-    function bindAssignmentSelect(tr, rowIndex) {
-        var sel = tr.querySelector('.assign-section');
-        if (!sel) return;
-        sel.addEventListener('change', function () {
-            if (assignmentRows[rowIndex]) {
-                assignmentRows[rowIndex].section_index = sel.value;
+    function groupedRows() {
+        var groups = {};
+        var order = [];
+        assignmentRows.forEach(function (row) {
+            var key = row.question_group || '(No group)';
+            if (!groups[key]) {
+                groups[key] = [];
+                order.push(key);
             }
+            groups[key].push(row);
         });
+        order.sort(function (a, b) { return a.localeCompare(b); });
+        order.forEach(function (key) {
+            groups[key].sort(function (a, b) {
+                return (a.question_id || 0) - (b.question_id || 0);
+            });
+        });
+        return { order: order, groups: groups };
+    }
+
+    function renderCounts() {
+        var bar = document.getElementById('sectionCountsBar');
+        if (!bar) return;
+        var names = [];
+        container.querySelectorAll('.section-name').forEach(function (inp, idx) {
+            names[idx] = inp.value.trim() || ('Section ' + (idx + 1));
+        });
+        var counts = {};
+        var unassigned = 0;
+        assignmentRows.forEach(function (row) {
+            if (row.section_index === '' || row.section_index === null || row.section_index === undefined) {
+                unassigned++;
+                return;
+            }
+            var idx = String(row.section_index);
+            counts[idx] = (counts[idx] || 0) + 1;
+        });
+        var parts = names.map(function (name, idx) {
+            return '<span class="badge badge-info mr-2 mb-1">' + escapeHtml(name) + ': ' + (counts[String(idx)] || 0) + '</span>';
+        });
+        if (unassigned) {
+            parts.push('<span class="badge badge-secondary mr-2 mb-1">Unassigned: ' + unassigned + '</span>');
+        }
+        bar.innerHTML = parts.join(' ');
     }
 
     function renderAssignmentRows() {
-        var tbody = document.getElementById('assignmentsBody');
-        destroyAssignmentsTable();
-        tbody.innerHTML = '';
-
+        var wrap = document.getElementById('assignmentGroups');
+        wrap.innerHTML = '';
         if (!assignmentRows.length) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-muted">No questions mapped yet. Use Add questions.</td></tr>';
+            wrap.innerHTML = '<p class="text-muted">No questions mapped yet. Use Add questions.</p>';
+            renderCounts();
             return;
         }
 
-        var frag = document.createDocumentFragment();
-        assignmentRows.forEach(function (row, idx) {
-            var tr = document.createElement('tr');
-            tr.setAttribute('data-mapping-id', String(row.mapping_id));
-            tr.innerHTML =
-                '<td>' + escapeHtml(row.question_label || '') + '</td>' +
-                '<td>' + escapeHtml(row.question_group || '') + '</td>' +
-                '<td><select class="form-control form-control-sm assign-section">' +
-                sectionOptionsHtml(row.section_index !== undefined && row.section_index !== null ? row.section_index : '') +
-                '</select></td>';
-            bindAssignmentSelect(tr, idx);
-            frag.appendChild(tr);
+        var grouped = groupedRows();
+        grouped.order.forEach(function (groupName) {
+            var rows = grouped.groups[groupName];
+            var card = document.createElement('div');
+            card.className = 'border rounded mb-3';
+            card.innerHTML =
+                '<div class="d-flex flex-wrap align-items-center justify-content-between p-2 bg-light">' +
+                    '<strong>' + escapeHtml(groupName) + ' <span class="text-muted font-weight-normal">(' + rows.length + ' questions)</span></strong>' +
+                    '<div class="d-flex align-items-center mt-1 mt-md-0">' +
+                        '<span class="small text-muted mr-2">Assign all in this group:</span>' +
+                        '<select class="form-control form-control-sm assign-group" data-group="' + escapeHtml(groupName) + '" style="min-width:220px">' +
+                            sectionOptionsHtml('') +
+                        '</select>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="table-responsive"><table class="table table-sm table-bordered mb-0">' +
+                    '<thead><tr><th>ID</th><th>Question</th><th style="min-width:200px">Section</th></tr></thead>' +
+                    '<tbody></tbody>' +
+                '</table></div>';
+            var tbody = card.querySelector('tbody');
+            rows.forEach(function (row) {
+                var tr = document.createElement('tr');
+                tr.setAttribute('data-mapping-id', String(row.mapping_id));
+                tr.innerHTML =
+                    '<td>' + (row.question_id || '') + '</td>' +
+                    '<td>' + escapeHtml(row.question_label || '') + '</td>' +
+                    '<td><select class="form-control form-control-sm assign-section">' +
+                    sectionOptionsHtml(row.section_index !== undefined && row.section_index !== null ? row.section_index : '') +
+                    '</select></td>';
+                tbody.appendChild(tr);
+            });
+            wrap.appendChild(card);
         });
-        tbody.appendChild(frag);
-        initAssignmentsTable();
+        renderCounts();
     }
 
     function rebuildAssignmentDropdowns() {
-        document.querySelectorAll('#assignmentsBody tr[data-mapping-id]').forEach(function (tr) {
-            var mappingId = parseInt(tr.getAttribute('data-mapping-id'), 10);
-            var sel = tr.querySelector('.assign-section');
-            if (!sel) return;
-            var row = assignmentRows.find(function (r) { return r.mapping_id === mappingId; });
+        document.querySelectorAll('#assignmentGroups .assign-section, #assignmentGroups .assign-group').forEach(function (sel) {
+            var mappingId = sel.classList.contains('assign-section')
+                ? parseInt(sel.closest('tr').getAttribute('data-mapping-id'), 10)
+                : null;
+            var row = mappingId ? assignmentRows.find(function (r) { return r.mapping_id === mappingId; }) : null;
             var prev = row ? row.section_index : sel.value;
             var maxIdx = container.querySelectorAll('.section-name').length;
             sel.innerHTML = sectionOptionsHtml('');
             if (prev !== '' && prev !== null && prev !== undefined && parseInt(prev, 10) >= 0 && parseInt(prev, 10) < maxIdx) {
                 sel.value = String(prev);
-                if (row) row.section_index = sel.value;
             }
         });
+        renderCounts();
     }
+
+    document.getElementById('assignmentGroups').addEventListener('change', function (e) {
+        var sel = e.target;
+        if (sel.classList.contains('assign-section')) {
+            var mappingId = parseInt(sel.closest('tr').getAttribute('data-mapping-id'), 10);
+            var row = assignmentRows.find(function (r) { return r.mapping_id === mappingId; });
+            if (row) row.section_index = sel.value;
+            renderCounts();
+        }
+        if (sel.classList.contains('assign-group')) {
+            var groupName = sel.getAttribute('data-group');
+            assignmentRows.forEach(function (row) {
+                var key = row.question_group || '(No group)';
+                if (key === groupName) {
+                    row.section_index = sel.value;
+                }
+            });
+            renderAssignmentRows();
+        }
+    });
 
     function loadAssignments() {
         if (<?= (int) $assignmentCount ?> <= 0) {
@@ -201,6 +239,7 @@ $assignmentCount = (int) ($assignment_count ?? 0);
                 assignmentRows = (data.rows || []).map(function (r) {
                     return {
                         mapping_id: r.mapping_id,
+                        question_id: r.question_id,
                         question_label: r.question_label,
                         question_group: r.question_group,
                         section_index: r.section_index !== undefined && r.section_index !== null && r.section_index !== ''
@@ -210,16 +249,15 @@ $assignmentCount = (int) ($assignment_count ?? 0);
                 });
                 var meta = document.getElementById('assignmentsMeta');
                 if (meta) {
-                    meta.textContent = assignmentRows.length + ' question(s). Use search/pagination below; assignments are saved for all questions.';
+                    meta.textContent = assignmentRows.length + ' question(s), grouped by question group. Use “Assign all in this group” then Save.';
                 }
                 renderAssignmentRows();
                 assignmentsLoaded = true;
                 if (window.adminTestHideLoader) adminTestHideLoader();
             })
             .catch(function (err) {
-                var tbody = document.getElementById('assignmentsBody');
-                tbody.innerHTML = '<tr><td colspan="3" class="text-danger">Could not load questions (' +
-                    escapeHtml(err.message || 'error') + '). Refresh the page or try again in a moment.</td></tr>';
+                document.getElementById('assignmentGroups').innerHTML =
+                    '<p class="text-danger">Could not load questions (' + escapeHtml(err.message || 'error') + '). Refresh the page.</p>';
                 if (window.adminTestHideLoader) adminTestHideLoader();
             });
     }
@@ -232,7 +270,7 @@ $assignmentCount = (int) ($assignment_count ?? 0);
             row.innerHTML =
                 '<div class="col-md-1 text-muted">#' + (idx + 1) + '</div>' +
                 '<div class="col-md-8">' +
-                '<input type="text" class="form-control section-name" data-id="' + (sec.id || '') + '" value="' + (sec.name || '').replace(/"/g, '&quot;') + '" placeholder="Section name (e.g. Section A)">' +
+                '<input type="text" class="form-control section-name" data-id="' + (sec.id || '') + '" value="' + (sec.name || '').replace(/"/g, '&quot;') + '" placeholder="Section name (e.g. Segment 1)">' +
                 '</div>' +
                 '<div class="col-md-2"><small class="text-muted">Value ' + (idx + 2) + '</small></div>' +
                 '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger rm-sec">&times;</button></div>';
@@ -249,10 +287,13 @@ $assignmentCount = (int) ($assignment_count ?? 0);
                 var i = Array.prototype.indexOf.call(container.children, row);
                 if (i >= 0) initialSections.splice(i, 1);
                 renderSections();
+                renderAssignmentRows();
             };
         });
         container.querySelectorAll('.section-name').forEach(function (inp) {
             inp.oninput = function () {
+                var i = Array.prototype.indexOf.call(container.querySelectorAll('.section-name'), inp);
+                if (i >= 0 && initialSections[i]) initialSections[i].name = inp.value;
                 rebuildAssignmentDropdowns();
             };
         });
@@ -261,6 +302,7 @@ $assignmentCount = (int) ($assignment_count ?? 0);
     document.getElementById('addSectionRow').onclick = function () {
         initialSections.push({ id: 0, name: '' });
         renderSections();
+        renderAssignmentRows();
     };
 
     document.getElementById('sectionsForm').onsubmit = function () {

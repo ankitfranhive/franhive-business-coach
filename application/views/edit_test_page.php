@@ -120,7 +120,7 @@
                 <div class="col-sm-12 col-md-10">
 
 
-                <textarea class="form-control js-richtext" name="test_instructions" id="test_instructions_editor" placeholder="Test instructions (HTML supported)" required><?= $testData['TEST_INSTRUCTIONS'] ?? '' ?></textarea>
+                <textarea class="form-control js-richtext" name="test_instructions" id="test_instructions_editor" placeholder="Test instructions (HTML supported)"><?= htmlspecialchars((string) ($testData['TEST_INSTRUCTIONS'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
             </div>
 
