@@ -398,7 +398,7 @@ public function update_question()
     public function save_question()
     {
         // Retrieve form data using $this->input->post('field_name');
-        $question_name = $this->input->post('question_name');
+        $question_name = $this->input->post('question_name', false);
         $total_marks = $this->input->post('question_marks');
         $question_type = $this->input->post('question_type');
         $question_group = $this->input->post('question_group');
@@ -577,6 +577,12 @@ public function update_question()
     /** JSON list for section assignment table (prevents 504 from huge HTML pages). */
     public function sectionAssignmentsJson($test_id = null)
     {
+        if (!$this->session->userdata('logged_in')) {
+            $this->output->set_status_header(401)->set_content_type('application/json')
+                ->set_output(json_encode(['ok' => false, 'error' => 'Unauthorized']));
+            return;
+        }
+
         $test_id = (int) ($test_id ?: $this->uri->segment(2));
         if ($test_id <= 0) {
             $this->output->set_status_header(400)->set_content_type('application/json')

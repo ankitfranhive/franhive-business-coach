@@ -211,8 +211,9 @@ function displayCurrentQuestion() {
 
     let currentQuestion = testQuestions[currentQuestionIndex];
 
-    document.getElementById('question').innerText =
-        "Question " + (currentQuestionIndex + 1) + ": " + currentQuestion.QUESTION_NAME;
+    document.getElementById('question').innerHTML =
+        '<span class="d-block text-muted small mb-1">Question ' + (currentQuestionIndex + 1) + '</span>' +
+        (currentQuestion.QUESTION_NAME || '');
 
     let existingResponse = responses.find(r => r.questionId === currentQuestionIndex);
 

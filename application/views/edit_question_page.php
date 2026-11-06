@@ -1,24 +1,6 @@
 <!DOCTYPE html>
 <html>
 <?php $this->load->view('includes/header'); ?>
- <script src="<?php echo base_url('vendor/tinymce/tinymce/tinymce.min.js'); ?>"></script>
-<script type="text/javascript">
-   $(function() {
-      tinymce.init({
-         selector: 'textarea',
-         plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount checklist mediaembed casechange export formatpainter pageembed linkchecker a11ychecker tinymcespellchecker permanentpen powerpaste advtable advcode editimage advtemplate ai mentions tinycomments tableofcontents footnotes mergetags autocorrect typography inlinecss markdown',
-         toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table mergetags | addcomment showcomments | spellcheckdialog a11ycheck typography | align lineheight | checklist numlist bullist indent outdent | emoticons charmap | removeformat',
-         tinycomments_mode: 'embedded',
-         tinycomments_author: 'Author name',
-         branding: false,
-         setup: function(editor) {
-            editor.on('change', function() {
-               tinymce.triggerSave(); // Update the textarea with TinyMCE content
-            });
-         }
-      });
-   });
-</script>
 <div class="mobile-menu-overlay"></div>
 
 <div class="main-container">
@@ -46,11 +28,8 @@
                 <div class="form-group row">
     <label class="col-sm-12 col-md-2 col-form-label">Question Title</label>
     <div class="col-sm-12 col-md-10">
-        <!-- <textarea class="form-control" name="question_name" id="ckeditor" placeholder="Enter question title" required><?= isset($questionData['QUESTION_NAME']) ? htmlspecialchars($questionData['QUESTION_NAME']) : '' ?></textarea> -->
-        <textarea class="form-control" name="question_name" required>
-<?= isset($questionData['QUESTION_NAME']) ? $questionData['QUESTION_NAME'] : '' ?>
-</textarea>
-
+        <textarea class="form-control js-richtext" name="question_name" id="question_name_editor" rows="6"><?= isset($questionData['QUESTION_NAME']) ? $questionData['QUESTION_NAME'] : '' ?></textarea>
+        <small class="text-muted">Formatting (bold, italic, lists, links) is saved as HTML and shown on the test.</small>
     </div>
 </div>
 
@@ -246,6 +225,15 @@ function removeOption(pos) {
   var form = document.querySelector('form[action*="update_question"]');
   if (form) {
     form.addEventListener('submit', function (e) {
+      if (window.CKEDITOR && CKEDITOR.instances.question_name_editor) {
+        CKEDITOR.instances.question_name_editor.updateElement();
+        var qHtml = CKEDITOR.instances.question_name_editor.getData();
+        if (!qHtml || qHtml.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === '') {
+          e.preventDefault();
+          alert('Please enter a question title.');
+          return;
+        }
+      }
       if (String(select.value) !== '1') return;
       const filled = Array.from(document.querySelectorAll('#options-wrapper .option-text-input'))
         .map(function (el) { return el.value.trim(); })
@@ -267,6 +255,7 @@ function removeOption(pos) {
 
 
 
+<?php $this->load->view('includes/js_ckeditor_forms'); ?>
 </body>
 <?php $this->load->view('includes/footer'); ?>
 </html>
