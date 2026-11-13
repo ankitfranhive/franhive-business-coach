@@ -39,7 +39,7 @@ $sep = 'border:1px solid #000; background:#bfbfbf; height:16px;';
                             <?php if (($r['sublabel'] ?? '') !== ''): ?><br><?= htmlspecialchars($r['sublabel']) ?><?php endif; ?>
                         </td>
                         <td style="<?= $cell ?> text-align:center;"><?= (int)($c['me'] ?? 0) ?></td>
-                        <td style="<?= $cell ?> text-align:center;"><?= (int)($c['dont_care'] ?? 0) ?></td>
+                        <td style="<?= $cell ?>"></td>
                         <td style="<?= $cell ?> text-align:center;"><?= (int)($c['not_me'] ?? 0) ?></td>
                     </tr>
                 <?php endforeach; ?>
