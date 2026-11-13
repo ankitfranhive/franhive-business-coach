@@ -80,7 +80,9 @@
                 <?php if ($attempts === 0): ?>
                     <button class="btn btn-warning">Not Submitted</button>
                 <?php elseif ($isEval === 1): ?>
-                    <button class="btn btn-success" disabled>Evaluated</button>
+                    <a href="<?= base_url('my-test-report/' . $testId) ?>" class="btn btn-info">
+                        See Result
+                    </a>
                 <?php elseif ($isEval === 0 && $isSub === 1): ?>
                     <button class="btn btn-primary">Not Evaluated</button>
                 <?php else: ?>

@@ -236,14 +236,35 @@ public function downloadReportPdf($response_id)
         $data = test_report_brs_pdf_data($this, $row);
         $html = $this->load->view('test_report_brs_pdf', $data, true);
     } elseif ($testType === 6) {
-        $data = test_report_value_pdf_data($this, $row);
-        $html = $this->load->view('test_report_value_pdf', $data, true);
+        // Students only get the simplified results table, and only after release.
+        if ((int)($row['IS_EVAL'] ?? $row['is_eval'] ?? 0) !== 1) {
+            show_error('Your result has not been released yet.', 403);
+            return;
+        }
+        $html = $this->load->view('user_test_report_value_pdf', $this->_valueTestStudentData($row), true);
     } else {
         show_error('This report type is not supported here.', 400);
         return;
     }
 
     test_report_stream_pdf($html, $filename);
+}
+
+/** Data for the student-facing Value Test results table (numbers only). */
+private function _valueTestStudentData(array $row)
+{
+    $this->load->helper(['test_report_pdf', 'test_sections']);
+    $report = test_report_value_pdf_data($this, $row);
+
+    $rawDate = $row['updated_at'] ?? $row['UPDATED_AT'] ?? $row['created_at'] ?? $row['CREATED_AT'] ?? '';
+    $ts = $rawDate ? strtotime($rawDate) : false;
+
+    return [
+        'result_groups' => value_test_student_result_groups($report),
+        'student_name'  => $row['NAME'] ?? '',
+        'result_date'   => $ts ? date('d M Y', $ts) : '',
+        'response_id'   => (int)($row['ID'] ?? $row['id'] ?? 0),
+    ];
 }
 
 
@@ -436,8 +457,26 @@ public function viewTestReport($test_id)
         return;
     }
 
-    // ✅ Only allow for type 4 and 5 here (same test series => same type)
     $testType = (int)$rows[0]['TEST_TYPE'];
+
+    // Value test: student sees only the numbers table for the latest evaluated attempt.
+    if ($testType === 6) {
+        $evaluated = null;
+        foreach ($rows as $row) { // rows are newest first
+            if ((int)($row['IS_EVAL'] ?? $row['is_eval'] ?? 0) === 1) {
+                $evaluated = $row;
+                break;
+            }
+        }
+        if ($evaluated === null) {
+            show_error('Your result has not been released yet.', 403);
+            return;
+        }
+        $this->load->view('user_test_report_value', $this->_valueTestStudentData($evaluated));
+        return;
+    }
+
+    // ✅ Only allow for type 4 and 5 here (same test series => same type)
     if (!in_array($testType, [4, 5], true)) {
         show_error('This report type is not supported here.', 400);
         return;

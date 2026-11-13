@@ -63,7 +63,7 @@ $this->load->helper('test_reattempt');
 												|| ($test_reattempt_on && $is_sub === 1 && $is_eval === 1)
 											);
 
-											$result_url = in_array($test_type, [4, 5], true)
+											$result_url = in_array($test_type, [4, 5, 6], true)
 												? base_url('my-test-report/' . $test_id)
 												: base_url('my-reports');
 											$btn = 'margin:4px;';

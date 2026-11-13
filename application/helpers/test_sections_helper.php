@@ -53,6 +53,55 @@ function ensure_question_html_column_capacity($db)
     }
 }
 
+/**
+ * Student-facing "Next Door Inventory" results table: numbers only, no level names.
+ * Groups of rows: each value (2,3,4…), then even/odd (Group/Individual), then pairs (2+3, 4+5…).
+ *
+ * @return array<int, array<int, array{label:string, sublabel:string, counts:array}>>
+ */
+function value_test_student_result_groups(array $data)
+{
+    $groups = [];
+
+    $levels = [];
+    foreach ($data['values_summary'] ?? [] as $v) {
+        $levels[] = [
+            'label'    => (string) (int) $v['value_number'],
+            'sublabel' => '',
+            'counts'   => $v['counts'] ?? value_test_empty_counts(),
+        ];
+    }
+    if (!$levels) {
+        return [];
+    }
+    $groups[] = $levels;
+
+    $evenNums = [];
+    $oddNums = [];
+    foreach ($data['values_summary'] as $v) {
+        $vn = (int) $v['value_number'];
+        if (is_even_value_number($vn)) {
+            $evenNums[] = $vn;
+        } else {
+            $oddNums[] = $vn;
+        }
+    }
+    $groups[] = [
+        ['label' => implode('+', $evenNums), 'sublabel' => 'Group', 'counts' => $data['even_values_summary'] ?? value_test_empty_counts()],
+        ['label' => implode('+', $oddNums), 'sublabel' => 'Individual', 'counts' => $data['odd_values_summary'] ?? value_test_empty_counts()],
+    ];
+
+    $pairs = [];
+    foreach ($data['pair_values_summary'] ?? [] as $p) {
+        $pairs[] = ['label' => $p['label'], 'sublabel' => '', 'counts' => $p['counts']];
+    }
+    if ($pairs) {
+        $groups[] = $pairs;
+    }
+
+    return $groups;
+}
+
 /** Section index 1 → value 2, 2 → 3, … */
 function value_number_from_section_sort($sectionSortOrder)
 {
@@ -125,6 +174,8 @@ function value_test_apply_section_analytics(array &$data, $db, $test_id)
     }
 
     $data['has_section_analytics'] = false;
+    $data['values_summary'] = [];
+    $data['pair_values_summary'] = [];
     if (!$useSections) {
         return;
     }
@@ -198,8 +249,33 @@ function value_test_apply_section_analytics(array &$data, $db, $test_id)
     }
     unset($s);
 
+    // Consecutive pairs (2+3, 4+5, 6+7, …): even value + the odd value after it.
+    $pairs = [];
+    foreach (array_keys($valuesSummary) as $vn) {
+        $start = is_even_value_number($vn) ? $vn : $vn - 1;
+        if ($start < 2 || isset($pairs[$start])) {
+            continue;
+        }
+        $counts = value_test_empty_counts();
+        foreach ([$start, $start + 1] as $member) {
+            if (!isset($valuesSummary[$member])) {
+                continue;
+            }
+            foreach ($counts as $k => $_) {
+                $counts[$k] += (int) ($valuesSummary[$member]['counts'][$k] ?? 0);
+            }
+        }
+        $pairs[$start] = [
+            'label'  => $start . '+' . ($start + 1),
+            'values' => [$start, $start + 1],
+            'counts' => $counts,
+        ];
+    }
+    ksort($pairs);
+
     $data['values_summary'] = array_values($valuesSummary);
     $data['even_values_summary'] = $even;
     $data['odd_values_summary'] = $odd;
+    $data['pair_values_summary'] = array_values($pairs);
     $data['has_section_analytics'] = count($sections) > 0;
 }
