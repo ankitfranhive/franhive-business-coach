@@ -6,7 +6,7 @@
 </head>
 <body>
 <?php $this->load->view('partials/value_test_result_table', [
-    'result_groups' => $result_groups ?? [],
+    'result_rows'   => $result_rows ?? [],
     'student_name'  => $student_name ?? '',
     'result_date'   => $result_date ?? '',
 ]); ?>

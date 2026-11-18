@@ -260,7 +260,7 @@ private function _valueTestStudentData(array $row)
     $ts = $rawDate ? strtotime($rawDate) : false;
 
     return [
-        'result_groups' => value_test_student_result_groups($report),
+        'result_rows'   => value_test_student_result_rows($report),
         'student_name'  => $row['NAME'] ?? '',
         'result_date'   => $ts ? date('d M Y', $ts) : '',
         'response_id'   => (int)($row['ID'] ?? $row['id'] ?? 0),

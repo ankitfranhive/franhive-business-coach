@@ -54,52 +54,34 @@ function ensure_question_html_column_capacity($db)
 }
 
 /**
- * Student-facing "Next Door Inventory" results table: numbers only, no level names.
- * Groups of rows: each value (2,3,4…), then even/odd (Group/Individual), then pairs (2+3, 4+5…).
- *
- * @return array<int, array<int, array{label:string, sublabel:string, counts:array}>>
+ * Levels whose student-facing scores are doubled (client methodology: these levels
+ * are scored ×2 on the student results table). Admin report keeps raw counts.
  */
-function value_test_student_result_groups(array $data)
+function value_test_student_level_multipliers()
 {
-    $groups = [];
+    return [2 => 2, 7 => 2];
+}
 
-    $levels = [];
+/**
+ * Student-facing "Next Door Inventory" results table: one row per level (2,3,4…),
+ * numbers only, Me / Not me only. Group/Individual and pair sums are admin-only.
+ *
+ * @return array<int, array{label:string, me:int, not_me:int}>
+ */
+function value_test_student_result_rows(array $data)
+{
+    $multipliers = value_test_student_level_multipliers();
+    $rows = [];
     foreach ($data['values_summary'] ?? [] as $v) {
-        $levels[] = [
-            'label'    => (string) (int) $v['value_number'],
-            'sublabel' => '',
-            'counts'   => $v['counts'] ?? value_test_empty_counts(),
+        $vn = (int) $v['value_number'];
+        $m = $multipliers[$vn] ?? 1;
+        $rows[] = [
+            'label'  => (string) $vn,
+            'me'     => (int) ($v['counts']['me'] ?? 0) * $m,
+            'not_me' => (int) ($v['counts']['not_me'] ?? 0) * $m,
         ];
     }
-    if (!$levels) {
-        return [];
-    }
-    $groups[] = $levels;
-
-    $evenNums = [];
-    $oddNums = [];
-    foreach ($data['values_summary'] as $v) {
-        $vn = (int) $v['value_number'];
-        if (is_even_value_number($vn)) {
-            $evenNums[] = $vn;
-        } else {
-            $oddNums[] = $vn;
-        }
-    }
-    $groups[] = [
-        ['label' => implode('+', $evenNums), 'sublabel' => 'Group', 'counts' => $data['even_values_summary'] ?? value_test_empty_counts()],
-        ['label' => implode('+', $oddNums), 'sublabel' => 'Individual', 'counts' => $data['odd_values_summary'] ?? value_test_empty_counts()],
-    ];
-
-    $pairs = [];
-    foreach ($data['pair_values_summary'] ?? [] as $p) {
-        $pairs[] = ['label' => $p['label'], 'sublabel' => '', 'counts' => $p['counts']];
-    }
-    if ($pairs) {
-        $groups[] = $pairs;
-    }
-
-    return $groups;
+    return $rows;
 }
 
 /** Section index 1 → value 2, 2 → 3, … */
